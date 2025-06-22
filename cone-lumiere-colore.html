@@ -1,0 +1,2406 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Heatmap des Cônes de Lumière</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+            color: white;
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+        }
+        
+        #canvas {
+            display: block;
+            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><text y="24" font-size="24">🚫</text></svg>') 16 16, not-allowed;
+        }
+        
+        #canvas.inside-cone {
+            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><text y="24" font-size="24">🚀</text></svg>') 16 16, pointer;
+        }
+        
+        .controls {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            max-width: 300px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .controls h3 {
+            margin-top: 0;
+            color: #4a9eff;
+            text-shadow: 0 0 10px #4a9eff;
+        }
+        
+        .control-group {
+            margin: 15px 0;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            margin: 5px 0;
+        }
+        
+        .value {
+            color: #4a9eff;
+            font-weight: bold;
+        }
+        
+        .color-limit {
+            color: #ff9f4a;
+            font-weight: bold;
+        }
+        
+        button {
+            background: #4a9eff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            transition: all 0.3s;
+            box-shadow: 0 0 10px rgba(74, 158, 255, 0.5);
+        }
+        
+        button:hover {
+            background: #3a8eef;
+            box-shadow: 0 0 20px rgba(74, 158, 255, 0.8);
+        }
+        
+        .info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            max-width: 300px;
+            font-size: 14px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .calculations {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            max-width: 400px;
+            font-size: 12px;
+            backdrop-filter: blur(10px);
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .calculations h4 {
+            color: #4a9eff;
+            margin-top: 0;
+            margin-bottom: 10px;
+            text-shadow: 0 0 5px #4a9eff;
+        }
+        
+        .calculations .formula {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 8px;
+            border-radius: 5px;
+            margin: 8px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            border-left: 3px solid #4a9eff;
+        }
+        
+        .calculations .variable {
+            color: #ff9f4a;
+            font-weight: bold;
+        }
+        
+        .calculations .result {
+            color: #00ff00;
+            font-weight: bold;
+        }
+        
+        .legend {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .gradient-bar {
+            width: 100%;
+            height: 20px;
+            background: linear-gradient(to right, #0000ff, #00ff00, #ff0000, #000000);
+            margin: 10px 0;
+            border-radius: 3px;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+        }
+        
+        .gradient-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+        }
+        
+        /* Help Modal Styles */
+        .help-modal {
+            display: none;
+            position: fixed;
+            z-index: 10000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+        }
+        
+        .help-modal-content {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            margin: 2% auto;
+            padding: 30px;
+            border: 1px solid #4a9eff;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 1000px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 0 30px rgba(74, 158, 255, 0.3);
+            color: white;
+            font-family: 'Arial', sans-serif;
+        }
+        
+        .help-close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: -10px;
+        }
+        
+        .help-close:hover,
+        .help-close:focus {
+            color: #4a9eff;
+            text-decoration: none;
+        }
+        
+        .help-button {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: #4a9eff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 16px;
+            box-shadow: 0 0 15px rgba(74, 158, 255, 0.5);
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+        
+        .help-button:hover {
+            background: #3a8eef;
+            box-shadow: 0 0 25px rgba(74, 158, 255, 0.8);
+            transform: scale(1.1);
+        }
+        
+        .help-section {
+            margin: 25px 0;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            border-left: 4px solid #4a9eff;
+        }
+        
+        .help-section h3 {
+            color: #4a9eff;
+            margin-top: 0;
+            text-shadow: 0 0 10px rgba(74, 158, 255, 0.5);
+        }
+        
+        .help-formula {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            border-left: 3px solid #ff9f4a;
+            overflow-x: auto;
+        }
+        
+        .help-variable {
+            color: #ff9f4a;
+            font-weight: bold;
+        }
+        
+        .help-constant {
+            color: #00ff00;
+            font-weight: bold;
+        }
+        
+        .help-example {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-left: 3px solid #00ff00;
+        }
+        
+        .help-warning {
+            background: rgba(255, 68, 68, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-left: 3px solid #ff4444;
+            color: #ffcccc;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    
+    <!-- Help Button -->
+    <button id="helpButton" class="help-button" title="Aide mathématique et physique">❓</button>
+    
+    <!-- Help Modal -->
+    <div id="helpModal" class="help-modal">
+        <div class="help-modal-content">
+            <span class="help-close">&times;</span>
+            <h1 style="color: #4a9eff; text-align: center; margin-bottom: 30px; text-shadow: 0 0 15px rgba(74, 158, 255, 0.5);">
+                🌌 Guide Mathématique et Physique
+            </h1>
+            
+            <div class="help-section">
+                <h3>🎯 Objectif de l'Application</h3>
+                <p>Cette application visualise interactivement les <strong>cônes de lumière</strong> en relativité restreinte et permet d'explorer les effets de <strong>l'accélération</strong> et de la <strong>dilatation temporelle</strong> à travers des trajectoires dans l'espace-temps.</p>
+                <p>Chaque clic dans un cône crée un nouveau <strong>référentiel</strong> connecté causalement, permettant de construire des trajectoires complexes et d'observer leurs effets cumulatifs.</p>
+            </div>
+
+            <div class="help-section">
+                <h3>📐 Système de Coordonnées</h3>
+                <p>Nous utilisons un diagramme d'espace-temps de Minkowski en 2D :</p>
+                <ul>
+                    <li><strong>Axe horizontal</strong> : Position spatiale <span class="help-variable">x</span></li>
+                    <li><strong>Axe vertical</strong> : Temps coordonnée <span class="help-variable">t</span> (vers le haut = futur)</li>
+                    <li><strong>Unités normalisées</strong> : <span class="help-constant">c = 1</span> (vitesse de la lumière)</li>
+                    <li><strong>Origine</strong> : Point (0, 0) au bas de l'écran</li>
+                </ul>
+                
+                <div class="help-formula">
+                    Métrique de Minkowski : ds² = -c²dt² + dx²
+                    <br>Avec c = 1 : ds² = -dt² + dx²
+                </div>
+            </div>
+
+            <div class="help-section">
+                <h3>🔆 Cônes de Lumière</h3>
+                <p>Les cônes de lumière délimitent les régions causalement connectées :</p>
+                
+                <div class="help-formula">
+                    Condition du cône de lumière : |<span class="help-variable">Δx</span>| ≤ <span class="help-constant">c</span> × <span class="help-variable">Δt</span>
+                    <br>Avec c = 1 : |<span class="help-variable">Δx</span>| ≤ <span class="help-variable">Δt</span>
+                </div>
+                
+                <ul>
+                    <li><strong>Intérieur du cône</strong> : Connexion causale possible (v &lt; c)</li>
+                    <li><strong>Surface du cône</strong> : Propagation à la vitesse de la lumière (v = c)</li>
+                    <li><strong>Extérieur du cône</strong> : Causalement déconnecté (v &gt; c)</li>
+                </ul>
+                
+                <div class="help-example">
+                    <strong>💡 Exemple :</strong> Si Δt = 3 unités, alors |Δx| doit être ≤ 3 unités pour rester dans le cône.
+                </div>
+            </div>
+
+            <div class="help-section">
+                <h3>🚀 Accélération Relativiste</h3>
+                <p>Pour une trajectoire d'accélération constante entre deux événements :</p>
+                
+                <div class="help-formula">
+                    Accélération propre : <span class="help-variable">a</span> = 2|<span class="help-variable">ΔX</span>|<span class="help-constant">c²</span> / (<span class="help-variable">ΔT²</span> - <span class="help-variable">ΔX²</span>)
+                </div>
+                
+                <div class="help-formula">
+                    Vitesse finale : <span class="help-variable">v</span> = (<span class="help-variable">a</span><span class="help-variable">ΔT</span>) / √(1 + (<span class="help-variable">a</span><span class="help-variable">ΔT</span>/<span class="help-constant">c</span>)²)
+                </div>
+                
+                <div class="help-formula">
+                    Trajectoire hyperbolique : <span class="help-variable">x</span>(t) = (<span class="help-constant">c²</span>/<span class="help-variable">a</span>) × (√(1 + (<span class="help-variable">at</span>/<span class="help-constant">c</span>)²) - 1)
+                </div>
+                
+                <div class="help-warning">
+                    ⚠️ <strong>Limite physique :</strong> Notre application limite les vitesses à 99.9% de c pour éviter les singularités numériques.
+                </div>
+            </div>
+
+            <div class="help-section">
+                <h3>⏰ Temps Propre et Dilatation Temporelle</h3>
+                <p>Le temps propre est le temps mesuré par une horloge en mouvement :</p>
+                
+                <div class="help-formula">
+                    Temps propre : <span class="help-variable">τ</span> = (<span class="help-constant">c</span>/<span class="help-variable">a</span>) × sinh⁻¹(<span class="help-variable">a</span><span class="help-variable">ΔT</span>/<span class="help-constant">c</span>)
+                </div>
+                
+                <div class="help-formula">
+                    Facteur de Lorentz : <span class="help-variable">γ</span> = 1/√(1 - <span class="help-variable">v²</span>/<span class="help-constant">c²</span>)
+                </div>
+                
+                <div class="help-formula">
+                    Relation : <span class="help-variable">dt</span> = <span class="help-variable">γ</span> × <span class="help-variable">dτ</span>
+                </div>
+                
+                <div class="help-example">
+                    <strong>🎯 Paradoxe des jumeaux :</strong> Un voyageur accéléré vieillit moins qu'un observateur au repos. Le pourcentage affiché montre le rapport τ/t.
+                </div>
+                
+                <div style="text-align: center; margin: 15px 0;">
+                    <button class="twin-paradox-demo-btn" style="
+                        background: linear-gradient(45deg, #ff6b6b, #feca57);
+                        color: white;
+                        border: none;
+                        padding: 8px 16px;
+                        border-radius: 20px;
+                        cursor: pointer;
+                        font-size: 12px;
+                        font-weight: bold;
+                        box-shadow: 0 3px 10px rgba(255, 107, 107, 0.4);
+                        transition: all 0.3s;
+                        text-transform: uppercase;
+                        letter-spacing: 0.5px;
+                    " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                        🚀 Voir la Démo
+                    </button>
+                </div>
+            </div>
+
+            <div class="help-section">
+                <h3>➕ Addition Relativiste des Vitesses</h3>
+                <p>Les vitesses ne s'additionnent pas simplement en relativité :</p>
+                
+                <div class="help-formula">
+                    <span class="help-variable">v</span>_total = (<span class="help-variable">v₁</span> + <span class="help-variable">v₂</span>) / (1 + <span class="help-variable">v₁</span><span class="help-variable">v₂</span>/<span class="help-constant">c²</span>)
+                </div>
+                
+                <div class="help-example">
+                    <strong>💡 Exemple :</strong> Si v₁ = 0.6c et v₂ = 0.6c, alors v_total = 1.2c/(1 + 0.36) = 0.88c ≠ 1.2c
+                </div>
+                
+                <p>Cette formule garantit que la vitesse résultante reste toujours inférieure à c.</p>
+            </div>
+
+            <div class="help-section">
+                <h3>📈 Isochrones</h3>
+                <p>Les courbes orange montrent tous les événements atteignables avec le même temps propre :</p>
+                
+                <div class="help-formula">
+                    Équation d'isochrone : <span class="help-variable">t</span> = √(<span class="help-variable">τ²</span> + <span class="help-variable">x²</span>/<span class="help-constant">c²</span>)
+                </div>
+                
+                <p>Ces hyperboles révèlent la géométrie non-euclidienne de l'espace-temps de Minkowski.</p>
+                
+                <div class="help-example">
+                    <strong>🔍 Interprétation :</strong> Tous les points sur une isochrone représentent des événements que le voyageur peut atteindre en vieillissant du même temps propre τ.
+                </div>
+            </div>
+
+            <div class="help-section">
+                <h3>🎨 Code Couleur de la Heatmap</h3>
+                <ul>
+                    <li><span style="color: #0000ff;">🔵 Bleu</span> : Repos relatif (v ≈ 0)</li>
+                    <li><span style="color: #00ff00;">🟢 Vert</span> : Vitesse intermédiaire (ajustable)</li>
+                    <li><span style="color: #ff0000;">🔴 Rouge</span> : Vitesse élevée (proche de c)</li>
+                    <li><span style="color: #888;">⚫ Transparent</span> : Causalement déconnecté (v ≥ c)</li>
+                </ul>
+                
+                <div class="help-formula">
+                    Vitesse relative : <span class="help-variable">v</span> = |<span class="help-variable">Δx</span>| / <span class="help-variable">Δt</span>
+                </div>
+            </div>
+
+            <div class="help-section">
+                <h3>🎮 Utilisation Interactive</h3>
+                <ol>
+                    <li><strong>Créer un référentiel :</strong> Cliquez dans un cône de lumière</li>
+                    <li><strong>Déplacer un référentiel :</strong> Glissez-déposez les points orange</li>
+                    <li><strong>Contrainte verticale :</strong> Maintenez Ctrl pendant le déplacement</li>
+                    <li><strong>Sélectionner :</strong> Cliquez sur un point pour voir les calculs détaillés</li>
+                    <li><strong>Supprimer :</strong> Utilisez le bouton 🗑️ dans le panneau de calculs</li>
+                    <li><strong>Explorer les isochrones :</strong> Survolez les courbes orange</li>
+                </ol>
+                
+                <div class="help-example">
+                    <strong>🎓 Conseil pédagogique :</strong> Créez plusieurs référentiels en chaîne pour observer l'accumulation des effets relativistes et comparer les temps propres !
+                </div>
+                
+                <div style="text-align: center; margin: 20px 0;">
+                    <button id="twinParadoxDemo" style="
+                        background: linear-gradient(45deg, #ff6b6b, #feca57);
+                        color: white;
+                        border: none;
+                        padding: 12px 24px;
+                        border-radius: 25px;
+                        cursor: pointer;
+                        font-size: 14px;
+                        font-weight: bold;
+                        box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
+                        transition: all 0.3s;
+                        text-transform: uppercase;
+                        letter-spacing: 1px;
+                    " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                        🚀 Démo du Paradoxe des Jumeaux
+                    </button>
+                </div>
+                
+                <div class="help-example">
+                    <strong>🎭 Scénario de la démo :</strong> 
+                    <br>• <strong>Jumeau terrestre</strong> reste à l'origine (référentiel 0)
+                    <br>• <strong>Jumeau voyageur</strong> accélère vers l'espace (référentiel 1)
+                    <br>• <strong>Demi-tour</strong> à mi-parcours (référentiel 2)
+                    <br>• <strong>Retour sur Terre</strong> (référentiel 3)
+                    <br>• <strong>Comparaison</strong> des temps propres et âges !
+                </div>
+            </div>
+
+            <div class="help-section">
+                <h3>📚 Références Théoriques</h3>
+                <ul>
+                    <li><strong>Relativité restreinte</strong> : Einstein (1905)</li>
+                    <li><strong>Espace-temps de Minkowski</strong> : Hermann Minkowski (1908)</li>
+                    <li><strong>Géométrie hyperbolique</strong> : Théorie des espaces pseudo-euclidiens</li>
+                    <li><strong>Paradoxe des jumeaux</strong> : Langevin (1911)</li>
+                </ul>
+                
+                <p style="text-align: center; margin-top: 30px; color: #4a9eff;">
+                    <em>Cette application est un outil pédagogique pour explorer visuellement les concepts fondamentaux de la relativité restreinte.</em>
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="controls">
+        <h3>Contrôles du Cône</h3>
+        
+        <div class="control-group">
+            <label>Résolution : <span class="value" id="resolutionValue">Moyenne</span></label>
+            <input type="range" id="resolution" min="1" max="3" value="2" step="1">
+        </div>
+        
+        <div class="control-group">
+            <label>Limite Verte : <span class="color-limit" id="greenLimitValue">0.5c</span></label>
+            <input type="range" id="greenLimit" min="0.1" max="0.8" value="0.5" step="0.05">
+        </div>
+        
+        <div class="control-group">
+            <label>
+                <input type="checkbox" id="showPastCone" style="margin-right: 8px;">
+                Afficher cône passé
+            </label>
+        </div>
+        
+        <div class="control-group">
+            <button id="reset">Réinitialiser</button>
+            <button id="clearCones">Effacer Cônes</button>
+        </div>
+        
+        <div class="legend">
+            <strong>Vitesse relative (v/c) :</strong>
+            <div class="gradient-bar" id="gradientBar"></div>
+            <div class="gradient-labels" id="gradientLabels">
+                <span>0 (repos)</span>
+                <span id="greenLabel">0.5c</span>
+                <span>1.0c</span>
+                <span>c</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="info">
+        <strong>Heatmap du Cône de Lumière</strong>
+        <p>Chaque point coloré représente une relation causale possible depuis l'origine.</p>
+        <p>La couleur encode la vitesse relative nécessaire pour connecter ces événements.</p>
+        <p><strong>Bleu</strong> = Repos relatif<br>
+           <strong>Vert</strong> = Vitesse intermédiaire<br>
+           <strong>Rouge</strong> = Vitesse élevée<br>
+           <strong>Noir</strong> = c et au-delà (causalement déconnecté)</p>
+        <p><strong>🚀 Cliquez dans un cône pour créer un nouveau référentiel !</strong></p>
+        <p><strong>🚫 Zone causalement déconnectée</strong></p>
+        <p><em>Les lignes blanches montrent les chemins d'accélération entre référentiels.</em></p>
+        <p><em>Maintenez <strong>Ctrl</strong> en déplaçant pour contraindre à une ligne verticale.</em></p>
+    </div>
+
+    <div class="calculations">
+        <h4>Calculs</h4>
+        <p>Cliquez sur un point d'origine pour voir les calculs détaillés...</p>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Configuration
+        let config = {
+            resolution: 2,
+            greenLimit: 0.5,
+            redLimit: 1.0, // Fixed at speed of light
+            showPastCone: false
+        };
+        
+        // Physical constants
+        const SPEED_OF_LIGHT = 1; // c = 1 in our units
+        const VELOCITY_EPSILON = 0.001; // Maximum allowed approach to c (99.9% of c)
+        const MAX_VELOCITY = SPEED_OF_LIGHT * (1 - VELOCITY_EPSILON); // 0.999c
+        
+        // Function to limit velocity to stay below c
+        function limitVelocity(velocity) {
+            const absV = Math.abs(velocity);
+            if (absV >= MAX_VELOCITY) {
+                return Math.sign(velocity) * MAX_VELOCITY;
+            }
+            return velocity;
+        }
+        
+        // Drag and drop state
+        let dragState = {
+            isDragging: false,
+            draggedConeIndex: -1,
+            startX: 0,
+            startY: 0,
+            isNewCone: false,
+            hasActuallyDragged: false
+        };
+        
+        // Cartouche drag state
+        let cartoucheDragState = {
+            isDragging: false,
+            draggedConeIndex: -1,
+            startX: 0,
+            startY: 0,
+            offsetX: 0,
+            offsetY: 0
+        };
+        
+        // Manual cartouche offsets (relative to ideal position)
+        let cartoucheOffsets = {};
+        
+        // Array to store multiple cone origins with their source cone
+        let coneOrigins = [{ 
+            x: 0, 
+            y: 0, 
+            t: 0, 
+            sourceIndex: -1,
+            cumulativeVelocity: 0,
+            cumulativeProperTime: 0,
+            totalCoordinateTime: 0
+        }]; // Start with origin at bottom
+        
+        // Selected reference frame for detailed calculations
+        let selectedReferenceFrame = 0;
+        
+        // Store isochrone points globally for hover detection
+        let currentIsochronePoints = [];
+        let isochroneHoverInfo = null;
+        
+        // Resolution settings
+        const resolutionSettings = {
+            1: { name: 'Basse', pixelSize: 8 },
+            2: { name: 'Moyenne', pixelSize: 4 },
+            3: { name: 'Haute', pixelSize: 2 }
+        };
+        
+        // Resize canvas
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        
+        // Update gradient bar dynamically
+        function updateGradientBar() {
+            const gradientBar = document.getElementById('gradientBar');
+            const greenPercent = config.greenLimit * 100;
+            const redPercent = config.redLimit * 100; // Always 100% now
+            
+            gradientBar.style.background = `linear-gradient(to right, 
+                #0000ff 0%, 
+                #00ff00 ${greenPercent}%, 
+                #ff0000 ${redPercent}%, 
+                #000000 100%)`;
+            
+            // Update labels
+            document.getElementById('greenLabel').textContent = `${config.greenLimit.toFixed(2)}c`;
+            // Red label is now fixed at 1.0c
+        }
+        
+        // Color function for velocity (now dynamic)
+        function getColorForVelocity(v) {
+            // v goes from 0 to 1 (where 1 = c)
+            // Dynamic gradient: Blue (0) -> Green (greenLimit) -> Red (redLimit) -> Transparent (≥c)
+            
+            if (v >= 1) {
+                // Transparent for v ≥ c (causally disconnected)
+                return { r: 0, g: 0, b: 0, alpha: 0 };
+            }
+            
+            if (v < config.greenLimit) {
+                // Blue to Green (0 to greenLimit)
+                const t = v / config.greenLimit; // 0 to 1
+                const r = 0;
+                const g = Math.floor(255 * t);
+                const b = Math.floor(255 * (1 - t));
+                return { r, g, b, alpha: 255 };
+            } else if (v < config.redLimit) {
+                // Green to Red (greenLimit to redLimit)
+                const t = (v - config.greenLimit) / (config.redLimit - config.greenLimit); // 0 to 1
+                const r = Math.floor(255 * t);
+                const g = Math.floor(255 * (1 - t));
+                const b = 0;
+                return { r, g, b, alpha: 255 };
+            } else {
+                // Red to Transparent (redLimit to c)
+                const t = (v - config.redLimit) / (1 - config.redLimit); // 0 to 1
+                const r = Math.floor(255 * (1 - t));
+                const g = 0;
+                const b = 0;
+                const alpha = Math.floor(255 * (1 - t)); // Fade to transparent
+                return { r, g, b, alpha };
+            }
+        }
+        
+        // Calculate velocity ratio for a point in spacetime
+        function calculateVelocityRatio(x, y, t) {
+            // Distance in space
+            const spatialDistance = Math.sqrt(x * x + y * y);
+            
+            // For a light cone, points on the surface satisfy: spatialDistance = c * t
+            // Inside the cone: spatialDistance < c * t
+            // The velocity ratio is spatialDistance / (c * t)
+            
+            if (t <= 0) return 0;
+            
+            const velocityRatio = spatialDistance / t;
+            return Math.min(1, velocityRatio); // Cap at 1 (speed of light)
+        }
+        
+        // Convert screen coordinates to spacetime coordinates
+        function screenToSpacetime(screenX, screenY) {
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height - 50; // Origin at bottom with some margin
+            const scale = 2;
+            
+            const x = (screenX - centerX) / scale;
+            const t = (centerY - screenY) / scale; // Time goes up
+            
+            return { x, t };
+        }
+        
+        // Convert spacetime coordinates to screen coordinates
+        function spacetimeToScreen(x, t) {
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height - 50; // Origin at bottom with some margin
+            const scale = 2;
+            
+            const screenX = centerX + x * scale;
+            const screenY = centerY - t * scale;
+            
+            return { screenX, screenY };
+        }
+        
+        // Check if a point is inside any light cone
+        function isInsideLightCone(x, t, coneOrigin) {
+            const relativeX = x - coneOrigin.x;
+            const relativeT = t - coneOrigin.t;
+            
+            if (relativeT <= 0) return false; // Only future light cone
+            
+            const spatialDistance = Math.abs(relativeX);
+            return spatialDistance <= relativeT; // Inside light cone
+        }
+        
+        // Check if mouse position is inside any light cone and return the cone index
+        function getMouseConeIndex(mouseX, mouseY) {
+            const spacetime = screenToSpacetime(mouseX, mouseY);
+            
+            // Check from newest to oldest (reverse order for priority)
+            for (let i = coneOrigins.length - 1; i >= 0; i--) {
+                if (isInsideLightCone(spacetime.x, spacetime.t, coneOrigins[i])) {
+                    return i;
+                }
+            }
+            return -1;
+        }
+        
+        // Check if mouse is over a cone origin point
+        function getConeAtPosition(mouseX, mouseY) {
+            const threshold = 15; // Click threshold in pixels
+            
+            for (let i = 1; i < coneOrigins.length; i++) { // Skip origin (index 0)
+                const origin = coneOrigins[i];
+                const screen = spacetimeToScreen(origin.x, origin.t);
+                const distance = Math.sqrt(
+                    Math.pow(mouseX - screen.screenX, 2) + 
+                    Math.pow(mouseY - screen.screenY, 2)
+                );
+                
+                if (distance <= threshold) {
+                    return i;
+                }
+            }
+            return -1;
+        }
+        
+        // Check if a point is reachable from a source cone
+        function isReachableFromSource(targetX, targetT, sourceCone) {
+            const deltaX = targetX - sourceCone.x;
+            const deltaT = targetT - sourceCone.t;
+            
+            // Must be in the future and within the light cone
+            // Add a small margin to avoid getting too close to c
+            const margin = 0.02; // 2% margin from light cone boundary
+            return deltaT > 0 && Math.abs(deltaX) < deltaT * (1 - margin);
+        }
+        
+        // Store placements globally for mouse event access
+        let currentPlacements = [];
+        
+        // Handle mouse down - start potential drag or create new cone
+        function handleMouseDown(event) {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = event.clientX - rect.left;
+            const mouseY = event.clientY - rect.top;
+            
+            // First check if we're clicking on a cartouche (highest priority)
+            const cartoucheIndex = getCartoucheAtPosition(mouseX, mouseY, currentPlacements);
+            if (cartoucheIndex !== -1) {
+                // Start dragging the cartouche
+                cartoucheDragState.isDragging = true;
+                cartoucheDragState.draggedConeIndex = cartoucheIndex;
+                cartoucheDragState.startX = mouseX;
+                cartoucheDragState.startY = mouseY;
+                
+                // Get current offset
+                const currentOffset = cartoucheOffsets[cartoucheIndex] || { x: 0, y: 0 };
+                cartoucheDragState.offsetX = currentOffset.x;
+                cartoucheDragState.offsetY = currentOffset.y;
+                
+                canvas.style.cursor = 'grabbing';
+                event.preventDefault();
+                return;
+            }
+            
+            const existingConeIndex = getConeAtPosition(mouseX, mouseY);
+            
+            if (existingConeIndex !== -1) {
+                // Start dragging an existing cone
+                dragState.isDragging = true;
+                dragState.draggedConeIndex = existingConeIndex;
+                dragState.startX = mouseX;
+                dragState.startY = mouseY;
+                dragState.isNewCone = false;
+                dragState.hasActuallyDragged = false;
+                canvas.style.cursor = 'grabbing';
+                event.preventDefault();
+            } else {
+                // Check if we're in a cone to create a new one
+                const spacetime = screenToSpacetime(mouseX, mouseY);
+                const sourceConeIndex = getMouseConeIndex(mouseX, mouseY);
+                
+                if (sourceConeIndex !== -1 && spacetime.t > 0) {
+                    // Create new cone and start dragging it immediately
+                    const newCone = {
+                        x: spacetime.x,
+                        y: 0,
+                        t: spacetime.t,
+                        sourceIndex: sourceConeIndex
+                    };
+                    
+                    coneOrigins.push(newCone);
+                    const newConeIndex = coneOrigins.length - 1;
+                    
+                    // Start dragging the new cone
+                    dragState.isDragging = true;
+                    dragState.draggedConeIndex = newConeIndex;
+                    dragState.startX = mouseX;
+                    dragState.startY = mouseY;
+                    dragState.isNewCone = true;
+                    dragState.hasActuallyDragged = false;
+                    canvas.style.cursor = 'grabbing';
+                    event.preventDefault();
+                }
+            }
+        }
+        
+        // Handle mouse move for cursor changes and dragging
+        function handleMouseMove(event) {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = event.clientX - rect.left;
+            const mouseY = event.clientY - rect.top;
+            
+            // Check for isochrone hover (only if not dragging anything)
+            if (!cartoucheDragState.isDragging && !dragState.isDragging) {
+                checkIsochroneHover(mouseX, mouseY);
+            } else {
+                // Hide isochrone tooltip when dragging
+                isochroneHoverInfo = null;
+            }
+            
+            if (cartoucheDragState.isDragging) {
+                // Handle cartouche dragging
+                const deltaX = mouseX - cartoucheDragState.startX;
+                const deltaY = mouseY - cartoucheDragState.startY;
+                
+                cartoucheOffsets[cartoucheDragState.draggedConeIndex] = {
+                    x: cartoucheDragState.offsetX + deltaX,
+                    y: cartoucheDragState.offsetY + deltaY
+                };
+                
+                return; // Don't process other mouse interactions while dragging cartouche
+            }
+            
+            if (dragState.isDragging) {
+                // Check if we've actually moved (to distinguish from simple clicks)
+                const deltaX = Math.abs(mouseX - dragState.startX);
+                const deltaY = Math.abs(mouseY - dragState.startY);
+                if (deltaX > 3 || deltaY > 3) {
+                    dragState.hasActuallyDragged = true;
+                }
+                
+                // Handle dragging
+                const spacetime = screenToSpacetime(mouseX, mouseY);
+                const draggedCone = coneOrigins[dragState.draggedConeIndex];
+                const sourceCone = coneOrigins[draggedCone.sourceIndex];
+                
+                // If Ctrl key is held, constrain movement to x=0 (vertical line)
+                let targetX = spacetime.x;
+                let targetT = spacetime.t;
+                
+                if (event.ctrlKey) {
+                    targetX = sourceCone.x; // Keep same x position as source cone
+                }
+                
+                // Check if new position is valid (within source cone)
+                if (isReachableFromSource(targetX, targetT, sourceCone)) {
+                    // Update cone position
+                    draggedCone.x = targetX;
+                    draggedCone.t = targetT;
+                }
+            } else {
+                // Handle cursor changes
+                const cartoucheIndex = getCartoucheAtPosition(mouseX, mouseY, currentPlacements);
+                if (cartoucheIndex !== -1) {
+                    canvas.style.cursor = 'grab';
+                    return;
+                }
+                
+                const coneIndex = getConeAtPosition(mouseX, mouseY);
+                
+                if (coneIndex !== -1) {
+                    canvas.style.cursor = 'grab';
+                } else if (getMouseConeIndex(mouseX, mouseY) !== -1) {
+                    canvas.classList.add('inside-cone');
+                    canvas.style.cursor = '';
+                } else {
+                    canvas.classList.remove('inside-cone');
+                    canvas.style.cursor = '';
+                }
+            }
+        }
+        
+        // Handle mouse up - end drag
+        function handleMouseUp(event) {
+            if (cartoucheDragState.isDragging) {
+                cartoucheDragState.isDragging = false;
+                cartoucheDragState.draggedConeIndex = -1;
+                canvas.style.cursor = '';
+                return;
+            }
+            
+            if (dragState.isDragging) {
+                // If we created a new cone but didn't actually drag it, 
+                // and it's very close to the start position, keep it there
+                if (dragState.isNewCone && !dragState.hasActuallyDragged) {
+                    // Cone was created but not moved - that's fine, leave it where clicked
+                }
+                
+                dragState.isDragging = false;
+                dragState.draggedConeIndex = -1;
+                dragState.isNewCone = false;
+                dragState.hasActuallyDragged = false;
+                canvas.style.cursor = '';
+            }
+        }
+        
+        // Handle canvas click - now only for cleanup/fallback
+        function handleCanvasClick(event) {
+            // This event fires after mouseup, so we use it for cleanup only
+            // The actual cone creation is now handled in mousedown
+            
+            // Reset any cursor state if needed
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = event.clientX - rect.left;
+            const mouseY = event.clientY - rect.top;
+            
+            // Check if we clicked on a cartouche to select it
+            const clickedCartoucheIndex = getCartoucheAtPosition(mouseX, mouseY, currentPlacements);
+            if (clickedCartoucheIndex !== -1) {
+                selectedReferenceFrame = clickedCartoucheIndex;
+                updateCalculationsDisplay();
+                return; // Don't update cursor if we selected via cartouche
+            }
+            
+            // Check if we clicked on a reference frame point to select it
+            const clickedConeIndex = getConeAtPosition(mouseX, mouseY);
+            if (clickedConeIndex !== -1) {
+                selectedReferenceFrame = clickedConeIndex;
+                updateCalculationsDisplay();
+                return; // Don't update cursor if we selected a reference frame
+            }
+            
+            // Update cursor based on current position
+            const cartoucheIndex = getCartoucheAtPosition(mouseX, mouseY, currentPlacements);
+            if (cartoucheIndex !== -1) {
+                canvas.style.cursor = 'grab';
+                return;
+            }
+            
+            const coneIndex = getConeAtPosition(mouseX, mouseY);
+            if (coneIndex !== -1) {
+                canvas.style.cursor = 'grab';
+            } else if (getMouseConeIndex(mouseX, mouseY) !== -1) {
+                canvas.classList.add('inside-cone');
+                canvas.style.cursor = '';
+            } else {
+                canvas.classList.remove('inside-cone');
+                canvas.style.cursor = '';
+            }
+        }
+        
+        // Add event listeners
+        canvas.addEventListener('mousedown', handleMouseDown);
+        canvas.addEventListener('mousemove', handleMouseMove);
+        canvas.addEventListener('mouseup', handleMouseUp);
+        canvas.addEventListener('click', handleCanvasClick);
+        
+        // Calculate cumulative physics for a cone from origin
+        function calculateCumulativePhysics(coneIndex) {
+            const cone = coneOrigins[coneIndex];
+            
+            if (cone.sourceIndex === -1) {
+                // This is the origin
+                return {
+                    cumulativeVelocity: 0,
+                    cumulativeProperTime: 0,
+                    totalCoordinateTime: 0,
+                    segmentVelocity: 0,
+                    segmentAcceleration: 0,
+                    segmentProperTime: 0,
+                    segmentCoordinateTime: 0
+                };
+            }
+            
+            // Get source cone physics
+            const sourceCone = coneOrigins[cone.sourceIndex];
+            const sourcePhysics = calculateCumulativePhysics(cone.sourceIndex);
+            
+            // Calculate this segment
+            const X = cone.x - sourceCone.x;
+            const T = cone.t - sourceCone.t;
+            const c = 1;
+            
+            let segmentAcceleration, segmentVelocity, segmentProperTime;
+            
+            // Add safety margin to avoid getting too close to c
+            const safetyMargin = 0.02; // 2% margin from light cone boundary
+            
+            if (Math.abs(X) >= T * c * (1 - safetyMargin) || T <= 0) {
+                // Invalid trajectory or too close to light speed
+                segmentAcceleration = 0;
+                segmentVelocity = 0;
+                segmentProperTime = T;
+            } else if (Math.abs(X) < 0.001) {
+                // No spatial displacement
+                segmentAcceleration = 0.001;
+                segmentVelocity = 0;
+                segmentProperTime = T;
+            } else {
+                // Calculate relativistic motion starting from source velocity
+                segmentAcceleration = 2 * Math.abs(X) * c * c / (T * T - X * X);
+                const aT_over_c = segmentAcceleration * T / c;
+                segmentVelocity = (segmentAcceleration * T) / Math.sqrt(1 + aT_over_c * aT_over_c);
+                segmentProperTime = (c / segmentAcceleration) * Math.asinh(aT_over_c);
+                
+                // Apply velocity limit to segment velocity
+                segmentVelocity = limitVelocity(segmentVelocity);
+            }
+            
+            // For relativistic velocity addition: v_total = (v1 + v2) / (1 + v1*v2/c²)
+            const v1 = sourcePhysics.cumulativeVelocity;
+            const v2 = Math.sign(X) * segmentVelocity;
+            let cumulativeVelocity = (v1 + v2) / (1 + v1 * v2 / (c * c));
+            
+            // Apply velocity limit to cumulative velocity
+            cumulativeVelocity = limitVelocity(cumulativeVelocity);
+            
+            return {
+                cumulativeVelocity: cumulativeVelocity,
+                cumulativeProperTime: sourcePhysics.cumulativeProperTime + segmentProperTime,
+                totalCoordinateTime: cone.t,
+                segmentVelocity: segmentVelocity,
+                segmentAcceleration: segmentAcceleration,
+                segmentProperTime: segmentProperTime,
+                segmentCoordinateTime: T
+            };
+        }
+        
+        // Draw acceleration path between two cones
+        function drawAccelerationPath(fromCone, toCone, newConeIndex) {
+            const fromScreen = spacetimeToScreen(fromCone.x, fromCone.t);
+            const toScreen = spacetimeToScreen(toCone.x, toCone.t);
+            
+            // Calculate trajectory for constant acceleration from rest
+            const X = toCone.x - fromCone.x;  // spatial displacement
+            const T = toCone.t - fromCone.t;  // temporal displacement
+            
+            // Ensure we're going forward in time
+            if (T <= 0) return;
+            
+            const c = 1; // c = 1 in our units (45° cone)
+            
+            // Get physics for this cone and the source cone
+            const physics = calculateCumulativePhysics(newConeIndex);
+            
+            // Get initial velocity from the cone we're starting from (fromCone)
+            // We need to find the index of fromCone in coneOrigins
+            let fromConeIndex = -1;
+            for (let i = 0; i < coneOrigins.length; i++) {
+                if (coneOrigins[i] === fromCone) {
+                    fromConeIndex = i;
+                    break;
+                }
+            }
+            const fromPhysics = calculateCumulativePhysics(fromConeIndex);
+            
+            let properAccel = physics.segmentAcceleration;
+            let isValidTrajectory = !(Math.abs(X) >= T * c * (1 - 0.02)); // Same safety margin
+            
+            if (!isValidTrajectory) return; // Don't draw invalid trajectories
+            
+            // Get initial velocity from the cone we're departing from
+            const v0 = limitVelocity(fromPhysics.cumulativeVelocity); // Apply velocity limit
+            
+            // Check if this path is part of the selected reference frame's trajectory
+            const isPartOfSelectedTrajectory = isPathInSelectedTrajectory(newConeIndex);
+            
+            // Set line style based on selection
+            if (isPartOfSelectedTrajectory) {
+                ctx.strokeStyle = 'rgba(255, 255, 255, 1.0)'; // Bright white for selected
+                ctx.lineWidth = 4; // Thick line
+                ctx.setLineDash([8, 4]); // Longer dashes
+            } else {
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+            }
+            
+            ctx.beginPath();
+            ctx.moveTo(fromScreen.screenX, fromScreen.screenY);
+            
+            // Draw the relativistic acceleration trajectory with initial velocity
+            const steps = 50;
+            for (let i = 1; i <= steps; i++) {
+                const t = (i / steps) * T; // time coordinate
+                
+                // For relativistic motion with initial velocity v0 and proper acceleration a:
+                // We need to solve the relativistic equation of motion
+                // This is more complex than starting from rest
+                
+                let x, time;
+                
+                if (Math.abs(v0) < 0.001) {
+                    // Starting from rest (or nearly rest) - use the simple formula
+                    const at_over_c = properAccel * t / c;
+                    const x_rel = (c * c / properAccel) * (Math.sqrt(1 + at_over_c * at_over_c) - 1);
+                    x = fromCone.x + Math.sign(X) * x_rel;
+                } else {
+                    // Starting with initial velocity v0
+                    // We need to find the proper acceleration that gets us from 
+                    // (fromCone.x, fromCone.t) with velocity v0 to (toCone.x, toCone.t)
+                    
+                    // For relativistic motion with initial velocity, we solve:
+                    // The trajectory must satisfy the boundary conditions
+                    
+                    // Simple approach: use the calculated proper acceleration from physics
+                    // and solve the relativistic trajectory equation
+                    
+                    // At time t (relative to start), with initial velocity v0 and proper acceleration a:
+                    // The velocity as function of time is: v(t) = (v0 + at/γ0) / (1 + v0*at/(γ0*c²))
+                    // But this gets complex, so we use a different approach:
+                    
+                    const targetX = toCone.x;
+                    const targetT = toCone.t;
+                    const deltaX = targetX - fromCone.x;
+                    const deltaT = targetT - fromCone.t;
+                    
+                    // For the trajectory calculation, we use the fact that we know both
+                    // the initial velocity and the final point
+                    
+                    // Simple relativistic trajectory with initial velocity:
+                    // We approximate by combining inertial motion + acceleration correction
+                    
+                    const t_norm = t / deltaT; // Normalized time (0 to 1)
+                    
+                    // Inertial component (what would happen with constant velocity)
+                    const x_inertial = fromCone.x + v0 * t;
+                    
+                    // Acceleration component to reach the target
+                    // We need to correct the trajectory to reach the exact target
+                    const x_target_correction = deltaX - v0 * deltaT; // What acceleration must provide
+                    
+                    // Use a smooth acceleration profile that respects relativity
+                    // The correction follows a relativistic profile
+                    const gamma0 = 1 / Math.sqrt(1 - v0 * v0 / (c * c));
+                    
+                    // Relativistic acceleration contribution
+                    // Using the fact that for constant proper acceleration:
+                    // Δx = (c²/a) * [√(1 + (aΔt/c)²) - 1] for motion starting from rest
+                    // We scale this by the time parameter
+                    
+                    if (Math.abs(properAccel) > 0.001) {
+                        const aT_over_c = properAccel * t / c;
+                        const accel_component = (c * c / properAccel) * (Math.sqrt(1 + aT_over_c * aT_over_c) - 1);
+                        
+                        // Scale the acceleration component to hit the target
+                        const scale_factor = x_target_correction / ((c * c / properAccel) * (Math.sqrt(1 + (properAccel * deltaT / c) * (properAccel * deltaT / c)) - 1));
+                        
+                        x = x_inertial + scale_factor * accel_component;
+                    } else {
+                        // No significant acceleration, mostly inertial motion
+                        x = x_inertial + x_target_correction * t_norm;
+                    }
+                }
+                
+                time = fromCone.t + t;
+                
+                const pathScreen = spacetimeToScreen(x, time);
+                ctx.lineTo(pathScreen.screenX, pathScreen.screenY);
+            }
+            
+            ctx.stroke();
+            ctx.setLineDash([]); // Reset dash
+            
+            // Draw arrow at the end with appropriate size
+            const arrowLength = isPartOfSelectedTrajectory ? 15 : 10;
+            const angle = Math.atan2(toScreen.screenY - fromScreen.screenY, toScreen.screenX - fromScreen.screenX);
+            
+            ctx.beginPath();
+            ctx.moveTo(toScreen.screenX, toScreen.screenY);
+            ctx.lineTo(
+                toScreen.screenX - arrowLength * Math.cos(angle - Math.PI / 6),
+                toScreen.screenY - arrowLength * Math.sin(angle - Math.PI / 6)
+            );
+            ctx.moveTo(toScreen.screenX, toScreen.screenY);
+            ctx.lineTo(
+                toScreen.screenX - arrowLength * Math.cos(angle + Math.PI / 6),
+                toScreen.screenY - arrowLength * Math.sin(angle + Math.PI / 6)
+            );
+            ctx.stroke();
+        }
+        
+        // Calculate optimal positions for info boxes to avoid overlaps
+        function calculateBoxPlacements(boxes) {
+            if (boxes.length === 0) return [];
+            
+            const placements = [];
+            const margin = 10; // Minimum space between boxes
+            
+            // Sort boxes by priority (origin first, then by creation order)
+            boxes.sort((a, b) => {
+                if (a.isOrigin !== b.isOrigin) {
+                    return a.isOrigin ? -1 : 1; // Origin has priority
+                }
+                return a.index - b.index; // Then by creation order
+            });
+            
+            for (let i = 0; i < boxes.length; i++) {
+                const box = boxes[i];
+                let bestPosition = { x: box.idealX, y: box.idealY };
+                let bestDistance = Infinity;
+                
+                // Try different positions around the ideal position
+                const searchRadius = 150;
+                const angleStep = Math.PI / 8; // 22.5 degrees
+                const radiusStep = 30;
+                
+                // First try the ideal position
+                if (!hasCollision(box.idealX, box.idealY, box.width, box.height, placements, margin)) {
+                    bestPosition = { x: box.idealX, y: box.idealY };
+                    bestDistance = 0;
+                } else {
+                    // Search in expanding circles around the ideal position
+                    for (let radius = radiusStep; radius <= searchRadius; radius += radiusStep) {
+                        const numAngles = Math.max(8, Math.floor(2 * Math.PI * radius / 40));
+                        const currentAngleStep = (2 * Math.PI) / numAngles;
+                        
+                        for (let angle = 0; angle < 2 * Math.PI; angle += currentAngleStep) {
+                            const testX = box.idealX + Math.cos(angle) * radius;
+                            const testY = box.idealY + Math.sin(angle) * radius;
+                            
+                            // Keep boxes on screen
+                            if (testX < 0 || testY < 0 || 
+                                testX + box.width > canvas.width || 
+                                testY + box.height > canvas.height) {
+                                continue;
+                            }
+                            
+                            if (!hasCollision(testX, testY, box.width, box.height, placements, margin)) {
+                                const distance = Math.sqrt(
+                                    Math.pow(testX - box.idealX, 2) + 
+                                    Math.pow(testY - box.idealY, 2)
+                                );
+                                
+                                if (distance < bestDistance) {
+                                    bestPosition = { x: testX, y: testY };
+                                    bestDistance = distance;
+                                }
+                            }
+                        }
+                        
+                        // If we found a good position, stop searching
+                        if (bestDistance < Infinity) break;
+                    }
+                }
+                
+                placements.push({
+                    x: bestPosition.x,
+                    y: bestPosition.y,
+                    width: box.width,
+                    height: box.height,
+                    originalBox: box
+                });
+            }
+            
+            return placements;
+        }
+        
+        // Check if a box position collides with existing placements
+        function hasCollision(x, y, width, height, existingPlacements, margin) {
+            for (const placement of existingPlacements) {
+                if (x < placement.x + placement.width + margin &&
+                    x + width + margin > placement.x &&
+                    y < placement.y + placement.height + margin &&
+                    y + height + margin > placement.y) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        
+        // Draw connection line from box to its origin
+        function drawBoxConnection(fromX, fromY, toX, toY) {
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([2, 4]);
+            
+            ctx.beginPath();
+            ctx.moveTo(fromX, fromY);
+            ctx.lineTo(toX, toY);
+            ctx.stroke();
+            ctx.setLineDash([]); // Reset dash
+        }
+        
+        // Draw 2D slice of the light cone
+        function draw2DCone() {
+            // Check if canvas has valid dimensions
+            if (canvas.width === 0 || canvas.height === 0) return;
+            
+            const pixelSize = resolutionSettings[config.resolution].pixelSize;
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height - 50; // Origin at bottom with margin
+            const scale = 2; // Scale factor for visualization
+            
+            // Create image data for better performance
+            const imageData = ctx.createImageData(canvas.width, canvas.height);
+            const data = imageData.data;
+            
+            // Clear with black
+            for (let i = 0; i < data.length; i += 4) {
+                data[i] = 0;     // R
+                data[i + 1] = 0; // G
+                data[i + 2] = 0; // B
+                data[i + 3] = 255; // A
+            }
+            
+            // Draw all cones using transparency layering (oldest to newest)
+            for (let coneIndex = 0; coneIndex < coneOrigins.length; coneIndex++) {
+                const coneOrigin = coneOrigins[coneIndex];
+                const coneCenter = spacetimeToScreen(coneOrigin.x, coneOrigin.t);
+            
+            // Draw the cone heatmap
+            for (let px = 0; px < canvas.width; px += pixelSize) {
+                for (let py = 0; py < canvas.height; py += pixelSize) {
+                    // Convert pixel coordinates to spacetime coordinates
+                        const spacetime = screenToSpacetime(px, py);
+                        
+                        // Calculate relative position from this cone's origin
+                        const relativeX = spacetime.x - coneOrigin.x;
+                        const relativeT = spacetime.t - coneOrigin.t;
+                    
+                    // Only draw future light cone (t > 0)
+                        if (relativeT > 0) {
+                            const velocityRatio = calculateVelocityRatio(relativeX, 0, relativeT);
+                        
+                        // Check if point is inside the light cone
+                        if (velocityRatio <= 1) {
+                            const color = getColorForVelocity(velocityRatio);
+                            
+                                // Apply cone-specific color modulation
+                                const coneModulation = coneIndex === 0 ? 1.0 : 0.8;
+                            
+                                // Only draw if the color has some opacity
+                                if (color.alpha > 0) {
+                            // Fill pixel block
+                            for (let dx = 0; dx < pixelSize; dx++) {
+                                for (let dy = 0; dy < pixelSize; dy++) {
+                                    const index = ((py + dy) * canvas.width + (px + dx)) * 4;
+                                    if (index < data.length - 3) {
+                                                // Alpha blending with existing pixels
+                                                const newAlpha = (color.alpha / 255) * coneModulation;
+                                                const existingAlpha = data[index + 3] / 255;
+                                                const blendAlpha = newAlpha + existingAlpha * (1 - newAlpha);
+                                                
+                                                if (blendAlpha > 0) {
+                                                    // Blend colors
+                                                    const newWeight = newAlpha / blendAlpha;
+                                                    const existingWeight = (existingAlpha * (1 - newAlpha)) / blendAlpha;
+                                                    
+                                                    data[index] = Math.floor(color.r * coneModulation * newWeight + data[index] * existingWeight);
+                                                    data[index + 1] = Math.floor(color.g * coneModulation * newWeight + data[index + 1] * existingWeight);
+                                                    data[index + 2] = Math.floor(color.b * coneModulation * newWeight + data[index + 2] * existingWeight);
+                                                    data[index + 3] = Math.floor(blendAlpha * 255);
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            ctx.putImageData(imageData, 0, 0);
+            
+            // Draw acceleration paths
+            for (let i = 1; i < coneOrigins.length; i++) {
+                const cone = coneOrigins[i];
+                if (cone.sourceIndex !== -1) {
+                    drawAccelerationPath(coneOrigins[cone.sourceIndex], cone, i);
+                }
+            }
+            
+            // Draw isochrone for selected reference frame
+            drawSelectedIsochrone();
+            
+            // Draw light cone envelopes (future always, past optional)
+            drawLightConeEnvelopes();
+            
+            // Draw axes and labels
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = 1;
+            
+            // Time axis
+            ctx.beginPath();
+            ctx.moveTo(centerX, 0);
+            ctx.lineTo(centerX, canvas.height);
+            ctx.stroke();
+            
+            // Space axis
+            ctx.beginPath();
+            ctx.moveTo(0, centerY);
+            ctx.lineTo(canvas.width, centerY);
+            ctx.stroke();
+            
+            // Labels
+            ctx.fillStyle = 'white';
+            ctx.font = '14px Arial';
+            ctx.fillText('Temps', centerX + 10, 30);
+            ctx.fillText('Espace', canvas.width - 380, centerY - 10); // Moved left to avoid control panel
+            
+            // Collect all info boxes to optimize their placement
+            const infoBoxes = [];
+            
+            for (let i = 0; i < coneOrigins.length; i++) {
+                const origin = coneOrigins[i];
+                const screen = spacetimeToScreen(origin.x, origin.t);
+                
+                if (i === 0) {
+                    // Origin box
+                    infoBoxes.push({
+                        idealX: screen.screenX + 20,
+                        idealY: screen.screenY - 55,
+                        width: 120,
+                        height: 65,
+                        index: i,
+                        isOrigin: true,
+                        coneIndex: i,
+                        originX: screen.screenX,
+                        originY: screen.screenY
+                    });
+                } else {
+                    // Regular reference frame box
+                    infoBoxes.push({
+                        idealX: screen.screenX + 20,
+                        idealY: screen.screenY - 80,
+                        width: 150,
+                        height: 105,
+                        index: i,
+                        isOrigin: false,
+                        coneIndex: i,
+                        originX: screen.screenX,
+                        originY: screen.screenY
+                    });
+                }
+            }
+            
+            // Calculate optimal placements
+            const placements = calculateBoxPlacements(infoBoxes);
+            
+            // Apply manual offsets to placements
+            const finalPlacements = placements.map(placement => {
+                const coneIndex = placement.originalBox.coneIndex;
+                return applyCartoucheOffset(placement, coneIndex);
+            });
+            
+            // Store placements globally for mouse events
+            currentPlacements = finalPlacements;
+            
+            // Draw all origin points and their info boxes
+            for (const placement of finalPlacements) {
+                const i = placement.originalBox.coneIndex;
+                const origin = coneOrigins[i];
+                const screen = spacetimeToScreen(origin.x, origin.t);
+                
+                // Draw the origin point
+                ctx.fillStyle = i === 0 ? '#4a9eff' : '#ff9f4a';
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = i === 0 ? '#4a9eff' : '#ff9f4a';
+                ctx.beginPath();
+                ctx.arc(screen.screenX, screen.screenY, 5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                
+                // Draw selection indicator if this is the selected reference frame
+                if (i === selectedReferenceFrame) {
+                    ctx.strokeStyle = 'white';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(screen.screenX, screen.screenY, 8, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                
+                // Draw connection line if box was moved
+                const wasMoved = placement.x !== placement.originalBox.idealX || 
+                               placement.y !== placement.originalBox.idealY;
+                if (wasMoved) {
+                    drawBoxConnection(
+                        screen.screenX, screen.screenY,
+                        placement.x + placement.width / 2, placement.y + placement.height / 2
+                    );
+                }
+                
+                // Draw the info box at the optimized position
+                if (i === 0) {
+                    // Origin box
+                    drawOriginInfoBox(placement.x, placement.y, placement.width, placement.height);
+                } else {
+                    // Regular reference frame box
+                    drawReferenceInfoBox(placement.x, placement.y, placement.width, placement.height, i);
+                }
+            }
+            
+            // Draw isochrone hover tooltip (must be drawn last to appear on top)
+            drawIsochroneTooltip();
+        }
+        
+        // Draw origin info box
+        function drawOriginInfoBox(boxX, boxY, boxWidth, boxHeight) {
+            // Draw background box
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+            ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
+            ctx.strokeStyle = 'rgba(74, 158, 255, 0.8)';
+            ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
+            
+            // Draw selection indicator if this is the selected reference frame
+            if (selectedReferenceFrame === 0) {
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(boxX - 2, boxY - 2, boxWidth + 4, boxHeight + 4);
+            }
+            
+            // Display origin info
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+            ctx.font = 'bold 11px Arial';
+            ctx.fillText('Origine', boxX + 5, boxY + 12);
+            
+            ctx.font = '10px Arial';
+            ctx.fillText('v = 0% c', boxX + 5, boxY + 25);
+            ctx.fillText('a = 0 c²/t', boxX + 5, boxY + 37);
+            ctx.fillText('t = 0 t', boxX + 5, boxY + 49);
+            ctx.fillText('Référentiel inertiel', boxX + 5, boxY + 61);
+        }
+        
+        // Draw reference frame info box
+        function drawReferenceInfoBox(boxX, boxY, boxWidth, boxHeight, coneIndex) {
+            const physics = calculateCumulativePhysics(coneIndex);
+            const cone = coneOrigins[coneIndex];
+            const origin = coneOrigins[0];
+            
+            const finalVelocityPercent = (Math.abs(physics.segmentVelocity) / 1 * 100).toFixed(1);
+            const cumulativeVelocityPercent = (Math.abs(physics.cumulativeVelocity) / 1 * 100).toFixed(1);
+            const timeDilationPercent = ((physics.segmentProperTime / physics.segmentCoordinateTime) * 100).toFixed(1);
+            const totalTimeDilationPercent = ((physics.cumulativeProperTime / physics.totalCoordinateTime) * 100).toFixed(1);
+            const distanceFromOrigin = (cone.x - origin.x).toFixed(2);
+            
+            // Draw background box
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+            ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+            ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
+            
+            // Draw selection indicator if this is the selected reference frame
+            if (selectedReferenceFrame === coneIndex) {
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(boxX - 2, boxY - 2, boxWidth + 4, boxHeight + 4);
+            }
+            
+            // Display text
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+            ctx.font = 'bold 11px Arial';
+            ctx.fillText(`Réf ${coneIndex}`, boxX + 5, boxY + 12);
+            
+            ctx.font = '9px Arial';
+            ctx.fillText(`x = ${distanceFromOrigin}`, boxX + 5, boxY + 25);
+            ctx.fillText(`v_segment = ${finalVelocityPercent}% c`, boxX + 5, boxY + 37);
+            ctx.fillText(`v_total = ${cumulativeVelocityPercent}% c`, boxX + 5, boxY + 49);
+            ctx.fillText(`a = ${physics.segmentAcceleration.toFixed(3)} c²/t`, boxX + 5, boxY + 61);
+            ctx.fillText(`Δt_coord = ${physics.segmentCoordinateTime.toFixed(2)} t`, boxX + 5, boxY + 73);
+            ctx.fillText(`Δt_propre = ${physics.segmentProperTime.toFixed(2)} t (${timeDilationPercent}%)`, boxX + 5, boxY + 85);
+            ctx.fillText(`Total: ${physics.cumulativeProperTime.toFixed(2)}/${physics.totalCoordinateTime.toFixed(2)} t (${totalTimeDilationPercent}%)`, boxX + 5, boxY + 97);
+        }
+        
+        // Animation loop
+        function animate() {
+                draw2DCone();
+            updateCalculationsDisplay();
+            requestAnimationFrame(animate);
+        }
+        
+        // UI Controls
+        document.getElementById('resolution').addEventListener('input', (e) => {
+            config.resolution = parseInt(e.target.value);
+            document.getElementById('resolutionValue').textContent = resolutionSettings[config.resolution].name;
+        });
+        
+        document.getElementById('greenLimit').addEventListener('input', (e) => {
+            config.greenLimit = parseFloat(e.target.value);
+            document.getElementById('greenLimitValue').textContent = config.greenLimit.toFixed(2) + 'c';
+            updateGradientBar();
+        });
+        
+        
+        document.getElementById('reset').addEventListener('click', () => {
+            config.greenLimit = 0.5;
+            document.getElementById('greenLimit').value = 0.5;
+            document.getElementById('greenLimitValue').textContent = '0.5c';
+            updateGradientBar();
+        });
+        
+        document.getElementById('clearCones').addEventListener('click', () => {
+            coneOrigins = [{ x: 0, y: 0, t: 0, sourceIndex: -1 }]; // Reset to original cone only
+            selectedReferenceFrame = 0; // Reset selection to origin
+            cartoucheOffsets = {}; // Clear all manual cartouche offsets
+            updateCalculationsDisplay();
+        });
+        
+        // Initialize gradient bar
+        updateGradientBar();
+        
+        // Add event delegation for delete button (works even when button is recreated)
+        document.addEventListener('click', function(event) {
+            if (event.target.classList.contains('delete-reference-btn')) {
+                console.log('Delete button clicked!', event.target);
+                event.stopPropagation(); // Prevent other event handlers from interfering
+                event.preventDefault(); // Prevent default behavior
+                deleteSelectedReferenceFrame();
+            }
+        });
+        
+        // Try mousedown as backup in case click is intercepted
+        document.addEventListener('mousedown', function(event) {
+            if (event.target.classList.contains('delete-reference-btn')) {
+                console.log('Delete button mousedown!', event.target);
+                event.stopPropagation();
+                event.preventDefault();
+                deleteSelectedReferenceFrame();
+            }
+        }, true); // Use capture phase for higher priority
+        
+        // Help Modal Management
+        const helpButton = document.getElementById('helpButton');
+        const helpModal = document.getElementById('helpModal');
+        const helpClose = document.querySelector('.help-close');
+        
+        // Open help modal
+        helpButton.addEventListener('click', function() {
+            helpModal.style.display = 'block';
+            document.body.style.overflow = 'hidden'; // Prevent background scrolling
+        });
+        
+        // Close help modal
+        helpClose.addEventListener('click', function() {
+            helpModal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        });
+        
+        // Close modal when clicking outside
+        window.addEventListener('click', function(event) {
+            if (event.target === helpModal) {
+                helpModal.style.display = 'none';
+                document.body.style.overflow = 'auto';
+            }
+        });
+        
+        // Close modal with Escape key
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape' && helpModal.style.display === 'block') {
+                helpModal.style.display = 'none';
+                document.body.style.overflow = 'auto';
+            }
+        });
+        
+        // Twin Paradox Demo
+        document.getElementById('twinParadoxDemo').addEventListener('click', function() {
+            createTwinParadoxDemo();
+            // Close the help modal
+            helpModal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        });
+        
+        // Twin Paradox Demo (second button in Time Dilation section)
+        document.querySelector('.twin-paradox-demo-btn').addEventListener('click', function() {
+            createTwinParadoxDemo();
+            // Close the help modal
+            helpModal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        });
+        
+        // Function to create the Twin Paradox demonstration
+        function createTwinParadoxDemo() {
+            console.log('Creating Twin Paradox Demo...');
+            
+            // Clear existing reference frames (keep only origin)
+            coneOrigins = [{ 
+                x: 0, 
+                y: 0, 
+                t: 0, 
+                sourceIndex: -1,
+                cumulativeVelocity: 0,
+                cumulativeProperTime: 0,
+                totalCoordinateTime: 0
+            }];
+            
+            // Clear cartouche offsets
+            cartoucheOffsets = {};
+            
+            // Reset selection to origin
+            selectedReferenceFrame = 0;
+            
+            // Demo parameters (based on your example)
+            const T = 300; // Total time for the Earth twin (3x bigger for better visibility)
+            const X = 120; // Distance traveled by the space twin (3x bigger, well within light cone)
+            
+            // Create the twin paradox scenario (simple 3-reference version)
+            setTimeout(() => {
+                // Reference frame 1: Earth twin stays on Earth
+                const ref1 = {
+                    x: 0,    // Stays on Earth (x = 0)
+                    y: 0,
+                    t: T,    // Time T when they reunite
+                    sourceIndex: 0 // From origin
+                };
+                coneOrigins.push(ref1);
+                console.log('Created Ref 1 (Earth twin):', ref1);
+                
+                setTimeout(() => {
+                    // Reference frame 2: Space twin travels far (turnaround point)
+                    const ref2 = {
+                        x: X,           // Far distance X
+                        y: 0,
+                        t: T * 0.45,    // Less than T/2 to stay well within light cone
+                        sourceIndex: 0  // Directly from origin (departure)
+                    };
+                    coneOrigins.push(ref2);
+                    console.log('Created Ref 2 (Space twin - turnaround):', ref2);
+                    
+                    setTimeout(() => {
+                        // Reference frame 3: Space twin returns to Earth twin
+                        const ref3 = {
+                            x: 0,    // Back to Earth (same as ref1)
+                            y: 0,
+                            t: T,    // Same time as Earth twin reunion
+                            sourceIndex: 2 // From ref2 (return journey)
+                        };
+                        coneOrigins.push(ref3);
+                        console.log('Created Ref 3 (Space twin - return):', ref3);
+                        
+                        // Select ref3 to show the comparison
+                        selectedReferenceFrame = 3;
+                        updateCalculationsDisplay();
+                        
+                        console.log('Twin Paradox Demo completed!');
+                        
+                        // Show explanation
+                        setTimeout(() => {
+                            alert(`🚀 Démo du Paradoxe des Jumeaux créée !
+
+📊 Scénario simple et clair :
+• Réf 1 : Jumeau terrestre reste sur Terre (x=0, t=${T})
+• Réf 2 : Jumeau voyageur va loin (x=${X}, t=${T * 0.45})  
+• Réf 3 : Jumeau voyageur revient sur Terre (x=0, t=${T})
+
+🎯 Résultat clé :
+Les deux jumeaux se retrouvent au même endroit et au même temps coordonnée,
+MAIS le jumeau voyageur (réf 3) a un temps propre cumulé plus petit !
+
+💡 Regardez les calculs : le jumeau voyageur a vieilli moins !
+Cliquez sur réf 1 vs réf 3 pour comparer les temps propres.`);
+                        }, 500);
+                        
+                    }, 300);
+                }, 300);
+            }, 100);
+        }
+        
+        // Start animation
+        animate();
+
+        // Function to delete a reference frame and all its derived frames
+        function deleteSelectedReferenceFrame() {
+            console.log('deleteSelectedReferenceFrame called, selectedReferenceFrame:', selectedReferenceFrame);
+            
+            if (selectedReferenceFrame <= 0) {
+                console.log('Cannot delete origin, returning');
+                return; // Cannot delete origin
+            }
+            
+            const frameToDelete = selectedReferenceFrame;
+            
+            // Find all frames that derive from the frame to delete (directly or indirectly)
+            const framesToDelete = [frameToDelete];
+            
+            // Recursively find all derived frames
+            function findDerivedFrames(parentIndex) {
+                for (let i = 0; i < coneOrigins.length; i++) {
+                    const cone = coneOrigins[i];
+                    if (cone.sourceIndex === parentIndex && !framesToDelete.includes(i)) {
+                        framesToDelete.push(i);
+                        findDerivedFrames(i); // Recursively find frames derived from this one
+                    }
+                }
+            }
+            
+            findDerivedFrames(frameToDelete);
+            
+            // Sort in descending order to delete from highest index first
+            framesToDelete.sort((a, b) => b - a);
+            
+            // Delete the frames and their cartouche offsets
+            framesToDelete.forEach(index => {
+                coneOrigins.splice(index, 1);
+                delete cartoucheOffsets[index];
+            });
+            
+            // Update cartouche offsets for remaining frames (shift indices down)
+            const newCartoucheOffsets = {};
+            Object.keys(cartoucheOffsets).forEach(key => {
+                const oldIndex = parseInt(key);
+                let newIndex = oldIndex;
+                
+                // Count how many frames with lower index were deleted
+                for (const deletedIndex of framesToDelete) {
+                    if (deletedIndex < oldIndex) {
+                        newIndex--;
+                    }
+                }
+                
+                if (newIndex >= 0) {
+                    newCartoucheOffsets[newIndex] = cartoucheOffsets[key];
+                }
+            });
+            cartoucheOffsets = newCartoucheOffsets;
+            
+            // Update source indices for remaining frames
+            for (let i = 0; i < coneOrigins.length; i++) {
+                const cone = coneOrigins[i];
+                if (cone.sourceIndex >= 0) {
+                    // Count how many frames with lower or equal index were deleted
+                    let adjustment = 0;
+                    for (const deletedIndex of framesToDelete) {
+                        if (deletedIndex <= cone.sourceIndex) {
+                            adjustment++;
+                        }
+                    }
+                    cone.sourceIndex -= adjustment;
+                    
+                    // If the source was deleted, this frame should have been deleted too
+                    // This is a safety check that shouldn't normally trigger
+                    if (cone.sourceIndex < 0) {
+                        cone.sourceIndex = 0; // Fallback to origin
+                    }
+                }
+            }
+            
+            // Reset selection to origin
+            selectedReferenceFrame = 0;
+            
+            // Update display
+            updateCalculationsDisplay();
+        }
+
+        // Update calculations display
+        function updateCalculationsDisplay() {
+            const calculationsDiv = document.querySelector('.calculations');
+            
+            if (selectedReferenceFrame >= coneOrigins.length) {
+                selectedReferenceFrame = 0;
+            }
+            
+            const cone = coneOrigins[selectedReferenceFrame];
+            const physics = calculateCumulativePhysics(selectedReferenceFrame);
+            
+            // Create title with delete button if not origin
+            let titleContent = `<h4 style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
+                <span>Calculs - Référentiel ${selectedReferenceFrame}</span>`;
+            
+            if (selectedReferenceFrame > 0) {
+                titleContent += `
+                    <button class="delete-reference-btn" onclick="deleteSelectedReferenceFrame(); console.log('Inline onclick triggered');" style="
+                        background: #ff4444; 
+                        color: white; 
+                        border: none; 
+                        padding: 4px 8px; 
+                        border-radius: 3px; 
+                        cursor: pointer; 
+                        font-size: 10px;
+                        box-shadow: 0 0 3px rgba(255, 68, 68, 0.5);
+                        margin-left: 10px;
+                        pointer-events: auto;
+                        z-index: 1000;
+                        position: relative;
+                    ">🗑️</button>`;
+            }
+            
+            titleContent += `</h4>`;
+            
+            let content = titleContent;
+            
+            if (selectedReferenceFrame === 0) {
+                // Origin calculations
+                content += `
+                    <p><strong>Référentiel d'origine (repos)</strong></p>
+                    <div class="formula">v = 0 c</div>
+                    <div class="formula">a = 0 c²/t</div>
+                    <div class="formula">t_propre = t_coordonnée = 0</div>
+                    <p>Ce référentiel sert de base pour tous les calculs.</p>
+                `;
+            } else {
+                // Detailed calculations for selected reference frame
+                const sourceCone = coneOrigins[cone.sourceIndex];
+                const X = cone.x - sourceCone.x;
+                const T = cone.t - sourceCone.t;
+                const c = 1;
+                
+                content += `
+                    <p><strong>Segment depuis Réf ${cone.sourceIndex}</strong></p>
+                    
+                    <div class="formula">
+                        Déplacement spatial: <span class="variable">ΔX</span> = <span class="result">${X.toFixed(3)}</span>
+                    </div>
+                    <div class="formula">
+                        Temps coordonnée: <span class="variable">ΔT</span> = <span class="result">${T.toFixed(3)} t</span>
+                    </div>
+                    
+                    <p><strong>Accélération propre :</strong></p>
+                    <div class="formula">
+                        a = 2|ΔX|c² / (ΔT² - ΔX²)<br>
+                        a = <span class="result">${physics.segmentAcceleration.toFixed(4)} c²/t</span>
+                    </div>
+                    
+                    <p><strong>Vitesse finale du segment :</strong></p>
+                    <div class="formula">
+                        v = (aΔT) / √(1 + (aΔT/c)²)<br>
+                        v = <span class="result">${(Math.abs(physics.segmentVelocity) * 100).toFixed(1)}% c</span>
+                    </div>
+                    
+                    <p><strong>Temps propre du segment :</strong></p>
+                    <div class="formula">
+                        τ = (c/a) × asinh(aΔT/c)<br>
+                        τ = <span class="result">${physics.segmentProperTime.toFixed(3)} t</span>
+                    </div>
+                    
+                    <p><strong>Addition relativiste des vitesses :</strong></p>
+                    <div class="formula">
+                        v_total = (v₁ + v₂) / (1 + v₁v₂/c²)<br>
+                        v_total = <span class="result">${(Math.abs(physics.cumulativeVelocity) * 100).toFixed(1)}% c</span>
+                    </div>
+                    
+                    <p><strong>Temps propre cumulé :</strong></p>
+                    <div class="formula">
+                        τ_total = <span class="result">${physics.cumulativeProperTime.toFixed(3)} t</span><br>
+                        t_coord = <span class="result">${physics.totalCoordinateTime.toFixed(3)} t</span>
+                    </div>
+                    
+                    <p><strong>Dilatation temporelle :</strong></p>
+                    <div class="formula">
+                        Facteur = τ/t = <span class="result">${(physics.cumulativeProperTime / physics.totalCoordinateTime * 100).toFixed(1)}%</span>
+                    </div>
+                    
+                    <p><strong>Isochrone (courbe orange) :</strong></p>
+                    <div class="formula">
+                        Tous les points avec τ = <span class="result">${physics.cumulativeProperTime.toFixed(3)} t</span><br>
+                        Équation : t = √(τ² + x²/c²)
+                    </div>
+                    <p><em>Cette hyperbole montre tous les événements atteignables depuis l'origine avec le même temps propre !</em></p>
+                `;
+            }
+            
+            calculationsDiv.innerHTML = content;
+        }
+
+        // Check if mouse is over a cartouche
+        function getCartoucheAtPosition(mouseX, mouseY, placements) {
+            for (const placement of placements) {
+                const coneIndex = placement.originalBox.coneIndex;
+                if (mouseX >= placement.x && mouseX <= placement.x + placement.width &&
+                    mouseY >= placement.y && mouseY <= placement.y + placement.height) {
+                    return coneIndex;
+                }
+            }
+            return -1;
+        }
+        
+        // Apply manual offset to cartouche placement
+        function applyCartoucheOffset(placement, coneIndex) {
+            const offset = cartoucheOffsets[coneIndex] || { x: 0, y: 0 };
+            return {
+                ...placement,
+                x: placement.x + offset.x,
+                y: placement.y + offset.y
+            };
+        }
+
+        // Check if a path is part of the selected reference frame's trajectory
+        function isPathInSelectedTrajectory(targetConeIndex) {
+            if (selectedReferenceFrame === 0) {
+                return false; // Origin has no trajectory
+            }
+            
+            // Trace back from selected reference frame to origin
+            let currentIndex = selectedReferenceFrame;
+            const pathIndices = [];
+            
+            while (currentIndex !== -1 && currentIndex !== 0) {
+                pathIndices.push(currentIndex);
+                const currentCone = coneOrigins[currentIndex];
+                currentIndex = currentCone.sourceIndex;
+            }
+            
+            // Check if targetConeIndex is in the path
+            return pathIndices.includes(targetConeIndex);
+        }
+        
+        // Calculate isochrone points for a given proper time
+        function calculateIsochronePoints(tau, origin, selectedCone) {
+            if (tau <= 0) return [];
+            
+            // Safety checks to prevent crashes
+            if (!canvas || canvas.width <= 0 || canvas.height <= 0) {
+                return [];
+            }
+            
+            const points = [];
+            const c = 1; // c = 1 in our units
+            
+            // Calculate the maximum spatial extent based on canvas size and scale
+            const centerX = canvas.width / 2;
+            const scale = 2; // Same scale as used in spacetimeToScreen
+            
+            // Safety check for scale
+            if (scale <= 0) {
+                return [];
+            }
+            
+            const maxScreenX = canvas.width;
+            const minScreenX = 0;
+            
+            // Convert screen bounds to spacetime coordinates
+            const maxSpatialExtent = (maxScreenX - centerX) / scale;
+            const minSpatialExtent = (minScreenX - centerX) / scale;
+            
+            // Extend a bit beyond screen for smooth curves
+            const margin = 50;
+            const xMin = minSpatialExtent - margin;
+            const xMax = maxSpatialExtent + margin;
+            
+            // Safety check for valid range
+            if (xMax <= xMin) {
+                return [];
+            }
+            
+            const step = Math.max(1, Math.abs(xMax - xMin) / 500); // Adaptive step size
+            
+            // If we have a selected cone, we need to ensure the isochrone passes through it
+            // We'll use the selected cone as a reference point to calibrate the isochrone
+            let tauCalibration = 1.0; // Default calibration factor
+            
+            if (selectedCone) {
+                // Calculate what the isochrone formula would give for the selected cone position
+                const deltaX_selected = selectedCone.x - origin.x;
+                const deltaT_selected = selectedCone.t - origin.t;
+                const t_formula = Math.sqrt(tau * tau + (deltaX_selected * deltaX_selected) / (c * c));
+                
+                // The calibration factor ensures the isochrone passes through the selected point
+                if (t_formula > 0 && deltaT_selected > 0) {
+                    tauCalibration = deltaT_selected / t_formula;
+                }
+            }
+            
+            for (let x = xMin; x <= xMax; x += step) {
+                // Standard isochrone formula: t = sqrt(tau² + x²/c²)
+                // But we apply the calibration factor to make it pass through the selected cone
+                const t_base = Math.sqrt(tau * tau + (x * x) / (c * c));
+                const t = t_base * tauCalibration;
+                
+                // Check if point is within reasonable time bounds and in the future
+                if (t > 0 && t < 500 && isFinite(t)) { // Added isFinite check
+                    const absoluteX = origin.x + x;
+                    const absoluteT = origin.t + t;
+                    
+                    // Safety checks for finite values
+                    if (!isFinite(absoluteX) || !isFinite(absoluteT)) {
+                        continue;
+                    }
+                    
+                    // Only include points that are within or near the light cone from origin
+                    // Light cone constraint: |x| <= c * t (with some margin for visibility)
+                    const lightConeMargin = 1.1; // 10% margin beyond light cone
+                    const spatialDistance = Math.abs(absoluteX - origin.x);
+                    const temporalDistance = absoluteT - origin.t;
+                    
+                    if (temporalDistance > 0 && spatialDistance <= c * temporalDistance * lightConeMargin) {
+                        points.push({
+                            x: absoluteX,
+                            t: absoluteT
+                        });
+                    }
+                }
+            }
+            
+            return points;
+        }
+        
+        // Draw isochrone for the selected reference frame
+        function drawSelectedIsochrone() {
+            if (selectedReferenceFrame === 0) {
+                currentIsochronePoints = []; // Clear points if no isochrone
+                return; // No isochrone for origin
+            }
+            
+            const selectedCone = coneOrigins[selectedReferenceFrame];
+            const physics = calculateCumulativePhysics(selectedReferenceFrame);
+            const tau = physics.cumulativeProperTime;
+            
+            if (tau <= 0.01) {
+                currentIsochronePoints = []; // Clear points if no valid isochrone
+                return; // Don't draw for very small proper times
+            }
+            
+            // Calculate isochrone points from the origin (not from the selected cone)
+            const origin = coneOrigins[0];
+            const isochronePoints = calculateIsochronePoints(tau, origin, selectedCone);
+            
+            // Store points globally for hover detection
+            currentIsochronePoints = isochronePoints;
+            
+            if (isochronePoints.length < 2) return;
+            
+            // Draw the isochrone curve
+            ctx.strokeStyle = 'rgba(255, 165, 0, 0.8)'; // Orange color
+            ctx.lineWidth = 2;
+            ctx.setLineDash([10, 5]); // Distinctive dash pattern
+            
+            ctx.beginPath();
+            
+            // Convert first point to screen coordinates
+            let firstScreen = spacetimeToScreen(isochronePoints[0].x, isochronePoints[0].t);
+            ctx.moveTo(firstScreen.screenX, firstScreen.screenY);
+            
+            // Draw curve through all points
+            for (let i = 1; i < isochronePoints.length; i++) {
+                const screen = spacetimeToScreen(isochronePoints[i].x, isochronePoints[i].t);
+                
+                // Only draw if point is visible on canvas
+                if (screen.screenX >= 0 && screen.screenX <= canvas.width && 
+                    screen.screenY >= 0 && screen.screenY <= canvas.height) {
+                    ctx.lineTo(screen.screenX, screen.screenY);
+                }
+            }
+            
+            ctx.stroke();
+            ctx.setLineDash([]); // Reset dash pattern
+            
+        }
+        
+        // Check if mouse is near the isochrone curve
+        function checkIsochroneHover(mouseX, mouseY) {
+            if (currentIsochronePoints.length < 2) {
+                isochroneHoverInfo = null;
+                return;
+            }
+            
+            // Don't show isochrone tooltip if mouse is over a reference frame origin
+            const coneIndex = getConeAtPosition(mouseX, mouseY);
+            if (coneIndex !== -1) {
+                isochroneHoverInfo = null;
+                return;
+            }
+            
+            // Don't show isochrone tooltip if mouse is over a cartouche
+            const cartoucheIndex = getCartoucheAtPosition(mouseX, mouseY, currentPlacements);
+            if (cartoucheIndex !== -1) {
+                isochroneHoverInfo = null;
+                return;
+            }
+            
+            const threshold = 15; // Pixels tolerance for hover detection
+            let closestPoint = null;
+            let minDistance = Infinity;
+            
+            // Check distance to each segment of the isochrone
+            for (let i = 0; i < currentIsochronePoints.length - 1; i++) {
+                const p1 = spacetimeToScreen(currentIsochronePoints[i].x, currentIsochronePoints[i].t);
+                const p2 = spacetimeToScreen(currentIsochronePoints[i + 1].x, currentIsochronePoints[i + 1].t);
+                
+                // Calculate distance from mouse to line segment
+                const distance = distanceToLineSegment(mouseX, mouseY, p1.screenX, p1.screenY, p2.screenX, p2.screenY);
+                
+                if (distance < threshold && distance < minDistance) {
+                    minDistance = distance;
+                    // Find the closest point on the isochrone for calculations
+                    const t = Math.max(0, Math.min(1, 
+                        ((mouseX - p1.screenX) * (p2.screenX - p1.screenX) + (mouseY - p1.screenY) * (p2.screenY - p1.screenY)) /
+                        ((p2.screenX - p1.screenX) ** 2 + (p2.screenY - p1.screenY) ** 2)
+                    ));
+                    
+                    const interpolatedPoint = {
+                        x: currentIsochronePoints[i].x + t * (currentIsochronePoints[i + 1].x - currentIsochronePoints[i].x),
+                        t: currentIsochronePoints[i].t + t * (currentIsochronePoints[i + 1].t - currentIsochronePoints[i].t)
+                    };
+                    
+                    closestPoint = interpolatedPoint;
+                }
+            }
+            
+            if (closestPoint && minDistance < threshold) {
+                // Calculate physics at this point
+                const origin = coneOrigins[0];
+                const selectedCone = coneOrigins[selectedReferenceFrame];
+                const selectedPhysics = calculateCumulativePhysics(selectedReferenceFrame);
+                
+                // Calculate velocity needed to reach this point from origin
+                const deltaX = closestPoint.x - origin.x;
+                const deltaT = closestPoint.t - origin.t;
+                const velocity = deltaT > 0 ? Math.abs(deltaX / deltaT) : 0;
+                const velocityPercent = Math.min(99.9, velocity * 100);
+                
+                // Calculate proper time percentage relative to coordinate time
+                const properTime = selectedPhysics.cumulativeProperTime;
+                const coordinateTime = deltaT;
+                const properTimePercent = coordinateTime > 0 ? (properTime / coordinateTime * 100) : 100;
+                
+                isochroneHoverInfo = {
+                    x: mouseX,
+                    y: mouseY,
+                    velocityPercent: velocityPercent,
+                    properTimePercent: properTimePercent,
+                    properTime: properTime,
+                    coordinateTime: coordinateTime,
+                    spatialPosition: deltaX
+                };
+            } else {
+                isochroneHoverInfo = null;
+            }
+        }
+        
+        // Calculate distance from point to line segment
+        function distanceToLineSegment(px, py, x1, y1, x2, y2) {
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            const length = Math.sqrt(dx * dx + dy * dy);
+            
+            if (length === 0) {
+                return Math.sqrt((px - x1) ** 2 + (py - y1) ** 2);
+            }
+            
+            const t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / (length * length)));
+            const projX = x1 + t * dx;
+            const projY = y1 + t * dy;
+            
+            return Math.sqrt((px - projX) ** 2 + (py - projY) ** 2);
+        }
+        
+        // Draw isochrone hover tooltip
+        function drawIsochroneTooltip() {
+            if (!isochroneHoverInfo) return;
+            
+            const info = isochroneHoverInfo;
+            const tooltipWidth = 200;
+            const tooltipHeight = 80;
+            
+            // Position tooltip to avoid going off screen
+            let tooltipX = info.x + 15;
+            let tooltipY = info.y - tooltipHeight - 10;
+            
+            if (tooltipX + tooltipWidth > canvas.width) {
+                tooltipX = info.x - tooltipWidth - 15;
+            }
+            if (tooltipY < 0) {
+                tooltipY = info.y + 15;
+            }
+            
+            // Draw tooltip background
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
+            ctx.fillRect(tooltipX, tooltipY, tooltipWidth, tooltipHeight);
+            ctx.strokeStyle = 'rgba(255, 165, 0, 0.8)';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(tooltipX, tooltipY, tooltipWidth, tooltipHeight);
+            
+            // Draw tooltip text
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 12px Arial';
+            ctx.fillText('Point sur l\'isochrone', tooltipX + 5, tooltipY + 15);
+            
+            ctx.font = '11px Arial';
+            ctx.fillStyle = '#ff9f4a';
+            ctx.fillText(`Vitesse: ${info.velocityPercent.toFixed(1)}% c`, tooltipX + 5, tooltipY + 30);
+            
+            ctx.fillStyle = '#4a9eff';
+            ctx.fillText(`Temps propre: ${info.properTimePercent.toFixed(1)}%`, tooltipX + 5, tooltipY + 45);
+            
+            ctx.fillStyle = '#00ff00';
+            ctx.fillText(`τ = ${info.properTime.toFixed(2)}t, x = ${info.spatialPosition.toFixed(1)}`, tooltipX + 5, tooltipY + 60);
+        }
+
+        // Draw past light cone envelope for selected reference frame
+
+        
+        document.getElementById('showPastCone').addEventListener('change', (e) => {
+            config.showPastCone = e.target.checked;
+        });
+
+        // Draw light cone envelopes for selected reference frame
+        function drawLightConeEnvelopes() {
+            if (selectedReferenceFrame >= coneOrigins.length) return;
+            
+            const selectedCone = coneOrigins[selectedReferenceFrame];
+            const c = 1; // Speed of light
+            
+            // Calculate the envelope of the light cones
+            const coneOriginScreen = spacetimeToScreen(selectedCone.x, selectedCone.t);
+            
+            // Calculate extent based on canvas size
+            const maxExtent = Math.max(canvas.width, canvas.height) / 2;
+            
+            // === FUTURE LIGHT CONE (always displayed) ===
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)'; // Slightly brighter for future
+            ctx.lineWidth = 1;
+            ctx.setLineDash([2, 2]); // Short dashes for future cone
+            
+            ctx.beginPath();
+            
+            // Left boundary of future cone
+            const leftStartFuture = spacetimeToScreen(selectedCone.x, selectedCone.t);
+            ctx.moveTo(leftStartFuture.screenX, leftStartFuture.screenY);
+            
+            // Calculate a point far in the future for the left boundary
+            const futureTime = selectedCone.t + maxExtent / 2;
+            const leftFutureX = selectedCone.x - c * (futureTime - selectedCone.t);
+            const leftFutureScreen = spacetimeToScreen(leftFutureX, futureTime);
+            ctx.lineTo(leftFutureScreen.screenX, leftFutureScreen.screenY);
+            
+            // Right boundary of future cone
+            ctx.moveTo(leftStartFuture.screenX, leftStartFuture.screenY);
+            const rightFutureX = selectedCone.x + c * (futureTime - selectedCone.t);
+            const rightFutureScreen = spacetimeToScreen(rightFutureX, futureTime);
+            ctx.lineTo(rightFutureScreen.screenX, rightFutureScreen.screenY);
+            
+            ctx.stroke();
+            
+            // === PAST LIGHT CONE (optional) ===
+            if (config.showPastCone) {
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)'; // Dimmer for past
+                ctx.lineWidth = 1;
+                ctx.setLineDash([3, 3]); // Longer dashes for past cone
+                
+                ctx.beginPath();
+                
+                // Left boundary of past cone
+                const leftStartPast = spacetimeToScreen(selectedCone.x, selectedCone.t);
+                ctx.moveTo(leftStartPast.screenX, leftStartPast.screenY);
+                
+                // Calculate a point far in the past for the left boundary
+                const pastTime = selectedCone.t - maxExtent / 2;
+                const leftPastX = selectedCone.x - c * (selectedCone.t - pastTime);
+                const leftPastScreen = spacetimeToScreen(leftPastX, pastTime);
+                ctx.lineTo(leftPastScreen.screenX, leftPastScreen.screenY);
+                
+                // Right boundary of past cone
+                ctx.moveTo(leftStartPast.screenX, leftStartPast.screenY);
+                const rightPastX = selectedCone.x + c * (selectedCone.t - pastTime);
+                const rightPastScreen = spacetimeToScreen(rightPastX, pastTime);
+                ctx.lineTo(rightPastScreen.screenX, rightPastScreen.screenY);
+                
+                ctx.stroke();
+            }
+            
+            ctx.setLineDash([]); // Reset dash pattern
+            
+            // Labels removed for cleaner interface
+            // - "Cône futur" label removed (obvious from context)
+            // - Isochrone time label removed (already in cartouche)
+        }
+    </script>
+</body>
+</html>
