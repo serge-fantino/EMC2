@@ -91,9 +91,34 @@
             padding: 15px;
             border-radius: 10px;
             border: 1px solid rgba(255, 255, 255, 0.2);
-            max-width: 300px;
+            width: 300px;
             font-size: 14px;
             backdrop-filter: blur(10px);
+        }
+        
+        .info h3 {
+            color: #4a9eff;
+            margin: 0 0 15px 0;
+            text-shadow: 0 0 10px rgba(74, 158, 255, 0.5);
+            text-align: center;
+            font-size: 16px;
+        }
+        
+        .info-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .info-details {
+            transition: all 0.3s ease;
+        }
+        
+        .info-details.hidden {
+            display: none;
         }
         
         .calculations {
@@ -104,11 +129,16 @@
             padding: 20px;
             border-radius: 10px;
             border: 1px solid rgba(255, 255, 255, 0.2);
-            max-width: 400px;
+            width: 300px;
             font-size: 12px;
             backdrop-filter: blur(10px);
             max-height: 400px;
             overflow-y: auto;
+            transition: all 0.3s ease;
+        }
+        
+        .calculations.expanded {
+            max-height: 600px;
         }
         
         .calculations h4 {
@@ -275,13 +305,128 @@
             border-left: 3px solid #ff4444;
             color: #ffcccc;
         }
+        
+        .comments {
+            position: absolute;
+            top: 120px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            width: 300px;
+            font-size: 14px;
+            backdrop-filter: blur(10px);
+            max-height: 350px;
+            overflow-y: auto;
+            z-index: 100;
+        }
+        
+        .comments h3 {
+            color: #4a9eff;
+            margin: 0 0 15px 0;
+            text-shadow: 0 0 10px rgba(74, 158, 255, 0.5);
+            text-align: center;
+            font-size: 16px;
+        }
+        
+        .comments-toolbar {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .comments-toolbar button {
+            background: #666;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 10px;
+            transition: all 0.3s;
+            font-weight: bold;
+        }
+        
+        .comments-toolbar button:hover {
+            background: #888;
+            transform: scale(1.05);
+        }
+        
+        .comments-toolbar button.active {
+            background: #4a9eff;
+            box-shadow: 0 0 5px rgba(74, 158, 255, 0.5);
+        }
+        
+        .comments-toolbar #boldBtn {
+            font-weight: 900;
+        }
+        
+        .comments-toolbar #italicBtn {
+            font-style: italic;
+        }
+        
+        .comments-toolbar #underlineBtn {
+            text-decoration: underline;
+        }
+        
+        .comments-content {
+            min-height: 150px;
+            max-height: 250px;
+            overflow-y: auto;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 5px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            font-family: 'Arial', sans-serif;
+            line-height: 1.4;
+            color: white;
+            outline: none;
+        }
+        
+        .comments-content:focus {
+            border-color: #4a9eff;
+            box-shadow: 0 0 5px rgba(74, 158, 255, 0.5);
+        }
+        
+        .comments-actions {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            gap: 3px;
+        }
+        
+        .comments-actions button {
+            background: #4a9eff;
+            color: white;
+            border: none;
+            padding: 5px 8px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 10px;
+            transition: all 0.3s;
+            flex: 1;
+        }
+        
+        .comments-actions button:hover {
+            background: #3a8eef;
+            transform: scale(1.02);
+        }
+        
+        .comments-actions .clear-btn {
+            background: #ff6b6b;
+        }
+        
+        .comments-actions .clear-btn:hover {
+            background: #ff5252;
+        }
     </style>
 </head>
 <body>
     <canvas id="canvas"></canvas>
-    
-    <!-- Help Button -->
-    <button id="helpButton" class="help-button" title="Aide mathématique et physique">❓</button>
     
     <!-- Help Modal -->
     <div id="helpModal" class="help-modal">
@@ -537,22 +682,96 @@
     </div>
     
     <div class="info">
-        <strong>Heatmap du Cône de Lumière</strong>
-        <p>Chaque point coloré représente une relation causale possible depuis l'origine.</p>
-        <p>La couleur encode la vitesse relative nécessaire pour connecter ces événements.</p>
-        <p><strong>Bleu</strong> = Repos relatif<br>
-           <strong>Vert</strong> = Vitesse intermédiaire<br>
-           <strong>Rouge</strong> = Vitesse élevée<br>
-           <strong>Noir</strong> = c et au-delà (causalement déconnecté)</p>
-        <p><strong>🚀 Cliquez dans un cône pour créer un nouveau référentiel !</strong></p>
-        <p><strong>🚫 Zone causalement déconnectée</strong></p>
-        <p><em>Les lignes blanches montrent les chemins d'accélération entre référentiels.</em></p>
-        <p><em>Maintenez <strong>Ctrl</strong> en déplaçant pour contraindre à une ligne verticale.</em></p>
+        <h3>🌌 Cône de Lumière Relativiste</h3>
+        
+        <div class="info-buttons">
+            <button id="helpButton" style="
+                background: #4a9eff;
+                color: white;
+                border: none;
+                padding: 6px 12px;
+                border-radius: 15px;
+                cursor: pointer;
+                font-size: 11px;
+                font-weight: bold;
+                box-shadow: 0 0 8px rgba(74, 158, 255, 0.5);
+                transition: all 0.3s;
+            " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" title="Guide mathématique et physique">
+                ❓ Info
+            </button>
+            
+            <button id="infoPanelTwinDemo" style="
+                background: linear-gradient(45deg, #ff6b6b, #feca57);
+                color: white;
+                border: none;
+                padding: 6px 12px;
+                border-radius: 15px;
+                cursor: pointer;
+                font-size: 11px;
+                font-weight: bold;
+                box-shadow: 0 0 8px rgba(255, 107, 107, 0.4);
+                transition: all 0.3s;
+            " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" title="Démonstration du paradoxe des jumeaux">
+                🚀 Démo
+            </button>
+            
+            <button id="toggleDetails" style="
+                background: #666;
+                color: white;
+                border: none;
+                padding: 6px 12px;
+                border-radius: 15px;
+                cursor: pointer;
+                font-size: 11px;
+                font-weight: bold;
+                box-shadow: 0 0 8px rgba(102, 102, 102, 0.5);
+                transition: all 0.3s;
+            " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" title="Masquer/Afficher les détails">
+                👁️ Masquer
+            </button>
+        </div>
+        
+        <div class="info-details" id="infoDetails">
+            <p>Chaque point coloré représente une relation causale possible depuis l'origine.</p>
+            <p>La couleur encode la vitesse relative nécessaire pour connecter ces événements.</p>
+            <p><strong>Bleu</strong> = Repos relatif<br>
+               <strong>Vert</strong> = Vitesse intermédiaire<br>
+               <strong>Rouge</strong> = Vitesse élevée<br>
+               <strong>Noir</strong> = c et au-delà (causalement déconnecté)</p>
+            <p><strong>🚀 Cliquez dans un cône pour créer un nouveau référentiel !</strong></p>
+            <p><strong>🚫 Zone causalement déconnectée</strong></p>
+            <p><em>Les lignes blanches montrent les chemins d'accélération entre référentiels.</em></p>
+            <p><em>Maintenez <strong>Ctrl</strong> en déplaçant pour contraindre à une ligne verticale.</em></p>
+        </div>
     </div>
 
     <div class="calculations">
         <h4>Calculs</h4>
         <p>Cliquez sur un point d'origine pour voir les calculs détaillés...</p>
+    </div>
+
+    <div class="comments">
+        <h3>📝 Commentaires</h3>
+        
+        <div class="comments-toolbar">
+            <button id="boldBtn" title="Gras">B</button>
+            <button id="italicBtn" title="Italique">I</button>
+            <button id="underlineBtn" title="Souligné">U</button>
+            <button id="colorBtn" title="Couleur" style="background: #ff6b6b;">A</button>
+            <button id="clearFormatBtn" title="Effacer format">✗</button>
+        </div>
+        
+        <div id="commentsEditor" class="comments-content" contenteditable="true" 
+             style="white-space: pre-wrap;" 
+             placeholder="Documentez votre diagramme ici...">
+            <p style="color: #888; font-style: italic;">Cliquez ici pour ajouter vos commentaires sur le diagramme...</p>
+        </div>
+        
+        <div class="comments-actions">
+            <button id="saveComments" title="Sauvegarder commentaires + diagramme (Ctrl+S)">💾 Sauver</button>
+            <button id="loadComments" title="Charger sauvegarde complète (Ctrl+L)">📂 Charger</button>
+            <button id="clearComments" class="clear-btn" title="Effacer tout (commentaires + diagramme)">🗑️ Effacer</button>
+        </div>
     </div>
 
     <script>
@@ -1717,6 +1936,11 @@
             document.body.style.overflow = 'auto';
         });
         
+        // Twin Paradox Demo (button in info panel)
+        document.getElementById('infoPanelTwinDemo').addEventListener('click', function() {
+            createTwinParadoxDemo();
+        });
+        
         // Function to create the Twin Paradox demonstration
         function createTwinParadoxDemo() {
             console.log('Creating Twin Paradox Demo...');
@@ -1782,23 +2006,31 @@
                         
                         console.log('Twin Paradox Demo completed!');
                         
-                        // Show explanation
+                        // Update comments panel instead of showing alert
                         setTimeout(() => {
-                            alert(`🚀 Démo du Paradoxe des Jumeaux créée !
-
-📊 Scénario simple et clair :
-• Réf 1 : Jumeau terrestre reste sur Terre (x=0, t=${T})
-• Réf 2 : Jumeau voyageur va loin (x=${X}, t=${T * 0.45})  
-• Réf 3 : Jumeau voyageur revient sur Terre (x=0, t=${T})
-
-🎯 Résultat clé :
-Les deux jumeaux se retrouvent au même endroit et au même temps coordonnée,
-MAIS le jumeau voyageur (réf 3) a un temps propre cumulé plus petit !
-
-💡 Regardez les calculs : le jumeau voyageur a vieilli moins !
-Cliquez sur réf 1 vs réf 3 pour comparer les temps propres.`);
+                            const commentContent = `
+                                <div style="line-height: 1.6;">
+                                    <p><strong style="color: #ff9f4a;">📊 Scénario créé :</strong></p>
+                                    <ul style="margin: 10px 0; padding-left: 20px;">
+                                        <li><strong style="color: #4a9eff;">Réf 1</strong> : Jumeau terrestre reste sur Terre (x=0, t=${T})</li>
+                                        <li><strong style="color: #ff6b6b;">Réf 2</strong> : Jumeau voyageur va loin (x=${X}, t=${T * 0.45})</li>
+                                        <li><strong style="color: #00ff00;">Réf 3</strong> : Jumeau voyageur revient sur Terre (x=0, t=${T})</li>
+                                    </ul>
+                                    
+                                    <p><strong style="color: #feca57;">🎯 Résultat clé :</strong></p>
+                                    <p>Les deux jumeaux se retrouvent au <em>même endroit</em> et au <em>même temps coordonnée</em>, MAIS le jumeau voyageur (réf 3) a un <strong style="color: #ff6b6b;">temps propre cumulé plus petit</strong> !</p>
+                                    
+                                    <p><strong style="color: #4a9eff;">💡 Observation :</strong></p>
+                                    <p>Le jumeau voyageur a <strong>vieilli moins</strong> ! Regardez les calculs pour comparer les temps propres entre réf 1 et réf 3.</p>
+                                    
+                                    <p style="margin-top: 15px; padding: 10px; background: rgba(74, 158, 255, 0.1); border-radius: 5px; border-left: 3px solid #4a9eff;">
+                                        <em>Cliquez sur les différents référentiels pour explorer chaque étape du voyage et comprendre l'accumulation des effets relativistes.</em>
+                                    </p>
+                                </div>
+                            `;
+                            
+                            updateCommentsPanel('🚀 Démonstration du Paradoxe des Jumeaux', commentContent);
                         }, 500);
-                        
                     }, 300);
                 }, 300);
             }, 100);
@@ -2402,6 +2634,333 @@ Cliquez sur réf 1 vs réf 3 pour comparer les temps propres.`);
             // - "Cône futur" label removed (obvious from context)
             // - Isochrone time label removed (already in cartouche)
         }
+        
+        // Toggle info details
+        document.getElementById('toggleDetails').addEventListener('click', function() {
+            const infoDetails = document.getElementById('infoDetails');
+            const calculationsPanel = document.querySelector('.calculations');
+            const toggleButton = document.getElementById('toggleDetails');
+            
+            if (infoDetails.classList.contains('hidden')) {
+                // Show details
+                infoDetails.classList.remove('hidden');
+                calculationsPanel.classList.remove('expanded');
+                toggleButton.innerHTML = '👁️ Masquer';
+                toggleButton.title = 'Masquer les détails';
+            } else {
+                // Hide details
+                infoDetails.classList.add('hidden');
+                calculationsPanel.classList.add('expanded');
+                toggleButton.innerHTML = '👁️ Afficher';
+                toggleButton.title = 'Afficher les détails';
+            }
+        });
+
+        // Add event listeners for comments toolbar buttons
+        document.getElementById('boldBtn').addEventListener('click', function() {
+            document.execCommand('bold');
+            this.classList.toggle('active');
+        });
+
+        document.getElementById('italicBtn').addEventListener('click', function() {
+            document.execCommand('italic');
+            this.classList.toggle('active');
+        });
+
+        document.getElementById('underlineBtn').addEventListener('click', function() {
+            document.execCommand('underline');
+            this.classList.toggle('active');
+        });
+
+        document.getElementById('colorBtn').addEventListener('click', function() {
+            const colors = ['#ff6b6b', '#4a9eff', '#00ff00', '#feca57', '#ff9f4a', '#ffffff'];
+            const colorNames = ['Rouge', 'Bleu', 'Vert', 'Jaune', 'Orange', 'Blanc'];
+            
+            let colorChoice = prompt(`Choisissez une couleur (1-${colors.length}) :\n` + 
+                colorNames.map((name, i) => `${i+1}. ${name}`).join('\n'));
+            
+            if (colorChoice && colorChoice >= 1 && colorChoice <= colors.length) {
+                document.execCommand('foreColor', false, colors[colorChoice - 1]);
+                this.style.background = colors[colorChoice - 1];
+            }
+        });
+
+        document.getElementById('clearFormatBtn').addEventListener('click', function() {
+            document.execCommand('removeFormat');
+            // Reset toolbar button states
+            document.querySelectorAll('.comments-toolbar button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+        });
+
+        // Add event listener for save comments button
+        document.getElementById('saveComments').addEventListener('click', function() {
+            const comments = document.getElementById('commentsEditor').innerHTML;
+            
+            // Save both comments and diagram configuration
+            const saveData = {
+                comments: comments,
+                coneOrigins: coneOrigins,
+                cartoucheOffsets: cartoucheOffsets,
+                selectedReferenceFrame: selectedReferenceFrame,
+                config: config,
+                timestamp: new Date().toISOString()
+            };
+            
+            localStorage.setItem('lightConeComments', comments);
+            localStorage.setItem('lightConeDiagram', JSON.stringify(saveData));
+            
+            // Visual feedback
+            this.innerHTML = '✅ Sauvé !';
+            this.style.background = '#00ff00';
+            setTimeout(() => {
+                this.innerHTML = '💾 Sauver';
+                this.style.background = '#4a9eff';
+            }, 1500);
+            
+            console.log('Saved diagram with', coneOrigins.length, 'reference frames');
+        });
+
+        // Add event listener for clear comments button
+        document.getElementById('clearComments').addEventListener('click', function() {
+            if (confirm('Êtes-vous sûr de vouloir effacer tous les commentaires ET la configuration du diagramme ?')) {
+                // Clear comments
+                document.getElementById('commentsEditor').innerHTML = '<p style="color: #888; font-style: italic;">Cliquez ici pour ajouter vos commentaires sur le diagramme...</p>';
+                
+                // Clear diagram configuration
+                coneOrigins = [{ 
+                    x: 0, 
+                    y: 0, 
+                    t: 0, 
+                    sourceIndex: -1,
+                    cumulativeVelocity: 0,
+                    cumulativeProperTime: 0,
+                    totalCoordinateTime: 0
+                }];
+                selectedReferenceFrame = 0;
+                cartoucheOffsets = {};
+                
+                // Remove both saved data
+                localStorage.removeItem('lightConeComments');
+                localStorage.removeItem('lightConeDiagram');
+                
+                // Update display
+                updateCalculationsDisplay();
+                
+                console.log('Cleared all saved data and reset diagram');
+            }
+        });
+        
+        // Load saved comments on page load
+        window.addEventListener('load', function() {
+            // Try to load complete diagram data first
+            const savedDiagram = localStorage.getItem('lightConeDiagram');
+            
+            if (savedDiagram) {
+                try {
+                    const saveData = JSON.parse(savedDiagram);
+                    
+                    // Restore diagram configuration
+                    if (saveData.coneOrigins && Array.isArray(saveData.coneOrigins)) {
+                        coneOrigins = saveData.coneOrigins;
+                        console.log('Restored', coneOrigins.length, 'reference frames');
+                    }
+                    
+                    if (saveData.cartoucheOffsets) {
+                        cartoucheOffsets = saveData.cartoucheOffsets;
+                    }
+                    
+                    if (saveData.selectedReferenceFrame !== undefined) {
+                        selectedReferenceFrame = saveData.selectedReferenceFrame;
+                    }
+                    
+                    if (saveData.config) {
+                        // Restore configuration settings
+                        config = { ...config, ...saveData.config };
+                        
+                        // Update UI controls to match restored config
+                        document.getElementById('resolution').value = config.resolution;
+                        document.getElementById('resolutionValue').textContent = resolutionSettings[config.resolution].name;
+                        document.getElementById('greenLimit').value = config.greenLimit;
+                        document.getElementById('greenLimitValue').textContent = config.greenLimit.toFixed(2) + 'c';
+                        document.getElementById('showPastCone').checked = config.showPastCone;
+                        updateGradientBar();
+                    }
+                    
+                    // Restore comments
+                    if (saveData.comments && !saveData.comments.includes('Cliquez ici pour ajouter')) {
+                        document.getElementById('commentsEditor').innerHTML = saveData.comments;
+                    }
+                    
+                    // Update calculations display
+                    updateCalculationsDisplay();
+                    
+                    console.log('Diagram restored from', saveData.timestamp);
+                    
+                } catch (error) {
+                    console.error('Error loading saved diagram:', error);
+                    // Fallback to just comments if diagram data is corrupted
+                    loadCommentsOnly();
+                }
+            } else {
+                // Fallback to old comments-only system
+                loadCommentsOnly();
+            }
+        });
+        
+        function loadCommentsOnly() {
+            const savedComments = localStorage.getItem('lightConeComments');
+            if (savedComments && !savedComments.includes('Cliquez ici pour ajouter')) {
+                document.getElementById('commentsEditor').innerHTML = savedComments;
+            }
+        }
+
+        // Comments Panel Management
+        const commentsEditor = document.getElementById('commentsEditor');
+        
+        // Clear placeholder when user starts typing
+        commentsEditor.addEventListener('focus', function() {
+            if (this.innerHTML.includes('Cliquez ici pour ajouter')) {
+                this.innerHTML = '';
+            }
+        });
+        
+        // Restore placeholder if empty
+        commentsEditor.addEventListener('blur', function() {
+            if (this.innerHTML.trim() === '' || this.innerHTML.trim() === '<br>') {
+                this.innerHTML = '<p style="color: #888; font-style: italic;">Cliquez ici pour ajouter vos commentaires sur le diagramme...</p>';
+            }
+        });
+        
+        // Function to update comments panel with rich content
+        function updateCommentsPanel(title, content) {
+            const editor = document.getElementById('commentsEditor');
+            editor.innerHTML = `
+                <h4 style="color: #4a9eff; margin: 0 0 10px 0; text-shadow: 0 0 5px rgba(74, 158, 255, 0.5);">${title}</h4>
+                ${content}
+            `;
+        }
+        
+        // Add keyboard shortcuts for comments editor
+        commentsEditor.addEventListener('keydown', function(e) {
+            // Ctrl+B for bold
+            if (e.ctrlKey && e.key === 'b') {
+                e.preventDefault();
+                document.execCommand('bold');
+                document.getElementById('boldBtn').classList.toggle('active');
+            }
+            // Ctrl+I for italic
+            else if (e.ctrlKey && e.key === 'i') {
+                e.preventDefault();
+                document.execCommand('italic');
+                document.getElementById('italicBtn').classList.toggle('active');
+            }
+            // Ctrl+U for underline
+            else if (e.ctrlKey && e.key === 'u') {
+                e.preventDefault();
+                document.execCommand('underline');
+                document.getElementById('underlineBtn').classList.toggle('active');
+            }
+            // Ctrl+S for save
+            else if (e.ctrlKey && e.key === 's') {
+                e.preventDefault();
+                document.getElementById('saveComments').click();
+            }
+            // Ctrl+L for load
+            else if (e.ctrlKey && e.key === 'l') {
+                e.preventDefault();
+                document.getElementById('loadComments').click();
+            }
+        });
+        
+        // Update toolbar button states based on current selection
+        commentsEditor.addEventListener('selectionchange', function() {
+            updateToolbarStates();
+        });
+        
+        commentsEditor.addEventListener('keyup', function() {
+            updateToolbarStates();
+        });
+        
+        commentsEditor.addEventListener('mouseup', function() {
+            updateToolbarStates();
+        });
+        
+        function updateToolbarStates() {
+            // Check if current selection has formatting
+            const boldBtn = document.getElementById('boldBtn');
+            const italicBtn = document.getElementById('italicBtn');
+            const underlineBtn = document.getElementById('underlineBtn');
+            
+            boldBtn.classList.toggle('active', document.queryCommandState('bold'));
+            italicBtn.classList.toggle('active', document.queryCommandState('italic'));
+            underlineBtn.classList.toggle('active', document.queryCommandState('underline'));
+        }
+
+        // Add event listener for load comments button
+        document.getElementById('loadComments').addEventListener('click', function() {
+            const savedDiagram = localStorage.getItem('lightConeDiagram');
+            
+            if (savedDiagram) {
+                try {
+                    const saveData = JSON.parse(savedDiagram);
+                    const saveDate = new Date(saveData.timestamp).toLocaleString('fr-FR');
+                    const numFrames = saveData.coneOrigins ? saveData.coneOrigins.length : 0;
+                    
+                    if (confirm(`Charger la sauvegarde du ${saveDate} ?\n\n` +
+                              `📊 ${numFrames} référentiel(s)\n` +
+                              `📝 Commentaires inclus\n` +
+                              `⚙️ Configuration incluse\n\n` +
+                              `⚠️ Cela remplacera le diagramme actuel !`)) {
+                        
+                        // Restore everything
+                        if (saveData.coneOrigins && Array.isArray(saveData.coneOrigins)) {
+                            coneOrigins = saveData.coneOrigins;
+                        }
+                        
+                        if (saveData.cartoucheOffsets) {
+                            cartoucheOffsets = saveData.cartoucheOffsets;
+                        }
+                        
+                        if (saveData.selectedReferenceFrame !== undefined) {
+                            selectedReferenceFrame = saveData.selectedReferenceFrame;
+                        }
+                        
+                        if (saveData.config) {
+                            config = { ...config, ...saveData.config };
+                            
+                            // Update UI controls
+                            document.getElementById('resolution').value = config.resolution;
+                            document.getElementById('resolutionValue').textContent = resolutionSettings[config.resolution].name;
+                            document.getElementById('greenLimit').value = config.greenLimit;
+                            document.getElementById('greenLimitValue').textContent = config.greenLimit.toFixed(2) + 'c';
+                            document.getElementById('showPastCone').checked = config.showPastCone;
+                            updateGradientBar();
+                        }
+                        
+                        if (saveData.comments && !saveData.comments.includes('Cliquez ici pour ajouter')) {
+                            document.getElementById('commentsEditor').innerHTML = saveData.comments;
+                        }
+                        
+                        updateCalculationsDisplay();
+                        
+                        // Visual feedback
+                        this.innerHTML = '✅ Chargé !';
+                        this.style.background = '#00ff00';
+                        setTimeout(() => {
+                            this.innerHTML = '📂 Charger';
+                            this.style.background = '#4a9eff';
+                        }, 1500);
+                        
+                        console.log('Loaded diagram with', coneOrigins.length, 'reference frames');
+                    }
+                } catch (error) {
+                    alert('Erreur lors du chargement de la sauvegarde !\n\n' + error.message);
+                }
+            } else {
+                alert('Aucune sauvegarde trouvée !\n\nUtilisez d\'abord le bouton "💾 Sauver" pour créer une sauvegarde.');
+            }
+        });
     </script>
 </body>
 </html>
