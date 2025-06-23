@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cônes de Lumière Relativistes - Version Modulaire</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0a0a0a, #1a1a2e);
+            color: white;
+            overflow: hidden;
+        }
+        
+        .app-container {
+            display: flex;
+            height: 100vh;
+        }
+        
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 12px 20px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .version-badge {
+            background: #4CAF50;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        
+        .canvas-wrapper {
+            flex: 1;
+            position: relative;
+            background: #0a0a0a;
+        }
+        
+        #visualization-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            cursor: crosshair;
+        }
+        
+        .control-container {
+            width: 320px;
+            background: #1a1a1a;
+            border-left: 1px solid #333;
+            overflow-y: auto;
+        }
+        
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            transition: opacity 0.5s ease;
+        }
+        
+        .loading-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid #333;
+            border-top: 3px solid #4CAF50;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            font-size: 16px;
+            color: #ccc;
+        }
+        
+        .keyboard-shortcuts {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            line-height: 1.4;
+            color: #ccc;
+            max-width: 200px;
+            opacity: 0.7;
+            transition: opacity 0.3s;
+        }
+        
+        .keyboard-shortcuts:hover {
+            opacity: 1;
+        }
+        
+        .keyboard-shortcuts h4 {
+            margin-bottom: 6px;
+            color: #4CAF50;
+            font-size: 12px;
+        }
+        
+        .shortcut-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2px;
+        }
+        
+        .shortcut-key {
+            background: #333;
+            padding: 1px 4px;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 10px;
+        }
+        
+        .error-overlay {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: #f44336;
+            color: white;
+            padding: 12px 16px;
+            border-radius: 6px;
+            max-width: 300px;
+            z-index: 1001;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+        
+        .error-overlay.visible {
+            transform: translateX(0);
+        }
+        
+        .error-close {
+            float: right;
+            margin-left: 10px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        
+        @media (max-width: 768px) {
+            .app-container {
+                flex-direction: column;
+            }
+            
+            .control-container {
+                width: 100%;
+                height: 300px;
+                border-left: none;
+                border-top: 1px solid #333;
+            }
+            
+            .keyboard-shortcuts {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="canvas-container">
+            <div class="header">
+                <h1>
+                    ⚛️ Cônes de Lumière Relativistes
+                    <span class="version-badge">v2.0</span>
+                </h1>
+                <div class="header-info">
+                    Architecture modulaire • Tests unitaires • Documentation JSDoc
+                </div>
+            </div>
+            
+            <div class="canvas-wrapper">
+                <canvas id="visualization-canvas"></canvas>
+                
+                <div class="loading-overlay" id="loading-overlay">
+                    <div class="loading-spinner"></div>
+                    <div class="loading-text">Initialisation des modules...</div>
+                </div>
+                
+                <div class="keyboard-shortcuts">
+                    <h4>⌨️ Raccourcis</h4>
+                    <div class="shortcut-item">
+                        <span>Grille</span>
+                        <span class="shortcut-key">G</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <span>Cônes</span>
+                        <span class="shortcut-key">L</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <span>Trajectoires</span>
+                        <span class="shortcut-key">T</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <span>Isochrones</span>
+                        <span class="shortcut-key">I</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <span>Réinitialiser</span>
+                        <span class="shortcut-key">R</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <span>Centrer</span>
+                        <span class="shortcut-key">C</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <span>Jumeaux</span>
+                        <span class="shortcut-key">Ctrl+1</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <span>Lumière</span>
+                        <span class="shortcut-key">Ctrl+2</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="control-container" id="control-container">
+            <!-- Le panneau de contrôle sera injecté ici -->
+        </div>
+    </div>
+    
+    <div class="error-overlay" id="error-overlay">
+        <span class="error-close" onclick="hideError()">&times;</span>
+        <div id="error-message"></div>
+    </div>
+
+    <script type="module">
+        import { initializeLightConeVisualization } from './src/index.js';
+        
+        // Variables globales pour debug
+        window.app = null;
+        window.showError = showError;
+        window.hideError = hideError;
+        
+        function showError(message) {
+            const errorOverlay = document.getElementById('error-overlay');
+            const errorMessage = document.getElementById('error-message');
+            errorMessage.textContent = message;
+            errorOverlay.classList.add('visible');
+            
+            // Masquer automatiquement après 5 secondes
+            setTimeout(() => {
+                hideError();
+            }, 5000);
+        }
+        
+        function hideError() {
+            const errorOverlay = document.getElementById('error-overlay');
+            errorOverlay.classList.remove('visible');
+        }
+        
+        async function initializeApp() {
+            try {
+                console.log('🚀 Démarrage de l\'application...');
+                
+                // Initialiser l'application
+                window.app = initializeLightConeVisualization(
+                    'visualization-canvas',
+                    'control-container',
+                    {
+                        theme: 'dark',
+                        enableKeyboardShortcuts: true,
+                        autoStart: true
+                    }
+                );
+                
+                // Écouter les événements de l'application
+                if (window.app._modules?.stateManager) {
+                    window.app._modules.stateManager.on('error', (event) => {
+                        showError(`Erreur: ${event.error.message}`);
+                    });
+                    
+                    window.app._modules.stateManager.on('demoShown', (event) => {
+                        console.log(`✨ Démonstration chargée: ${event.type}`);
+                    });
+                    
+                    window.app._modules.stateManager.on('frameCreated', (event) => {
+                        console.log(`📍 Référentiel créé: (${event.frame.x.toFixed(1)}, ${event.frame.t.toFixed(1)})`);
+                    });
+                }
+                
+                // Masquer l'overlay de chargement
+                setTimeout(() => {
+                    const loadingOverlay = document.getElementById('loading-overlay');
+                    loadingOverlay.classList.add('hidden');
+                }, 1000);
+                
+                console.log('✅ Application initialisée avec succès !');
+                console.log('💡 Cliquez sur le canvas pour créer des référentiels');
+                console.log('🎮 Utilisez les raccourcis clavier ou le panneau de contrôle');
+                
+                // Exposer des méthodes utiles pour le debug
+                window.showStats = () => console.table(window.app.getStats());
+                window.exportConfig = () => console.log(JSON.stringify(window.app.exportConfig(), null, 2));
+                
+            } catch (error) {
+                console.error('❌ Erreur lors de l\'initialisation:', error);
+                showError(`Erreur d'initialisation: ${error.message}`);
+                
+                // Masquer l'overlay de chargement même en cas d'erreur
+                const loadingOverlay = document.getElementById('loading-overlay');
+                loadingOverlay.classList.add('hidden');
+            }
+        }
+        
+        // Gérer les erreurs globales
+        window.addEventListener('error', (event) => {
+            console.error('❌ Erreur JavaScript:', event.error);
+            showError(`Erreur JavaScript: ${event.error.message}`);
+        });
+        
+        window.addEventListener('unhandledrejection', (event) => {
+            console.error('❌ Promesse rejetée:', event.reason);
+            showError(`Erreur asynchrone: ${event.reason}`);
+        });
+        
+        // Gérer le redimensionnement
+        window.addEventListener('resize', () => {
+            if (window.app && window.app._modules?.engine) {
+                // Le redimensionnement est géré automatiquement par CanvasRenderer
+                console.log('🔄 Redimensionnement détecté');
+            }
+        });
+        
+        // Initialiser l'application au chargement
+        document.addEventListener('DOMContentLoaded', initializeApp);
+        
+        // Nettoyage avant fermeture
+        window.addEventListener('beforeunload', () => {
+            if (window.app) {
+                console.log('🧹 Nettoyage de l\'application...');
+                window.app.destroy();
+            }
+        });
+    </script>
+</body>
+</html> 
