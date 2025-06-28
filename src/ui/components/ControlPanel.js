@@ -60,7 +60,12 @@ export class ControlPanel extends EventEmitter {
         velocity: 0.5,
         acceleration: 1.0,
         properTime: 2.0,
-        gridSpacing: 1.0
+        gridSpacing: 1.0,
+        greenLimit: 0.5,
+        showPastCone: false,
+        showHeatmap: true,
+        showLightConeEnvelopes: true,
+        showInfoBoxes: true
       }
     };
     
@@ -144,24 +149,50 @@ export class ControlPanel extends EventEmitter {
     return `
       <div class="tab-panel active" data-tab="visualization">
         <div class="control-group">
+          <h4 class="group-title">Contrôles du Cône</h4>
+          
+          <div class="control-item">
+            <label class="control-label">Résolution : <span class="value" id="resolutionValue">Moyenne</span></label>
+            <div class="slider-container">
+              <input type="range" id="resolution" min="1" max="3" step="1" value="2">
+              <span class="slider-value">2</span>
+            </div>
+          </div>
+          
+          <div class="control-item">
+            <label class="control-label">Limite Verte : <span class="color-limit" id="greenLimitValue">0.5c</span></label>
+            <div class="slider-container">
+              <input type="range" id="greenLimit" min="0.1" max="0.8" step="0.05" value="${this._state.values.greenLimit || 0.5}">
+              <span class="slider-value">${this._state.values.greenLimit || 0.5}</span>
+            </div>
+          </div>
+          
+          <label class="control-item checkbox-item">
+            <input type="checkbox" id="showPastCone" ${this._state.values.showPastCone ? 'checked' : ''}>
+            <span class="checkbox-custom"></span>
+            <span class="control-label">Afficher cône passé</span>
+          </label>
+        </div>
+        
+        <div class="control-group">
           <h4 class="group-title">Affichage</h4>
           
           <label class="control-item checkbox-item">
-            <input type="checkbox" id="showGrid" ${this._state.values.showGrid ? 'checked' : ''}>
+            <input type="checkbox" id="showHeatmap" ${this._state.values.showHeatmap !== false ? 'checked' : ''}>
             <span class="checkbox-custom"></span>
-            <span class="control-label">Grille d'espace-temps</span>
+            <span class="control-label">Heatmap colorée</span>
           </label>
           
           <label class="control-item checkbox-item">
-            <input type="checkbox" id="showLightCones" ${this._state.values.showLightCones ? 'checked' : ''}>
+            <input type="checkbox" id="showLightConeEnvelopes" ${this._state.values.showLightConeEnvelopes !== false ? 'checked' : ''}>
             <span class="checkbox-custom"></span>
-            <span class="control-label">Cônes de lumière</span>
+            <span class="control-label">Enveloppes des cônes</span>
           </label>
           
           <label class="control-item checkbox-item">
-            <input type="checkbox" id="showTrajectories" ${this._state.values.showTrajectories ? 'checked' : ''}>
+            <input type="checkbox" id="showTrajectories" ${this._state.values.showTrajectories !== false ? 'checked' : ''}>
             <span class="checkbox-custom"></span>
-            <span class="control-label">Trajectoires</span>
+            <span class="control-label">Chemins d'accélération</span>
           </label>
           
           <label class="control-item checkbox-item">
@@ -169,22 +200,34 @@ export class ControlPanel extends EventEmitter {
             <span class="checkbox-custom"></span>
             <span class="control-label">Isochrones</span>
           </label>
+          
+          <label class="control-item checkbox-item">
+            <input type="checkbox" id="showInfoBoxes" ${this._state.values.showInfoBoxes !== false ? 'checked' : ''}>
+            <span class="checkbox-custom"></span>
+            <span class="control-label">Cartouches d'info</span>
+          </label>
         </div>
         
         <div class="control-group">
-          <h4 class="group-title">Vue</h4>
+          <h4 class="group-title">Actions</h4>
           
-          <div class="control-item">
-            <label class="control-label">Espacement grille</label>
-            <div class="slider-container">
-              <input type="range" id="gridSpacing" min="0.1" max="5" step="0.1" value="${this._state.values.gridSpacing}">
-              <span class="slider-value">${this._state.values.gridSpacing}</span>
-            </div>
+          <div class="button-group vertical">
+            <button class="btn btn-warning" id="resetView">🔄 Réinitialiser vue</button>
+            <button class="btn btn-danger" id="clearAll">🗑️ Effacer cônes</button>
           </div>
-          
-          <div class="button-group">
-            <button class="btn btn-secondary" id="resetView">🔄 Réinitialiser vue</button>
-            <button class="btn btn-secondary" id="centerView">🎯 Centrer</button>
+        </div>
+        
+        <div class="control-group">
+          <h4 class="group-title">Légende</h4>
+          <div class="legend">
+            <strong>Vitesse relative (v/c) :</strong>
+            <div class="gradient-bar" id="gradientBar"></div>
+            <div class="gradient-labels" id="gradientLabels">
+              <span>0 (repos)</span>
+              <span id="greenLabel">0.5c</span>
+              <span>1.0c</span>
+              <span>c</span>
+            </div>
           </div>
         </div>
       </div>
@@ -684,7 +727,15 @@ export class ControlPanel extends EventEmitter {
       
       // Sélecteurs
       theme: this.container.querySelector('#theme'),
-      quality: this.container.querySelector('#quality')
+      quality: this.container.querySelector('#quality'),
+      
+      // Nouveaux contrôles de la heatmap
+      resolution: this.container.querySelector('#resolution'),
+      greenLimit: this.container.querySelector('#greenLimit'),
+      showPastCone: this.container.querySelector('#showPastCone'),
+      showHeatmap: this.container.querySelector('#showHeatmap'),
+      showLightConeEnvelopes: this.container.querySelector('#showLightConeEnvelopes'),
+      showInfoBoxes: this.container.querySelector('#showInfoBoxes')
     };
   }
   
@@ -707,13 +758,31 @@ export class ControlPanel extends EventEmitter {
       });
     });
     
-    // Contrôles de visualisation
-    this._elements.showGrid?.addEventListener('change', (e) => {
-      this._updateValue('showGrid', e.target.checked);
+    // Contrôles de la heatmap
+    this._elements.resolution?.addEventListener('input', (e) => {
+      const value = parseInt(e.target.value);
+      const resolutionNames = ['Basse', 'Moyenne', 'Haute'];
+      this._updateValue('resolution', value);
+      this._updateResolutionDisplay(resolutionNames[value - 1]);
     });
     
-    this._elements.showLightCones?.addEventListener('change', (e) => {
-      this._updateValue('showLightCones', e.target.checked);
+    this._elements.greenLimit?.addEventListener('input', (e) => {
+      const value = parseFloat(e.target.value);
+      this._updateSliderValue('greenLimit', value);
+      this._updateGreenLimitDisplay(value);
+    });
+    
+    this._elements.showPastCone?.addEventListener('change', (e) => {
+      this._updateValue('showPastCone', e.target.checked);
+    });
+    
+    // Contrôles d'affichage
+    this._elements.showHeatmap?.addEventListener('change', (e) => {
+      this._updateValue('showHeatmap', e.target.checked);
+    });
+    
+    this._elements.showLightConeEnvelopes?.addEventListener('change', (e) => {
+      this._updateValue('showLightConeEnvelopes', e.target.checked);
     });
     
     this._elements.showTrajectories?.addEventListener('change', (e) => {
@@ -724,8 +793,8 @@ export class ControlPanel extends EventEmitter {
       this._updateValue('showIsochrones', e.target.checked);
     });
     
-    this._elements.gridSpacing?.addEventListener('input', (e) => {
-      this._updateSliderValue('gridSpacing', parseFloat(e.target.value));
+    this._elements.showInfoBoxes?.addEventListener('change', (e) => {
+      this._updateValue('showInfoBoxes', e.target.checked);
     });
     
     // Contrôles de physique
@@ -935,6 +1004,36 @@ export class ControlPanel extends EventEmitter {
         }
       }
     });
+  }
+  
+  /**
+   * Met à jour l'affichage de la résolution
+   * @param {string} resolutionName - Nom de la résolution
+   * @private
+   */
+  _updateResolutionDisplay(resolutionName) {
+    const resolutionValueElement = this.container.querySelector('#resolutionValue');
+    if (resolutionValueElement) {
+      resolutionValueElement.textContent = resolutionName;
+    }
+  }
+  
+  /**
+   * Met à jour l'affichage de la limite verte
+   * @param {number} value - Valeur de la limite verte
+   * @private
+   */
+  _updateGreenLimitDisplay(value) {
+    const greenLimitValueElement = this.container.querySelector('#greenLimitValue');
+    const greenLabelElement = this.container.querySelector('#greenLabel');
+    
+    if (greenLimitValueElement) {
+      greenLimitValueElement.textContent = `${value.toFixed(2)}c`;
+    }
+    
+    if (greenLabelElement) {
+      greenLabelElement.textContent = `${value.toFixed(2)}c`;
+    }
   }
   
   /**

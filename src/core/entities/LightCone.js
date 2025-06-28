@@ -46,16 +46,16 @@ export class LightCone extends EventEmitter {
     /**
      * Position X de l'origine du cône
      * @type {number}
-     * @private
+     * @readonly
      */
-    this._originX = originX;
+    this.originX = originX;
     
     /**
-     * Position T de l'origine du cône
+     * Temps T de l'origine du cône
      * @type {number}
-     * @private
+     * @readonly
      */
-    this._originT = originT;
+    this.originT = originT;
     
     /**
      * Rayon maximal du cône (null = illimité)
@@ -86,52 +86,6 @@ export class LightCone extends EventEmitter {
     
     // Émettre l'événement de création
     this.emit('created', this);
-  }
-  
-  /**
-   * Position X de l'origine (getter)
-   * @type {number}
-   */
-  get originX() {
-    return this._originX;
-  }
-  
-  /**
-   * Position X de l'origine (setter)
-   * @type {number}
-   */
-  set originX(value) {
-    if (typeof value !== 'number' || !isFinite(value)) {
-      throw new Error('La position X doit être un nombre fini');
-    }
-    
-    const oldValue = this._originX;
-    this._originX = value;
-    this._invalidateCache();
-    this.emit('originChanged', { old: { x: oldValue, t: this._originT }, new: { x: value, t: this._originT } });
-  }
-  
-  /**
-   * Position T de l'origine (getter)
-   * @type {number}
-   */
-  get originT() {
-    return this._originT;
-  }
-  
-  /**
-   * Position T de l'origine (setter)
-   * @type {number}
-   */
-  set originT(value) {
-    if (typeof value !== 'number' || !isFinite(value)) {
-      throw new Error('La position T doit être un nombre fini');
-    }
-    
-    const oldValue = this._originT;
-    this._originT = value;
-    this._invalidateCache();
-    this.emit('originChanged', { old: { x: this._originX, t: oldValue }, new: { x: this._originX, t: value } });
   }
   
   /**
@@ -184,7 +138,7 @@ export class LightCone extends EventEmitter {
    * @returns {Object} Position {x, t}
    */
   getOrigin() {
-    return { x: this._originX, t: this._originT };
+    return { x: this.originX, t: this.originT };
   }
   
   /**
@@ -196,9 +150,9 @@ export class LightCone extends EventEmitter {
   setOrigin({ x, t }) {
     validateLightConeParameters({ originX: x, originT: t });
     
-    const oldOrigin = { x: this._originX, t: this._originT };
-    this._originX = x;
-    this._originT = t;
+    const oldOrigin = { x: this.originX, t: this.originT };
+    this.originX = x;
+    this.originT = t;
     this._invalidateCache();
     
     this.emit('originChanged', { old: oldOrigin, new: { x, t } });
@@ -212,8 +166,8 @@ export class LightCone extends EventEmitter {
    * @returns {boolean} True si le point est dans le cône
    */
   containsPoint(x, t, margin = 0) {
-    const deltaX = x - this._originX;
-    const deltaT = t - this._originT;
+    const deltaX = x - this.originX;
+    const deltaT = t - this.originT;
     
     // Vérifier le cône futur
     if (deltaT > 0) {
@@ -245,8 +199,8 @@ export class LightCone extends EventEmitter {
    * @returns {number} Vitesse relative (v/c)
    */
   getVelocityRatioToPoint(x, t) {
-    const deltaX = x - this._originX;
-    const deltaT = t - this._originT;
+    const deltaX = x - this.originX;
+    const deltaT = t - this.originT;
     
     return calculateVelocityRatio(deltaX, deltaT);
   }
@@ -257,10 +211,10 @@ export class LightCone extends EventEmitter {
    * @returns {Object|null} Frontière {xMin, xMax} ou null si hors limites
    */
   getBoundaryAtTime(t) {
-    const deltaT = t - this._originT;
+    const deltaT = t - this.originT;
     
     if (deltaT === 0) {
-      return { xMin: this._originX, xMax: this._originX };
+      return { xMin: this.originX, xMax: this.originX };
     }
     
     // Vérifier si on doit afficher ce temps
@@ -273,8 +227,8 @@ export class LightCone extends EventEmitter {
         : radius;
       
       return {
-        xMin: this._originX - effectiveRadius,
-        xMax: this._originX + effectiveRadius
+        xMin: this.originX - effectiveRadius,
+        xMax: this.originX + effectiveRadius
       };
     }
     
@@ -336,8 +290,8 @@ export class LightCone extends EventEmitter {
     
     // Calcul des intersections entre les frontières
     // Implémentation simplifiée pour les cônes symétriques
-    const deltaX = otherCone.originX - this._originX;
-    const deltaT = otherCone.originT - this._originT;
+    const deltaX = otherCone.originX - this.originX;
+    const deltaT = otherCone.originT - this.originT;
     
     if (deltaT === 0) {
       // Cônes simultanés - pas d'intersection causale
@@ -350,14 +304,14 @@ export class LightCone extends EventEmitter {
     
     if (discriminant >= 0) {
       const sqrtDiscriminant = Math.sqrt(discriminant);
-      const t1 = this._originT + deltaT / 2 + sqrtDiscriminant / 2;
-      const t2 = this._originT + deltaT / 2 - sqrtDiscriminant / 2;
+      const t1 = this.originT + deltaT / 2 + sqrtDiscriminant / 2;
+      const t2 = this.originT + deltaT / 2 - sqrtDiscriminant / 2;
       
       [t1, t2].forEach(t => {
-        if (t > Math.max(this._originT, otherCone.originT)) {
-          const x = this._originX + c * (t - this._originT);
+        if (t > Math.max(this.originT, otherCone.originT)) {
+          const x = this.originX + c * (t - this.originT);
           intersections.push({ x, t });
-          intersections.push({ x: this._originX - c * (t - this._originT), t });
+          intersections.push({ x: this.originX - c * (t - this.originT), t });
         }
       });
     }
@@ -372,8 +326,8 @@ export class LightCone extends EventEmitter {
    */
   clone(overrides = {}) {
     return new LightCone({
-      originX: overrides.originX ?? this._originX,
-      originT: overrides.originT ?? this._originT,
+      originX: overrides.originX ?? this.originX,
+      originT: overrides.originT ?? this.originT,
       maxRadius: overrides.maxRadius ?? this._maxRadius,
       showPastCone: overrides.showPastCone ?? this._showPastCone,
       ...overrides
@@ -387,8 +341,8 @@ export class LightCone extends EventEmitter {
   serialize() {
     return {
       id: this.id,
-      originX: this._originX,
-      originT: this._originT,
+      originX: this.originX,
+      originT: this.originT,
       maxRadius: this._maxRadius,
       showPastCone: this._showPastCone,
       metadata: { ...this.metadata }
@@ -410,7 +364,7 @@ export class LightCone extends EventEmitter {
   toString() {
     const radius = this._maxRadius !== null ? `r=${this._maxRadius}` : 'r=∞';
     const past = this._showPastCone ? '+past' : '';
-    return `LightCone(id=${this.id}, origin=(${this._originX},${this._originT}), ${radius}${past})`;
+    return `LightCone(id=${this.id}, origin=(${this.originX},${this.originT}), ${radius}${past})`;
   }
   
   /**
