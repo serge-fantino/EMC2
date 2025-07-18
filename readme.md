@@ -6,7 +6,7 @@ Une représentation visuelle innovante montrant que la "vitesse" n'est pas une p
 Partis du paradoxe "comment peut-on avoir des effets relativistes si la vitesse n'existe pas dans l'absolu ?", nous avons réalisé que le cône de lumière ne représente pas "où on peut aller" mais l'ensemble des relations causales possibles.
 
 ## Démo
-[Cliquez ici pour voir la démo](cone-lumiere-colore.html)
+[Cliquez ici pour voir la démo](https://serge-fantino.github.io/EMC2/cone-lumiere-colore.html)
 
 
 ## Innovation visuelle
