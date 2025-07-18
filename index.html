@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Heatmap des Cônes de Lumière</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+            color: white;
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+        }
+        
+        #canvas {
+            display: block;
+            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><text y="24" font-size="24">🚫</text></svg>') 16 16, not-allowed;
+        }
+        
+        #canvas.inside-cone {
+            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><text y="24" font-size="24">🚀</text></svg>') 16 16, pointer;
+        }
+        
+        .controls {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            max-width: 300px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .controls h3 {
+            margin-top: 0;
+            color: #4a9eff;
+            text-shadow: 0 0 10px #4a9eff;
+        }
+        
+        .control-group {
+            margin: 15px 0;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            margin: 5px 0;
+        }
+        
+        .value {
+            color: #4a9eff;
+            font-weight: bold;
+        }
+        
+        .color-limit {
+            color: #ff9f4a;
+            font-weight: bold;
+        }
+        
+        button {
+            background: #4a9eff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            transition: all 0.3s;
+            box-shadow: 0 0 10px rgba(74, 158, 255, 0.5);
+        }
+        
+        button:hover {
+            background: #3a8eef;
+            box-shadow: 0 0 20px rgba(74, 158, 255, 0.8);
+        }
+        
+        .info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            width: 300px;
+            font-size: 14px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .info h3 {
+            color: #4a9eff;
+            margin: 0 0 15px 0;
+            text-shadow: 0 0 10px rgba(74, 158, 255, 0.5);
+            text-align: center;
+            font-size: 16px;
+        }
+        
+        .info-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .info-details {
+            transition: all 0.3s ease;
+        }
+        
+        .info-details.hidden {
+            display: none;
+        }
+        
+        .calculations {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            width: 300px;
+            font-size: 12px;
+            backdrop-filter: blur(10px);
+            max-height: 400px;
+            overflow-y: auto;
+            transition: all 0.3s ease;
+        }
+        
+        .calculations.expanded {
+            max-height: 600px;
+        }
+        
+        .calculations h4 {
+            color: #4a9eff;
+            margin-top: 0;
+            margin-bottom: 10px;
+            text-shadow: 0 0 5px #4a9eff;
+        }
+        
+        .calculations .formula {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 8px;
+            border-radius: 5px;
+            margin: 8px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            border-left: 3px solid #4a9eff;
+        }
+        
+        .calculations .variable {
+            color: #ff9f4a;
+            font-weight: bold;
+        }
+        
+        .calculations .result {
+            color: #00ff00;
+            font-weight: bold;
+        }
+        
+        .legend {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .gradient-bar {
+            width: 100%;
+            height: 20px;
+            background: linear-gradient(to right, #0000ff, #00ff00, #ff0000, #000000);
+            margin: 10px 0;
+            border-radius: 3px;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+        }
+        
+        .gradient-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+        }
+        
+        /* Help Modal Styles */
+        .help-modal {
+            display: none;
+            position: fixed;
+            z-index: 10000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+        }
+        
+        .help-modal-content {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            margin: 2% auto;
+            padding: 30px;
+            border: 1px solid #4a9eff;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 1000px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 0 30px rgba(74, 158, 255, 0.3);
+            color: white;
+            font-family: 'Arial', sans-serif;
+        }
+        
+        .help-close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: -10px;
+        }
+        
+        .help-close:hover,
+        .help-close:focus {
+            color: #4a9eff;
+            text-decoration: none;
+        }
+        
+        .help-button {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: #4a9eff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 16px;
+            box-shadow: 0 0 15px rgba(74, 158, 255, 0.5);
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+        
+        .help-button:hover {
+            background: #3a8eef;
+            box-shadow: 0 0 25px rgba(74, 158, 255, 0.8);
+            transform: scale(1.1);
+        }
+        
+        .help-section {
+            margin: 25px 0;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            border-left: 4px solid #4a9eff;
+        }
+        
+        .help-section h3 {
+            color: #4a9eff;
+            margin-top: 0;
+            text-shadow: 0 0 10px rgba(74, 158, 255, 0.5);
+        }
+        
+        .help-formula {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            border-left: 3px solid #ff9f4a;
+            overflow-x: auto;
+        }
+        
+        .help-variable {
+            color: #ff9f4a;
+            font-weight: bold;
+        }
+        
+        .help-constant {
+            color: #00ff00;
+            font-weight: bold;
+        }
+        
+        .help-example {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-left: 3px solid #00ff00;
+        }
+        
+        .help-warning {
+            background: rgba(255, 68, 68, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-left: 3px solid #ff4444;
+            color: #ffcccc;
+        }
+        
+        .comments {
+            position: absolute;
+            top: 120px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            width: 300px;
+            font-size: 14px;
+            backdrop-filter: blur(10px);
+            max-height: 350px;
+            overflow-y: auto;
+            z-index: 100;
+        }
+        
+        .comments h3 {
+            color: #4a9eff;
+            margin: 0 0 15px 0;
+            text-shadow: 0 0 10px rgba(74, 158, 255, 0.5);
+            text-align: center;
+            font-size: 16px;
+        }
+        
+        .comments-toolbar {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .comments-toolbar button {
+            background: #666;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 10px;
+            transition: all 0.3s;
+            font-weight: bold;
+        }
+        
+        .comments-toolbar button:hover {
+            background: #888;
+            transform: scale(1.05);
+        }
+        
+        .comments-toolbar button.active {
+            background: #4a9eff;
+            box-shadow: 0 0 5px rgba(74, 158, 255, 0.5);
+        }
+        
+        .comments-toolbar #boldBtn {
+            font-weight: 900;
+        }
+        
+        .comments-toolbar #italicBtn {
+            font-style: italic;
+        }
+        
+        .comments-toolbar #underlineBtn {
+            text-decoration: underline;
+        }
+        
+        .comments-content {
+            min-height: 150px;
+            max-height: 250px;
+            overflow-y: auto;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 5px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            font-family: 'Arial', sans-serif;
+            line-height: 1.4;
+            color: white;
+            outline: none;
+        }
+        
+        .comments-content:focus {
+            border-color: #4a9eff;
+            box-shadow: 0 0 5px rgba(74, 158, 255, 0.5);
+        }
+        
+        .comments-actions {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            gap: 3px;
+        }
+        
+        .comments-actions button {
+            background: #4a9eff;
+            color: white;
+            border: none;
+            padding: 5px 8px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 10px;
+            transition: all 0.3s;
+            flex: 1;
+        }
+        
+        .comments-actions button:hover {
+            background: #3a8eef;
+            transform: scale(1.02);
+        }
+        
+        .comments-actions .clear-btn {
+            background: #ff6b6b;
+        }
+        
+        .comments-actions .clear-btn:hover {
+            background: #ff5252;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    
+    <!-- Help Modal -->
+    <div id="helpModal" class="help-modal">
+        <div class="help-modal-content">
+            <span class="help-close">&times;</span>
+            <h1 style="color: #4a9eff; text-align: center; margin-bottom: 30px; text-shadow: 0 0 15px rgba(74, 158, 255, 0.5);">
+                🌌 Guide Mathématique et Physique
+            </h1>
+            
+            <div class="help-section">
+                <h3>🎯 Objectif de l'Application</h3>
+                <p>Cette application visualise interactivement les <strong>cônes de lumière</strong> en relativité restreinte et permet d'explorer les effets de <strong>l'accélération</strong> et de la <strong>dilatation temporelle</strong> à travers des trajectoires dans l'espace-temps.</p>
+                <p>Chaque clic dans un cône crée un nouveau <strong>référentiel</strong> connecté causalement, permettant de construire des trajectoires complexes et d'observer leurs effets cumulatifs.</p>
+            </div>
+
+            <div class="help-section">
+                <h3>📐 Système de Coordonnées</h3>
+                <p>Nous utilisons un diagramme d'espace-temps de Minkowski en 2D :</p>
+                <ul>
+                    <li><strong>Axe horizontal</strong> : Position spatiale <span class="help-variable">x</span></li>
+                    <li><strong>Axe vertical</strong> : Temps coordonnée <span class="help-variable">t</span> (vers le haut = futur)</li>
+                    <li><strong>Unités normalisées</strong> : <span class="help-constant">c = 1</span> (vitesse de la lumière)</li>
+                    <li><strong>Origine</strong> : Point (0, 0) au bas de l'écran</li>
+                </ul>
+                
+                <div class="help-formula">
+                    Métrique de Minkowski : ds² = -c²dt² + dx²
+                    <br>Avec c = 1 : ds² = -dt² + dx²
+                </div>
+            </div>
+
+            <div class="help-section">
+                <h3>🔆 Cônes de Lumière</h3>
+                <p>Les cônes de lumière délimitent les régions causalement connectées :</p>
+                
+                <div class="help-formula">
+                    Condition du cône de lumière : |<span class="help-variable">Δx</span>| ≤ <span class="help-constant">c</span> × <span class="help-variable">Δt</span>
+                    <br>Avec c = 1 : |<span class="help-variable">Δx</span>| ≤ <span class="help-variable">Δt</span>
+                </div>
+                
+                <ul>
+                    <li><strong>Intérieur du cône</strong> : Connexion causale possible (v &lt; c)</li>
+                    <li><strong>Surface du cône</strong> : Propagation à la vitesse de la lumière (v = c)</li>
+                    <li><strong>Extérieur du cône</strong> : Causalement déconnecté (v &gt; c)</li>
+                </ul>
+                
+                <div class="help-example">
+                    <strong>💡 Exemple :</strong> Si Δt = 3 unités, alors |Δx| doit être ≤ 3 unités pour rester dans le cône.
+                </div>
+            </div>
+
+            <div class="help-section">
+                <h3>🚀 Accélération Relativiste</h3>
+                <p>Pour une trajectoire d'accélération constante entre deux événements :</p>
+                
+                <div class="help-formula">
+                    Accélération propre : <span class="help-variable">a</span> = 2|<span class="help-variable">ΔX</span>|<span class="help-constant">c²</span> / (<span class="help-variable">ΔT²</span> - <span class="help-variable">ΔX²</span>)
+                </div>
+                
+                <div class="help-formula">
+                    Vitesse finale : <span class="help-variable">v</span> = (<span class="help-variable">a</span><span class="help-variable">ΔT</span>) / √(1 + (<span class="help-variable">a</span><span class="help-variable">ΔT</span>/<span class="help-constant">c</span>)²)
+                </div>
+                
+                <div class="help-formula">
+                    Trajectoire hyperbolique : <span class="help-variable">x</span>(t) = (<span class="help-constant">c²</span>/<span class="help-variable">a</span>) × (√(1 + (<span class="help-variable">at</span>/<span class="help-constant">c</span>)²) - 1)
+                </div>
+                
+                <div class="help-warning">
+                    ⚠️ <strong>Limite physique :</strong> Notre application limite les vitesses à 99.9% de c pour éviter les singularités numériques.
+                </div>
+            </div>
+
+            <div class="help-section">
+                <h3>⏰ Temps Propre et Dilatation Temporelle</h3>
+                <p>Le temps propre est le temps mesuré par une horloge en mouvement :</p>
+                
+                <div class="help-formula">
+                    Temps propre : <span class="help-variable">τ</span> = (<span class="help-constant">c</span>/<span class="help-variable">a</span>) × sinh⁻¹(<span class="help-variable">a</span><span class="help-variable">ΔT</span>/<span class="help-constant">c</span>)
+                </div>
+                
+                <div class="help-formula">
+                    Facteur de Lorentz : <span class="help-variable">γ</span> = 1/√(1 - <span class="help-variable">v²</span>/<span class="help-constant">c²</span>)
+                </div>
+                
+                <div class="help-formula">
+                    Relation : <span class="help-variable">dt</span> = <span class="help-variable">γ</span> × <span class="help-variable">dτ</span>
+                </div>
+                
+                <div class="help-example">
+                    <strong>🎯 Paradoxe des jumeaux :</strong> Un voyageur accéléré vieillit moins qu'un observateur au repos. Le pourcentage affiché montre le rapport τ/t.
+                </div>
+                
+                <!-- BOUTON DEMO PARADOXE DES JUMEAUX - SECTION TEMPS PROPRE -->
+                <div style="text-align: center; margin: 15px 0;">
+                    <button class="twin-paradox-demo-btn" style="
+                        background: linear-gradient(45deg, #ff6b6b, #feca57);
+                        color: white;
+                        border: none;
+                        padding: 8px 16px;
+                        border-radius: 20px;
+                        cursor: pointer;
+                        font-size: 12px;
+                        font-weight: bold;
+                        box-shadow: 0 3px 10px rgba(255, 107, 107, 0.4);
+                        transition: all 0.3s;
+                        text-transform: uppercase;
+                        letter-spacing: 0.5px;
+                    " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                        🚀 Voir la Démo
+                    </button>
+                </div>
+            </div>
+
+            <div class="help-section">
+                <h3>➕ Addition Relativiste des Vitesses</h3>
+                <p>Les vitesses ne s'additionnent pas simplement en relativité :</p>
+                
+                <div class="help-formula">
+                    <span class="help-variable">v</span>_total = (<span class="help-variable">v₁</span> + <span class="help-variable">v₂</span>) / (1 + <span class="help-variable">v₁</span><span class="help-variable">v₂</span>/<span class="help-constant">c²</span>)
+                </div>
+                
+                <div class="help-example">
+                    <strong>💡 Exemple :</strong> Si v₁ = 0.6c et v₂ = 0.6c, alors v_total = 1.2c/(1 + 0.36) = 0.88c ≠ 1.2c
+                </div>
+                
+                <p>Cette formule garantit que la vitesse résultante reste toujours inférieure à c.</p>
+            </div>
+
+            <div class="help-section">
+                <h3>📈 Isochrones</h3>
+                <p>Les courbes orange montrent tous les événements atteignables avec le même temps propre :</p>
+                
+                <div class="help-formula">
+                    Équation d'isochrone : <span class="help-variable">t</span> = √(<span class="help-variable">τ²</span> + <span class="help-variable">x²</span>/<span class="help-constant">c²</span>)
+                </div>
+                
+                <p>Ces hyperboles révèlent la géométrie non-euclidienne de l'espace-temps de Minkowski.</p>
+                
+                <div class="help-example">
+                    <strong>🔍 Interprétation :</strong> Tous les points sur une isochrone représentent des événements que le voyageur peut atteindre en vieillissant du même temps propre τ.
+                </div>
+            </div>
+
+            <div class="help-section">
+                <h3>🎨 Code Couleur de la Heatmap</h3>
+                <ul>
+                    <li><span style="color: #0000ff;">🔵 Bleu</span> : Repos relatif (v ≈ 0)</li>
+                    <li><span style="color: #00ff00;">🟢 Vert</span> : Vitesse intermédiaire (ajustable)</li>
+                    <li><span style="color: #ff0000;">🔴 Rouge</span> : Vitesse élevée (proche de c)</li>
+                    <li><span style="color: #888;">⚫ Transparent</span> : Causalement déconnecté (v ≥ c)</li>
+                </ul>
+                
+                <div class="help-formula">
+                    Vitesse relative : <span class="help-variable">v</span> = |<span class="help-variable">Δx</span>| / <span class="help-variable">Δt</span>
+                </div>
+            </div>
+
+            <div class="help-section">
+                <h3>🎮 Utilisation Interactive</h3>
+                <ol>
+                    <li><strong>Créer un référentiel :</strong> Cliquez dans un cône de lumière</li>
+                    <li><strong>Déplacer un référentiel :</strong> Glissez-déposez les points orange</li>
+                    <li><strong>Contrainte verticale :</strong> Maintenez Ctrl pendant le déplacement</li>
+                    <li><strong>Sélectionner :</strong> Cliquez sur un point pour voir les calculs détaillés</li>
+                    <li><strong>Supprimer :</strong> Utilisez le bouton 🗑️ dans le panneau de calculs</li>
+                    <li><strong>Explorer les isochrones :</strong> Survolez les courbes orange</li>
+                </ol>
+                
+                <div class="help-example">
+                    <strong>🎓 Conseil pédagogique :</strong> Créez plusieurs référentiels en chaîne pour observer l'accumulation des effets relativistes et comparer les temps propres !
+                </div>
+                
+                <div style="text-align: center; margin: 20px 0;">
+                    <button id="twinParadoxDemo" style="
+                        background: linear-gradient(45deg, #ff6b6b, #feca57);
+                        color: white;
+                        border: none;
+                        padding: 12px 24px;
+                        border-radius: 25px;
+                        cursor: pointer;
+                        font-size: 14px;
+                        font-weight: bold;
+                        box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
+                        transition: all 0.3s;
+                        text-transform: uppercase;
+                        letter-spacing: 1px;
+                    " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                        🚀 Démo du Paradoxe des Jumeaux
+                    </button>
+                </div>
+                
+                <div class="help-example">
+                    <strong>🎭 Scénario de la démo :</strong> 
+                    <br>• <strong>Jumeau terrestre</strong> reste à l'origine (référentiel 0)
+                    <br>• <strong>Jumeau voyageur</strong> accélère vers l'espace (référentiel 1)
+                    <br>• <strong>Demi-tour</strong> à mi-parcours (référentiel 2)
+                    <br>• <strong>Retour sur Terre</strong> (référentiel 3)
+                    <br>• <strong>Comparaison</strong> des temps propres et âges !
+                </div>
+            </div>
+
+            <div class="help-section">
+                <h3>📚 Références Théoriques</h3>
+                <ul>
+                    <li><strong>Relativité restreinte</strong> : Einstein (1905)</li>
+                    <li><strong>Espace-temps de Minkowski</strong> : Hermann Minkowski (1908)</li>
+                    <li><strong>Géométrie hyperbolique</strong> : Théorie des espaces pseudo-euclidiens</li>
+                    <li><strong>Paradoxe des jumeaux</strong> : Langevin (1911)</li>
+                </ul>
+                
+                <p style="text-align: center; margin-top: 30px; color: #4a9eff;">
+                    <em>Cette application est un outil pédagogique pour explorer visuellement les concepts fondamentaux de la relativité restreinte.</em>
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="controls">
+        <h3>Contrôles du Cône</h3>
+        
+        <div class="control-group">
+            <label>Résolution : <span class="value" id="resolutionValue">Moyenne</span></label>
+            <input type="range" id="resolution" min="1" max="3" value="2" step="1">
+        </div>
+        
+        <div class="control-group">
+            <label>Limite Verte : <span class="color-limit" id="greenLimitValue">0.5c</span></label>
+            <input type="range" id="greenLimit" min="0.1" max="0.8" value="0.5" step="0.05">
+        </div>
+        
+        <div class="control-group">
+            <label>
+                <input type="checkbox" id="showPastCone" style="margin-right: 8px;">
+                Afficher cône passé
+            </label>
+        </div>
+        
+        <div class="control-group">
+            <button id="reset">Réinitialiser</button>
+            <button id="clearCones">Effacer Cônes</button>
+        </div>
+        
+        <div class="legend">
+            <strong>Vitesse relative (v/c) :</strong>
+            <div class="gradient-bar" id="gradientBar"></div>
+            <div class="gradient-labels" id="gradientLabels">
+                <span>0 (repos)</span>
+                <span id="greenLabel">0.5c</span>
+                <span>1.0c</span>
+                <span>c</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="info">
+        <h3>🌌 Cône de Lumière Relativiste</h3>
+        
+        <div class="info-buttons">
+            <button id="helpButton" style="
+                background: #4a9eff;
+                color: white;
+                border: none;
+                padding: 6px 12px;
+                border-radius: 15px;
+                cursor: pointer;
+                font-size: 11px;
+                font-weight: bold;
+                box-shadow: 0 0 8px rgba(74, 158, 255, 0.5);
+                transition: all 0.3s;
+            " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" title="Guide mathématique et physique">
+                ❓ Info
+            </button>
+            
+            <button id="infoPanelTwinDemo" style="
+                background: linear-gradient(45deg, #ff6b6b, #feca57);
+                color: white;
+                border: none;
+                padding: 6px 12px;
+                border-radius: 15px;
+                cursor: pointer;
+                font-size: 11px;
+                font-weight: bold;
+                box-shadow: 0 0 8px rgba(255, 107, 107, 0.4);
+                transition: all 0.3s;
+            " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" title="Démonstration du paradoxe des jumeaux">
+                🚀 Démo
+            </button>
+            
+            <button id="toggleDetails" style="
+                background: #666;
+                color: white;
+                border: none;
+                padding: 6px 12px;
+                border-radius: 15px;
+                cursor: pointer;
+                font-size: 11px;
+                font-weight: bold;
+                box-shadow: 0 0 8px rgba(102, 102, 102, 0.5);
+                transition: all 0.3s;
+            " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" title="Masquer/Afficher les détails">
+                👁️ Masquer
+            </button>
+        </div>
+        
+        <div class="info-details" id="infoDetails">
+            <p>Chaque point coloré représente une relation causale possible depuis l'origine.</p>
+            <p>La couleur encode la vitesse relative nécessaire pour connecter ces événements.</p>
+            <p><strong>Bleu</strong> = Repos relatif<br>
+               <strong>Vert</strong> = Vitesse intermédiaire<br>
+               <strong>Rouge</strong> = Vitesse élevée<br>
+               <strong>Noir</strong> = c et au-delà (causalement déconnecté)</p>
+            <p><strong>🚀 Cliquez dans un cône pour créer un nouveau référentiel !</strong></p>
+            <p><strong>🚫 Zone causalement déconnectée</strong></p>
+            <p><em>Les lignes blanches montrent les chemins d'accélération entre référentiels.</em></p>
+            <p><em>Maintenez <strong>Ctrl</strong> en déplaçant pour contraindre à une ligne verticale.</em></p>
+        </div>
+    </div>
+
+    <div class="calculations">
+        <h4>Calculs</h4>
+        <p>Cliquez sur un point d'origine pour voir les calculs détaillés...</p>
+    </div>
+
+    <div class="comments">
+        <h3>📝 Commentaires</h3>
+        
+        <div class="comments-toolbar">
+            <button id="boldBtn" title="Gras">B</button>
+            <button id="italicBtn" title="Italique">I</button>
+            <button id="underlineBtn" title="Souligné">U</button>
+            <button id="colorBtn" title="Couleur" style="background: #ff6b6b;">A</button>
+            <button id="clearFormatBtn" title="Effacer format">✗</button>
+        </div>
+        
+        <div id="commentsEditor" class="comments-content" contenteditable="true" 
+             style="white-space: pre-wrap;" 
+             placeholder="Documentez votre diagramme ici...">
+            <p style="color: #888; font-style: italic;">Cliquez ici pour ajouter vos commentaires sur le diagramme...</p>
+        </div>
+        
+        <div class="comments-actions">
+            <button id="saveComments" title="Sauvegarder commentaires + diagramme (Ctrl+S)">💾 Sauver</button>
+            <button id="loadComments" title="Charger sauvegarde complète (Ctrl+L)">📂 Charger</button>
+            <button id="clearComments" class="clear-btn" title="Effacer tout (commentaires + diagramme)">🗑️ Effacer</button>
+        </div>
+    </div>
+
+    <!-- JavaScript files -->
+    <script src="js/main.js"></script>
+</body>
+</html> 
