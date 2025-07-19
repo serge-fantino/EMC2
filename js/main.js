@@ -59,7 +59,7 @@ import {
     isDragging,
     getAppState,
     resetAppState
-} from './interaction/index.js?v=1.0.1';
+} from './interaction/index.js?v=1.0.2';
 
 // Configuration
 let config = {

@@ -191,27 +191,37 @@ export function resetAppState() {
     State.resetAppState();
 }
 
-// Exporter toutes les fonctions des sous-modules pour compatibilité
+// Ré-exporter les fonctions des sous-modules pour compatibilité
 export {
     // Events
-    handleMouseDown: Events.handleMouseDown,
-    handleMouseMove: Events.handleMouseMove,
-    handleMouseUp: Events.handleMouseUp,
-    handleCanvasClick: Events.handleCanvasClick,
-    
+    handleMouseDown,
+    handleMouseMove,
+    handleMouseUp,
+    handleCanvasClick,
+    initEventsModule,
+    setGetCurrentPlacements
+} from './events.js';
+
+export {
     // Controls
-    setupCommentsPanel: Controls.setupCommentsPanel,
-    setupUIControls: Controls.setupUIControls,
-    
+    setupCommentsPanel,
+    setupUIControls,
+    initControlsModule,
+    setResolutionSettings,
+    setConfig
+} from './controls.js';
+
+export {
     // State
-    updateDragState: State.updateDragState,
-    updateCartoucheDragState: State.updateCartoucheDragState,
-    updateHelpModalState: State.updateHelpModalState,
-    updateDetailsPanelState: State.updateDetailsPanelState,
-    updateCommentsEditorState: State.updateCommentsEditorState,
-    updateUnsavedChangesState: State.updateUnsavedChangesState,
-    isHelpModalOpen: State.isHelpModalOpen,
-    isDetailsPanelOpen: State.isDetailsPanelOpen,
-    isCommentsEditorFocused: State.isCommentsEditorFocused,
-    hasUnsavedChanges: State.hasUnsavedChanges
-};
+    updateDragState,
+    updateCartoucheDragState,
+    updateHelpModalState,
+    updateDetailsPanelState,
+    updateCommentsEditorState,
+    updateUnsavedChangesState,
+    isHelpModalOpen,
+    isDetailsPanelOpen,
+    isCommentsEditorFocused,
+    hasUnsavedChanges,
+    initStateModule
+} from './state.js';
