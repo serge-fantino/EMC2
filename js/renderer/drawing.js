@@ -159,7 +159,7 @@ export function drawLightConeHeatmap(config, coneOrigins, selectedReferenceFrame
         for (let px = 0; px < canvas.width; px += pixelSize) {
             for (let py = 0; py < canvas.height; py += pixelSize) {
                 // Convertir coordonnées pixel vers espace-temps
-                const spacetime = spacetimeToScreen(px, py);
+                const spacetime = screenToSpacetime(px, py);
                 
                 // Calculer position relative depuis l'origine de ce cône
                 const relativeX = spacetime.x - coneOrigin.x;
