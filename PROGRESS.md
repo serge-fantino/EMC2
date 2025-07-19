@@ -57,13 +57,20 @@ Phase 4: Optimisation      [░░░░░░░░░░]   0%
 
 ## 📋 Phase 3 - Modularisation JavaScript (🔄 EN COURS)
 
-### ✅ Module Physics Terminé
+### ✅ Module Physics COMPLET + Tests
 - [x] **js/physics/constants.js** : Constantes physiques (14 lignes)
 - [x] **js/physics/relativity.js** : Calculs relativistes purs (102 lignes)  
 - [x] **js/physics/trajectory.js** : Trajectoires et isochrones (146 lignes)
 - [x] **js/physics/index.js** : Point d'entrée du module (28 lignes)
 - [x] **Adaptation main.js** : Imports ES6, suppression code dupliqué (-200 lignes)
 - [x] **index.html** : Script avec type="module"
+- [x] **tests/unit/physics.test.js** : Suite complète de tests unitaires (316 lignes)
+- [x] **test-runner.html** : Interface graphique pour exécuter les tests
+- [x] **README.md** : Instructions de lancement + section tests
+- [x] **scripts/start-server.sh** : Script de lancement facile
+- [x] **package.json** : Scripts npm + commandes de test
+- [x] **Tests validés** : Application fonctionnelle via HTTP server
+- [x] **Commit f7822c5** : Module Physics + Infrastructure
 
 ### 🔄 Module Renderer (Suivant)
 - [ ] Créer `js/renderer/canvas.js` avec coordonnées et canvas
@@ -94,8 +101,11 @@ Phase 4: Optimisation      [░░░░░░░░░░]   0%
 ```
 EMC2/
 ├── REFACTORING_STRATEGY.md      ✅ Stratégie complète
-├── PROGRESS.md                  ✅ Ce fichier d'avancement
+├── PROGRESS.md                  ✅ Ce fichier d'avancement  
+├── readme.md                    ✅ Instructions + section tests
+├── package.json                 ✅ Scripts npm + commandes de test
 ├── index.html                   ✅ HTML principal (script ES module)
+├── test-runner.html             ✅ Interface de tests unitaires
 ├── backup-original.html         ✅ Sauvegarde de l'original
 ├── js/
 │   ├── main.js                  ✅ Orchestrateur principal (~1780 lignes)
@@ -107,7 +117,10 @@ EMC2/
 ├── css/
 │   ├── styles.css               ✅ Styles principaux (59 lignes)
 │   └── components.css           ✅ Composants UI (369 lignes)
-└── tests/unit/                  ✅ Dossier créé
+├── scripts/
+│   └── start-server.sh          ✅ Script de lancement HTTP
+└── tests/unit/
+    └── physics.test.js          ✅ Tests unitaires Physics (316 lignes)
 ```
 
 ## 🔄 Fichiers en Cours

@@ -85,12 +85,44 @@ L'application permet de **construire intuitivement** des scénarios relativistes
 # Développement
 python3 -m http.server 8000
 
-# Tests (TODO)
+# Tests unitaires
 npm test
+# Puis ouvrir http://localhost:8000/test-runner.html
+
+# Tests du module Physics spécifiquement  
+npm run test:physics
 
 # Build (TODO)  
 npm run build
 ```
+
+## 🧪 Tests Unitaires
+
+Le projet inclut une suite complète de **tests unitaires** pour le module Physics :
+
+### 📋 Couverture des tests
+- **✅ Constantes physiques** : Vérification des valeurs et cohérence
+- **✅ Calculs relativistes** : limitVelocity, calculateVelocityRatio, calculateCumulativePhysics
+- **✅ Causalité** : isReachableFromSource, contraintes des cônes de lumière  
+- **✅ Trajectoires** : calculateIsochronePoints, calculateAccelerationTrajectory
+- **✅ Détection** : getContainingCone, logique d'intersection
+- **✅ Cas limites** : Valeurs extrêmes, robustesse, cohérence dimensionnelle
+- **✅ Intégration** : Conservation, limites relativistes, trajectoires fermées
+
+### 🚀 Lancement des tests
+```bash
+# Démarrer le serveur
+npm test
+
+# Ouvrir dans le navigateur  
+open http://localhost:8000/test-runner.html
+```
+
+**Interface de test** :
+- 🎯 **Exécution automatique** au chargement
+- 📊 **Rapport détaillé** avec statistiques
+- ⏱️ **Mesure des performances** 
+- 🎨 **Interface sombre** adaptée au développement
 
 ## 📚 Ressources
 

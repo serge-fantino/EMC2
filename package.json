@@ -6,7 +6,9 @@
   "scripts": {
     "start": "python3 -m http.server 8000",
     "dev": "python3 -m http.server 8000",
-    "serve": "python3 -m http.server"
+    "serve": "python3 -m http.server",
+    "test": "echo '🧮 Tests unitaires disponibles sur http://localhost:8000/test-runner.html' && python3 -m http.server 8000",
+    "test:physics": "echo '🧮 Lancer le serveur puis ouvrir http://localhost:8000/test-runner.html'"
   },
   "repository": {
     "type": "git",
