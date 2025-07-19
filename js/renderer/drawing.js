@@ -299,29 +299,33 @@ export function drawAccelerationPath(fromCone, toCone, newConeIndex, coneOrigins
             const x_rel = (c * c / properAccel) * (Math.sqrt(1 + at_over_c * at_over_c) - 1);
             x = fromCone.x + Math.sign(X) * x_rel;
         } else {
-            // Partir avec vitesse initiale v0 - approche physique simplifiée
-            const t_norm = t / T; // Temps normalisé (0 à 1)
+            // Partir avec vitesse initiale v0 - CALCUL ORIGINAL RESTAURÉ
+            const deltaX = toCone.x - fromCone.x;
+            const deltaT = T;
             
-            // Déplacement inertiel si pas d'accélération
+            // Composante inertielle (mouvement à vitesse constante v0)
             const x_inertial = fromCone.x + v0 * t;
             
-            // Déplacement nécessaire pour corriger et atteindre la cible
-            const x_correction_needed = (toCone.x - fromCone.x) - v0 * T;
+            // Correction d'accélération nécessaire pour atteindre la cible
+            const x_target_correction = deltaX - v0 * deltaT;
             
-            // Fonction de transition lisse qui respecte les contraintes relativistes
-            // Utilise une courbe en S pour éviter les discontinuités de vitesse
-            const s_curve = t_norm * t_norm * (3 - 2 * t_norm); // Hermite interpolation
+            // Facteur de Lorentz initial
+            const gamma0 = 1 / Math.sqrt(1 - v0 * v0 / (c * c));
             
-            // Appliquer la correction progressivement
-            x = x_inertial + x_correction_needed * s_curve;
-            
-            // Vérification de validité physique
-            const instantaneous_velocity = (x - fromCone.x) / t;
-            if (Math.abs(instantaneous_velocity) > c * 0.98) {
-                // Si la vitesse dépasse c, utiliser trajectoire linéaire contrainte
-                const max_displacement = c * 0.98 * t;
-                const direction = Math.sign(X);
-                x = fromCone.x + direction * Math.min(Math.abs(X * t_norm), max_displacement);
+            // Calcul relativiste avec accélération constante
+            if (Math.abs(properAccel) > 0.001) {
+                const aT_over_c = properAccel * t / c;
+                const accel_component = (c * c / properAccel) * (Math.sqrt(1 + aT_over_c * aT_over_c) - 1);
+                
+                // Facteur d'échelle pour atteindre exactement la cible
+                const target_accel_displacement = (c * c / properAccel) * (Math.sqrt(1 + (properAccel * deltaT / c) * (properAccel * deltaT / c)) - 1);
+                const scale_factor = target_accel_displacement > 0 ? x_target_correction / target_accel_displacement : 0;
+                
+                x = x_inertial + scale_factor * accel_component;
+            } else {
+                // Pas d'accélération significative, mouvement principalement inertiel
+                const t_norm = t / deltaT;
+                x = x_inertial + x_target_correction * t_norm;
             }
         }
         
@@ -331,6 +335,23 @@ export function drawAccelerationPath(fromCone, toCone, newConeIndex, coneOrigins
     
     _ctx.stroke();
     _ctx.setLineDash([]);
+    
+    // Dessiner une flèche au bout de la trajectoire
+    const arrowLength = isPartOfSelectedTrajectory_result ? 15 : 10;
+    const angle = Math.atan2(toScreen.screenY - fromScreen.screenY, toScreen.screenX - fromScreen.screenX);
+    
+    _ctx.beginPath();
+    _ctx.moveTo(toScreen.screenX, toScreen.screenY);
+    _ctx.lineTo(
+        toScreen.screenX - arrowLength * Math.cos(angle - Math.PI / 6),
+        toScreen.screenY - arrowLength * Math.sin(angle - Math.PI / 6)
+    );
+    _ctx.moveTo(toScreen.screenX, toScreen.screenY);
+    _ctx.lineTo(
+        toScreen.screenX - arrowLength * Math.cos(angle + Math.PI / 6),
+        toScreen.screenY - arrowLength * Math.sin(angle + Math.PI / 6)
+    );
+    _ctx.stroke();
 }
 
 /**

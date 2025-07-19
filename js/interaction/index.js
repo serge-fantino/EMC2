@@ -36,7 +36,8 @@ export function initInteractionModule(params) {
         _updateCommentsPanel,
         _getCurrentPlacements,
         _resolutionSettings,
-        _config
+        _config,
+        _setSelectedReferenceFrame
     } = params;
     
     // Injecter les variables globales
@@ -50,7 +51,7 @@ export function initInteractionModule(params) {
     config = _config;
     
     // Initialiser les sous-modules
-    Events.initEventsModule(coneOrigins, selectedReferenceFrame, cartoucheOffsets, updateCalculationsDisplay);
+    Events.initEventsModule(coneOrigins, selectedReferenceFrame, cartoucheOffsets, updateCalculationsDisplay, _setSelectedReferenceFrame);
     Controls.initControlsModule(coneOrigins, selectedReferenceFrame, cartoucheOffsets, updateCalculationsDisplay, updateCommentsPanel);
     State.initStateModule();
     

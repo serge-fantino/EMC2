@@ -59,7 +59,7 @@ import {
     isDragging,
     getAppState,
     resetAppState
-} from './interaction/index.js?v=1.0.2';
+} from './interaction/index.js?v=1.0.6';
 
 // Configuration
 let config = {
@@ -116,6 +116,11 @@ function getRenderData() {
         selectedReferenceFrame,
         cartoucheOffsets
     };
+}
+
+// Callback pour mettre à jour le référentiel sélectionné
+function setSelectedReferenceFrame(newIndex) {
+    selectedReferenceFrame = newIndex;
 }
 
 // Update calculations display
@@ -234,8 +239,15 @@ function updateCommentsPanel(title, content) {
 function init() {
     console.log('🚀 Initializing application with modular architecture...');
     
+    // Obtenir l'élément canvas
+    const canvasElement = document.getElementById('canvas');
+    if (!canvasElement) {
+        console.error('Canvas element not found!');
+        return;
+    }
+    
     // Initialiser le module Renderer
-    initRenderer();
+    initRenderer(canvasElement);
     
     // Initialiser le module Interaction
     initInteractionModule({
@@ -246,17 +258,21 @@ function init() {
         _updateCommentsPanel: updateCommentsPanel,
         _getCurrentPlacements: getCurrentPlacements,
         _resolutionSettings: resolutionSettings,
-        _config: config
+        _config: config,
+        _setSelectedReferenceFrame: setSelectedReferenceFrame
     });
     
     // Configurer les event listeners du canvas
-    const canvas = getCanvas();
-    if (canvas) {
-        setupCanvasEventListeners(canvas);
-    }
+    setupCanvasEventListeners(canvasElement);
     
     // Configurer les event listeners globaux
     setupGlobalEventListeners();
+    
+    // Redimensionner le canvas à la taille de la fenêtre
+    resizeCanvas();
+    
+    // Exposer resizeCanvas sur window pour les event listeners
+    window.resizeCanvas = resizeCanvas;
     
     // Mettre à jour l'affichage initial
     updateCalculationsDisplay();

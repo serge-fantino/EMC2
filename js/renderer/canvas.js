@@ -16,6 +16,20 @@ export let canvas = null;
 export let ctx = null;
 
 /**
+ * Getter pour le canvas (toujours à jour)
+ */
+export function getCanvas() {
+    return canvas;
+}
+
+/**
+ * Getter pour le contexte (toujours à jour)
+ */
+export function getCtx() {
+    return ctx;
+}
+
+/**
  * Configuration des paramètres de résolution
  */
 export const resolutionSettings = {
@@ -29,19 +43,22 @@ export const resolutionSettings = {
  * @param {HTMLCanvasElement} canvasElement - Élément canvas HTML
  */
 export function initCanvas(canvasElement) {
+    // Mettre à jour les variables exportées
     canvas = canvasElement;
     ctx = canvas.getContext('2d');
     console.log('Canvas renderer initialized');
+    return { canvas: canvasElement, ctx: canvasElement.getContext('2d') };
 }
 
 /**
  * Redimensionne le canvas à la taille de la fenêtre
  */
 export function resizeCanvas() {
-    if (!canvas) return;
+    const canvasRef = getCanvas();
+    if (!canvasRef) return;
     
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    canvasRef.width = window.innerWidth;
+    canvasRef.height = window.innerHeight;
 }
 
 /**
@@ -51,10 +68,11 @@ export function resizeCanvas() {
  * @returns {{x: number, t: number}} Coordonnées espace-temps
  */
 export function screenToSpacetime(screenX, screenY) {
-    if (!canvas) return { x: 0, t: 0 };
+    const canvasRef = getCanvas();
+    if (!canvasRef) return { x: 0, t: 0 };
     
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height - 50; // Origine en bas avec marge
+    const centerX = canvasRef.width / 2;
+    const centerY = canvasRef.height - 50; // Origine en bas avec marge
     const scale = 2;
     
     const x = (screenX - centerX) / scale;
@@ -70,10 +88,11 @@ export function screenToSpacetime(screenX, screenY) {
  * @returns {{screenX: number, screenY: number}} Coordonnées écran
  */
 export function spacetimeToScreen(x, t) {
-    if (!canvas) return { screenX: 0, screenY: 0 };
+    const canvasRef = getCanvas();
+    if (!canvasRef) return { screenX: 0, screenY: 0 };
     
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height - 50; // Origine en bas avec marge
+    const centerX = canvasRef.width / 2;
+    const centerY = canvasRef.height - 50; // Origine en bas avec marge
     const scale = 2;
     
     const screenX = centerX + x * scale;
@@ -87,11 +106,12 @@ export function spacetimeToScreen(x, t) {
  * @returns {{centerX: number, centerY: number, scale: number}} Paramètres de rendu
  */
 export function getCanvasTransform() {
-    if (!canvas) return { centerX: 0, centerY: 0, scale: 2 };
+    const canvasRef = getCanvas();
+    if (!canvasRef) return { centerX: 0, centerY: 0, scale: 2 };
     
     return {
-        centerX: canvas.width / 2,
-        centerY: canvas.height - 50,
+        centerX: canvasRef.width / 2,
+        centerY: canvasRef.height - 50,
         scale: 2
     };
 }
@@ -100,9 +120,11 @@ export function getCanvasTransform() {
  * Efface complètement le canvas
  */
 export function clearCanvas() {
-    if (!ctx || !canvas) return;
+    const canvasRef = getCanvas();
+    const ctxRef = getCtx();
+    if (!ctxRef || !canvasRef) return;
     
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctxRef.clearRect(0, 0, canvasRef.width, canvasRef.height);
 }
 
 /**
@@ -112,8 +134,9 @@ export function clearCanvas() {
  * @returns {boolean} True si le point est dans le canvas
  */
 export function isInCanvasBounds(screenX, screenY) {
-    if (!canvas) return false;
+    const canvasRef = getCanvas();
+    if (!canvasRef) return false;
     
-    return screenX >= 0 && screenX <= canvas.width && 
-           screenY >= 0 && screenY <= canvas.height;
+    return screenX >= 0 && screenX <= canvasRef.width && 
+           screenY >= 0 && screenY <= canvasRef.height;
 } 

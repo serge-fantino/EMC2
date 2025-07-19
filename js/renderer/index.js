@@ -5,8 +5,8 @@
 
 // Imports des sous-modules
 import { 
-    canvas, 
-    ctx, 
+    getCanvas, 
+    getCtx, 
     initCanvas, 
     resizeCanvas, 
     screenToSpacetime, 
@@ -28,6 +28,7 @@ import {
 } from './colors.js';
 
 import { 
+    initDrawingModule,
     drawLightConeHeatmap,
     drawAccelerationPath,
     drawSelectedIsochrone,
@@ -52,8 +53,8 @@ import {
  * ========== EXPORTS CANVAS ==========
  */
 export { 
-    canvas, 
-    ctx, 
+    getCanvas, 
+    getCtx, 
     initCanvas, 
     resizeCanvas, 
     screenToSpacetime, 
@@ -114,6 +115,8 @@ export {
  * @param {Object} renderData.cartoucheOffsets - Décalages cartouches
  */
 export function draw(renderData) {
+    const canvas = getCanvas();
+    const ctx = getCtx();
     if (!ctx || !canvas) {
         console.error('Canvas renderer not initialized');
         return;
@@ -259,6 +262,7 @@ export function animate(getRenderData) {
  * @param {HTMLCanvasElement} canvasElement - Élément canvas
  */
 export function initRenderer(canvasElement) {
-    initCanvas(canvasElement);
+    const { canvas, ctx } = initCanvas(canvasElement);
+    initDrawingModule(canvas, ctx);
     console.log('🎨 Renderer module initialized');
 } 
