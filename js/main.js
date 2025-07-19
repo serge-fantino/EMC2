@@ -1,6 +1,6 @@
 // JavaScript principal extrait de cone-lumiere-colore.html
 // Refactoring Phase 1 - Extraction JavaScript
-// Refactoring Phase 3 - Modularisation avec module Physics
+// Refactoring Phase 3 - Modularisation avec modules Physics et Renderer
 
 // === IMPORTS ===
 import {
@@ -21,8 +21,28 @@ import {
     getContainingCone
 } from './physics/index.js';
 
-const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d');
+import {
+    // Initialisation renderer
+    initRenderer,
+    animate,
+    
+    // Fonctions canvas
+    canvas,
+    ctx,
+    resizeCanvas,
+    screenToSpacetime,
+    spacetimeToScreen,
+    resolutionSettings,
+    
+    // Fonctions couleurs
+    updateGradientBar,
+    
+    // Fonctions de dessin
+    getConeAtPosition,
+    getCartoucheAtPosition,
+    checkIsochroneHover,
+    getCurrentPlacements
+} from './renderer/index.js';
 
 // Configuration
 let config = {
@@ -69,150 +89,14 @@ let coneOrigins = [{
 // Selected reference frame for detailed calculations
 let selectedReferenceFrame = 0;
 
-// Store isochrone points globally for hover detection
-let currentIsochronePoints = [];
-let isochroneHoverInfo = null;
+// Note: isochrone hover et resolution settings maintenant dans le module Renderer
 
-// Resolution settings
-const resolutionSettings = {
-    1: { name: 'Basse', pixelSize: 8 },
-    2: { name: 'Moyenne', pixelSize: 4 },
-    3: { name: 'Haute', pixelSize: 2 }
-};
-
-// Resize canvas
-function resizeCanvas() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-}
-resizeCanvas();
-window.addEventListener('resize', resizeCanvas);
-
-// Update gradient bar dynamically
-function updateGradientBar() {
-    const gradientBar = document.getElementById('gradientBar');
-    const greenPercent = config.greenLimit * 100;
-    const redPercent = config.redLimit * 100; // Always 100% now
-    
-    gradientBar.style.background = `linear-gradient(to right, 
-        #0000ff 0%, 
-        #00ff00 ${greenPercent}%, 
-        #ff0000 ${redPercent}%, 
-        #000000 100%)`;
-    
-    // Update labels
-    document.getElementById('greenLabel').textContent = `${config.greenLimit.toFixed(2)}c`;
-    // Red label is now fixed at 1.0c
-}
-
-// Color function for velocity (now dynamic)
-function getColorForVelocity(v) {
-    // v goes from 0 to 1 (where 1 = c)
-    // Dynamic gradient: Blue (0) -> Green (greenLimit) -> Red (redLimit) -> Transparent (≥c)
-    
-    if (v >= 1) {
-        // Transparent for v ≥ c (causally disconnected)
-        return { r: 0, g: 0, b: 0, alpha: 0 };
-    }
-    
-    if (v < config.greenLimit) {
-        // Blue to Green (0 to greenLimit)
-        const t = v / config.greenLimit; // 0 to 1
-        const r = 0;
-        const g = Math.floor(255 * t);
-        const b = Math.floor(255 * (1 - t));
-        return { r, g, b, alpha: 255 };
-    } else if (v < config.redLimit) {
-        // Green to Red (greenLimit to redLimit)
-        const t = (v - config.greenLimit) / (config.redLimit - config.greenLimit); // 0 to 1
-        const r = Math.floor(255 * t);
-        const g = Math.floor(255 * (1 - t));
-        const b = 0;
-        return { r, g, b, alpha: 255 };
-    } else {
-        // Red to Transparent (redLimit to c)
-        const t = (v - config.redLimit) / (1 - config.redLimit); // 0 to 1
-        const r = Math.floor(255 * (1 - t));
-        const g = 0;
-        const b = 0;
-        const alpha = Math.floor(255 * (1 - t)); // Fade to transparent
-        return { r, g, b, alpha };
-    }
-}
+// Note: Fonctions de rendu (updateGradientBar, getColorForVelocity, 
+// screenToSpacetime, spacetimeToScreen, getConeAtPosition) maintenant dans module Renderer
 
 
 
-// Convert screen coordinates to spacetime coordinates
-function screenToSpacetime(screenX, screenY) {
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height - 50; // Origin at bottom with some margin
-    const scale = 2;
-    
-    const x = (screenX - centerX) / scale;
-    const t = (centerY - screenY) / scale; // Time goes up
-    
-    return { x, t };
-}
-
-// Convert spacetime coordinates to screen coordinates
-function spacetimeToScreen(x, t) {
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height - 50; // Origin at bottom with some margin
-    const scale = 2;
-    
-    const screenX = centerX + x * scale;
-    const screenY = centerY - t * scale;
-    
-    return { screenX, screenY };
-}
-
-
-
-// Check if mouse is over a cone origin point
-function getConeAtPosition(mouseX, mouseY) {
-    const threshold = 15; // Click threshold in pixels
-    
-    for (let i = 1; i < coneOrigins.length; i++) { // Skip origin (index 0)
-        const origin = coneOrigins[i];
-        const screen = spacetimeToScreen(origin.x, origin.t);
-        const distance = Math.sqrt(
-            Math.pow(mouseX - screen.screenX, 2) + 
-            Math.pow(mouseY - screen.screenY, 2)
-        );
-        
-        if (distance <= threshold) {
-            return i;
-        }
-    }
-    return -1;
-}
-
-
-
-// Store placements globally for mouse event access
-let currentPlacements = [];
-
-// Check if mouse is over a cartouche
-function getCartoucheAtPosition(mouseX, mouseY, placements) {
-    for (const placement of placements) {
-        const coneIndex = placement.originalBox.coneIndex;
-        if (mouseX >= placement.x && mouseX <= placement.x + placement.width &&
-            mouseY >= placement.y && mouseY <= placement.y + placement.height) {
-            return coneIndex;
-        }
-    }
-    return -1;
-}
-
-// Apply manual offset to cartouche placement
-function applyCartoucheOffset(placement, coneIndex) {
-    const offset = cartoucheOffsets[coneIndex] || { x: 0, y: 0 };
-    return {
-        ...placement,
-        x: placement.x + offset.x,
-        y: placement.y + offset.y
-    };
-}
+// Note: getCartoucheAtPosition et applyCartoucheOffset maintenant dans module Renderer
 
 
 
@@ -222,7 +106,7 @@ function handleMouseDown(event) {
     const mouseY = event.clientY;
     
     // Check if clicking on a cartouche
-    const cartoucheIndex = getCartoucheAtPosition(mouseX, mouseY, currentPlacements);
+    const cartoucheIndex = getCartoucheAtPosition(mouseX, mouseY, getCurrentPlacements());
     if (cartoucheIndex !== -1) {
         // Start cartouche drag
         cartoucheDragState.isDragging = true;
@@ -231,7 +115,7 @@ function handleMouseDown(event) {
         cartoucheDragState.startY = mouseY;
         
         // Calculate offset from cartouche top-left
-        const placement = currentPlacements.find(p => p.originalBox.coneIndex === cartoucheIndex);
+        const placement = getCurrentPlacements().find(p => p.originalBox.coneIndex === cartoucheIndex);
         cartoucheDragState.offsetX = mouseX - placement.x;
         cartoucheDragState.offsetY = mouseY - placement.y;
         
@@ -240,7 +124,7 @@ function handleMouseDown(event) {
     }
     
     // Check if clicking on a cone origin
-    const coneIndex = getConeAtPosition(mouseX, mouseY);
+    const coneIndex = getConeAtPosition(mouseX, mouseY, coneOrigins);
     if (coneIndex !== -1) {
         // Start cone drag
         dragState.isDragging = true;
@@ -303,7 +187,7 @@ function handleMouseMove(event) {
     const mouseY = event.clientY;
     
     // Check isochrone hover
-    checkIsochroneHover(mouseX, mouseY);
+    checkIsochroneHover(mouseX, mouseY, selectedReferenceFrame, coneOrigins);
     
     if (cartoucheDragState.isDragging) {
         // Update cartouche offset
@@ -357,13 +241,13 @@ function handleMouseMove(event) {
         }
     } else {
         // Update cursor based on current position
-        const cartoucheIndex = getCartoucheAtPosition(mouseX, mouseY, currentPlacements);
+        const cartoucheIndex = getCartoucheAtPosition(mouseX, mouseY, getCurrentPlacements());
         if (cartoucheIndex !== -1) {
             canvas.style.cursor = 'grab';
             return;
         }
         
-        const coneIndex = getConeAtPosition(mouseX, mouseY);
+        const coneIndex = getConeAtPosition(mouseX, mouseY, coneOrigins);
         if (coneIndex !== -1) {
             canvas.style.cursor = 'grab';
         } else {
@@ -404,7 +288,7 @@ function handleCanvasClick(event) {
     const mouseY = event.clientY;
     
     // Check if clicking on a cone origin to select it
-    const coneIndex = getConeAtPosition(mouseX, mouseY);
+    const coneIndex = getConeAtPosition(mouseX, mouseY, coneOrigins);
     if (coneIndex !== -1) {
         selectedReferenceFrame = coneIndex;
         updateCalculationsDisplay();
@@ -412,7 +296,7 @@ function handleCanvasClick(event) {
     }
     
     // Check if clicking on a cartouche to select it
-    const cartoucheIndex = getCartoucheAtPosition(mouseX, mouseY, currentPlacements);
+    const cartoucheIndex = getCartoucheAtPosition(mouseX, mouseY, getCurrentPlacements());
     if (cartoucheIndex !== -1) {
         selectedReferenceFrame = cartoucheIndex;
         updateCalculationsDisplay();
@@ -426,730 +310,21 @@ canvas.addEventListener('mousemove', handleMouseMove);
 canvas.addEventListener('mouseup', handleMouseUp);
 canvas.addEventListener('click', handleCanvasClick);
 
-// Check if path is part of selected trajectory
-function isPathInSelectedTrajectory(coneIndex) {
-    if (selectedReferenceFrame === 0) return false;
-    
-    // Check if this path is part of the chain leading to the selected frame
-    let currentIndex = selectedReferenceFrame;
-    while (currentIndex !== -1) {
-        if (currentIndex === coneIndex) return true;
-        currentIndex = coneOrigins[currentIndex].sourceIndex;
-    }
-    return false;
-}
+// Note: isPathInSelectedTrajectory maintenant dans module Renderer
 
-// Draw acceleration path between two cones
-function drawAccelerationPath(fromCone, toCone, newConeIndex) {
-    const fromScreen = spacetimeToScreen(fromCone.x, fromCone.t);
-    const toScreen = spacetimeToScreen(toCone.x, toCone.t);
-    
-    // Calculate trajectory for constant acceleration from rest
-    const X = toCone.x - fromCone.x;  // spatial displacement
-    const T = toCone.t - fromCone.t;  // temporal displacement
-    
-    // Ensure we're going forward in time
-    if (T <= 0) return;
-    
-    const c = 1; // c = 1 in our units (45° cone)
-    
-    // Get physics for this cone and the source cone
-                const physics = calculateCumulativePhysics(newConeIndex, coneOrigins);
-    
-    // Get initial velocity from the cone we're starting from (fromCone)
-    let fromConeIndex = -1;
-    for (let i = 0; i < coneOrigins.length; i++) {
-        if (coneOrigins[i] === fromCone) {
-            fromConeIndex = i;
-            break;
-        }
-    }
-            const fromPhysics = calculateCumulativePhysics(fromConeIndex, coneOrigins);
-    
-    let properAccel = physics.segmentAcceleration;
-    let isValidTrajectory = !(Math.abs(X) >= T * c * (1 - 0.02)); // Same safety margin
-    
-    if (!isValidTrajectory) return; // Don't draw invalid trajectories
-    
-    // Get initial velocity from the cone we're departing from
-    const v0 = limitVelocity(fromPhysics.cumulativeVelocity); // Apply velocity limit
-    
-    // Check if this path is part of the selected reference frame's trajectory
-    const isPartOfSelectedTrajectory = isPathInSelectedTrajectory(newConeIndex);
-    
-    // Set line style based on selection
-    if (isPartOfSelectedTrajectory) {
-        ctx.strokeStyle = 'rgba(255, 255, 255, 1.0)'; // Bright white for selected
-        ctx.lineWidth = 4; // Thick line
-        ctx.setLineDash([8, 4]); // Longer dashes
-    } else {
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([5, 5]);
-    }
-    
-    ctx.beginPath();
-    ctx.moveTo(fromScreen.screenX, fromScreen.screenY);
-    
-    // Draw the relativistic acceleration trajectory with initial velocity
-    const steps = 50;
-    for (let i = 1; i <= steps; i++) {
-        const t = (i / steps) * T; // time coordinate
-        
-        let x, time;
-        
-        if (Math.abs(v0) < 0.001) {
-            // Starting from rest (or nearly rest) - use the simple formula
-            const at_over_c = properAccel * t / c;
-            const x_rel = (c * c / properAccel) * (Math.sqrt(1 + at_over_c * at_over_c) - 1);
-            x = fromCone.x + Math.sign(X) * x_rel;
-        } else {
-            // Starting with initial velocity v0
-            // We need to find the proper acceleration that gets us from 
-            // (fromCone.x, fromCone.t) with velocity v0 to (toCone.x, toCone.t)
-            
-            // For relativistic motion with initial velocity, we solve:
-            // The trajectory must satisfy the boundary conditions
-            
-            // Simple approach: use the calculated proper acceleration from physics
-            // and solve the relativistic trajectory equation
-            
-            const targetX = toCone.x;
-            const targetT = toCone.t;
-            const deltaX = targetX - fromCone.x;
-            const deltaT = targetT - fromCone.t;
-            
-            // For the trajectory calculation, we use the fact that we know both
-            // the initial velocity and the final point
-            
-            // Simple relativistic trajectory with initial velocity:
-            // We approximate by combining inertial motion + acceleration correction
-            
-            const t_norm = t / deltaT; // Normalized time (0 to 1)
-            
-            // Inertial component (what would happen with constant velocity)
-            const x_inertial = fromCone.x + v0 * t;
-            
-            // Acceleration component to reach the target
-            // We need to correct the trajectory to reach the exact target
-            const x_target_correction = deltaX - v0 * deltaT; // What acceleration must provide
-            
-            // Use a smooth acceleration profile that respects relativity
-            // The correction follows a relativistic profile
-            const gamma0 = 1 / Math.sqrt(1 - v0 * v0 / (c * c));
-            
-            // Relativistic acceleration contribution
-            // Using the fact that for constant proper acceleration:
-            // Δx = (c²/a) * [√(1 + (aΔt/c)²) - 1] for motion starting from rest
-            // We scale this by the time parameter
-            
-            if (Math.abs(properAccel) > 0.001) {
-                const aT_over_c = properAccel * t / c;
-                const accel_component = (c * c / properAccel) * (Math.sqrt(1 + aT_over_c * aT_over_c) - 1);
-                
-                // Scale the acceleration component to hit the target
-                const scale_factor = x_target_correction / ((c * c / properAccel) * (Math.sqrt(1 + (properAccel * deltaT / c) * (properAccel * deltaT / c)) - 1));
-                
-                x = x_inertial + scale_factor * accel_component;
-            } else {
-                // No significant acceleration, mostly inertial motion
-                x = x_inertial + x_target_correction * t_norm;
-            }
-        }
-        
-        time = fromCone.t + t;
-        
-        const pathScreen = spacetimeToScreen(x, time);
-        ctx.lineTo(pathScreen.screenX, pathScreen.screenY);
-    }
-    
-    ctx.stroke();
-    ctx.setLineDash([]); // Reset dash
-    
-    // Draw arrow at the end with appropriate size
-    const arrowLength = isPartOfSelectedTrajectory ? 15 : 10;
-    const angle = Math.atan2(toScreen.screenY - fromScreen.screenY, toScreen.screenX - fromScreen.screenX);
-    
-    ctx.beginPath();
-    ctx.moveTo(toScreen.screenX, toScreen.screenY);
-    ctx.lineTo(
-        toScreen.screenX - arrowLength * Math.cos(angle - Math.PI / 6),
-        toScreen.screenY - arrowLength * Math.sin(angle - Math.PI / 6)
-    );
-    ctx.moveTo(toScreen.screenX, toScreen.screenY);
-    ctx.lineTo(
-        toScreen.screenX - arrowLength * Math.cos(angle + Math.PI / 6),
-        toScreen.screenY - arrowLength * Math.sin(angle + Math.PI / 6)
-    );
-    ctx.stroke();
-}
+// Note: Toutes les fonctions de dessin (drawAccelerationPath, distanceToLineSegment,
+// drawSelectedIsochrone, checkIsochroneHover, calculateBoxPlacements, 
+// drawBoxConnection, drawOriginInfoBox, drawReferenceInfoBox, drawIsochroneTooltip,
+// drawLightConeEnvelopes) sont maintenant dans le module Renderer
 
-// Calculate distance from point to line segment
-function distanceToLineSegment(px, py, x1, y1, x2, y2) {
-    const dx = x2 - x1;
-    const dy = y2 - y1;
-    const length = Math.sqrt(dx * dx + dy * dy);
-    
-    if (length === 0) return Math.sqrt((px - x1) * (px - x1) + (py - y1) * (py - y1));
-    
-    const t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / (length * length)));
-    const projX = x1 + t * dx;
-    const projY = y1 + t * dy;
-    
-    return Math.sqrt((px - projX) * (px - projX) + (py - projY) * (py - projY));
-}
-
-
-
-// Draw isochrone for the selected reference frame
-function drawSelectedIsochrone() {
-    if (selectedReferenceFrame === 0) {
-        currentIsochronePoints = [];
-        return;
-    }
-    
-    const selectedCone = coneOrigins[selectedReferenceFrame];
-    const physics = calculateCumulativePhysics(selectedReferenceFrame, coneOrigins);
-    const tau = physics.cumulativeProperTime;
-    
-    if (tau <= 0.01) {
-        currentIsochronePoints = [];
-        return;
-    }
-    
-    const origin = coneOrigins[0];
-    const isochronePoints = calculateIsochronePoints(tau, origin, selectedCone, canvas.width);
-    
-    currentIsochronePoints = isochronePoints;
-    
-    if (isochronePoints.length < 2) return;
-    
-    // Draw the isochrone curve
-    ctx.strokeStyle = 'rgba(255, 165, 0, 0.8)';
-    ctx.lineWidth = 2;
-    ctx.setLineDash([10, 5]);
-    
-    ctx.beginPath();
-    
-    let firstScreen = spacetimeToScreen(isochronePoints[0].x, isochronePoints[0].t);
-    ctx.moveTo(firstScreen.screenX, firstScreen.screenY);
-    
-    for (let i = 1; i < isochronePoints.length; i++) {
-        const screen = spacetimeToScreen(isochronePoints[i].x, isochronePoints[i].t);
-        
-        if (screen.screenX >= 0 && screen.screenX <= canvas.width && 
-            screen.screenY >= 0 && screen.screenY <= canvas.height) {
-            ctx.lineTo(screen.screenX, screen.screenY);
-        }
-    }
-    
-    ctx.stroke();
-    ctx.setLineDash([]);
-}
-
-// Check if mouse is near the isochrone curve
-function checkIsochroneHover(mouseX, mouseY) {
-    if (currentIsochronePoints.length < 2) {
-        isochroneHoverInfo = null;
-        return;
-    }
-    
-    const coneIndex = getConeAtPosition(mouseX, mouseY);
-    if (coneIndex !== -1) {
-        isochroneHoverInfo = null;
-        return;
-    }
-    
-    const cartoucheIndex = getCartoucheAtPosition(mouseX, mouseY, currentPlacements);
-    if (cartoucheIndex !== -1) {
-        isochroneHoverInfo = null;
-        return;
-    }
-    
-    const threshold = 15;
-    let closestPoint = null;
-    let minDistance = Infinity;
-    
-    for (let i = 0; i < currentIsochronePoints.length - 1; i++) {
-        const p1 = spacetimeToScreen(currentIsochronePoints[i].x, currentIsochronePoints[i].t);
-        const p2 = spacetimeToScreen(currentIsochronePoints[i + 1].x, currentIsochronePoints[i + 1].t);
-        
-        const distance = distanceToLineSegment(mouseX, mouseY, p1.screenX, p1.screenY, p2.screenX, p2.screenY);
-        
-        if (distance < threshold && distance < minDistance) {
-            minDistance = distance;
-            const t = Math.max(0, Math.min(1, 
-                ((mouseX - p1.screenX) * (p2.screenX - p1.screenX) + (mouseY - p1.screenY) * (p2.screenY - p1.screenY)) /
-                ((p2.screenX - p1.screenX) ** 2 + (p2.screenY - p1.screenY) ** 2)
-            ));
-            
-            const interpolatedPoint = {
-                x: currentIsochronePoints[i].x + t * (currentIsochronePoints[i + 1].x - currentIsochronePoints[i].x),
-                t: currentIsochronePoints[i].t + t * (currentIsochronePoints[i + 1].t - currentIsochronePoints[i].t)
-            };
-            
-            closestPoint = interpolatedPoint;
-        }
-    }
-    
-    if (closestPoint && minDistance < threshold) {
-        const origin = coneOrigins[0];
-        const selectedCone = coneOrigins[selectedReferenceFrame];
-        const selectedPhysics = calculateCumulativePhysics(selectedReferenceFrame, coneOrigins);
-        
-        const deltaX = closestPoint.x - origin.x;
-        const deltaT = closestPoint.t - origin.t;
-        const velocity = deltaT > 0 ? Math.abs(deltaX / deltaT) : 0;
-        const velocityPercent = Math.min(99.9, velocity * 100);
-        
-        const properTime = selectedPhysics.cumulativeProperTime;
-        const coordinateTime = deltaT;
-        const properTimePercent = coordinateTime > 0 ? (properTime / coordinateTime * 100) : 100;
-        
-        isochroneHoverInfo = {
-            x: mouseX,
-            y: mouseY,
-            velocityPercent: velocityPercent,
-            properTimePercent: properTimePercent,
-            properTime: properTime,
-            coordinateTime: coordinateTime,
-            spatialPosition: deltaX
-        };
-    } else {
-        isochroneHoverInfo = null;
-    }
-}
-
-// Draw box placement calculations
-function calculateBoxPlacements(infoBoxes) {
-    const placements = [];
-    const margin = 10;
-    
-    for (let i = 0; i < infoBoxes.length; i++) {
-        const box = infoBoxes[i];
-        let bestX = box.idealX;
-        let bestY = box.idealY;
-        
-        // Ensure box stays within canvas bounds
-        bestX = Math.max(margin, Math.min(canvas.width - box.width - margin, bestX));
-        bestY = Math.max(margin, Math.min(canvas.height - box.height - margin, bestY));
-        
-        // Simple collision avoidance with previous boxes
-        let hasCollision = true;
-        let attempts = 0;
-        
-        while (hasCollision && attempts < 10) {
-            hasCollision = false;
-            
-            for (const existingPlacement of placements) {
-                if (bestX < existingPlacement.x + existingPlacement.width + margin &&
-                    bestX + box.width + margin > existingPlacement.x &&
-                    bestY < existingPlacement.y + existingPlacement.height + margin &&
-                    bestY + box.height + margin > existingPlacement.y) {
-                    
-                    hasCollision = true;
-                    bestY += box.height + margin;
-                    break;
-                }
-            }
-            
-            attempts++;
-        }
-        
-        placements.push({
-            x: bestX,
-            y: bestY,
-            width: box.width,
-            height: box.height,
-            originalBox: box
-        });
-    }
-    
-    return placements;
-}
-
-// Draw box connection line
-function drawBoxConnection(originX, originY, boxCenterX, boxCenterY) {
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([2, 2]);
-    
-    ctx.beginPath();
-    ctx.moveTo(originX, originY);
-    ctx.lineTo(boxCenterX, boxCenterY);
-    ctx.stroke();
-    
-    ctx.setLineDash([]);
-}
-
-// Draw origin info box
-function drawOriginInfoBox(boxX, boxY, boxWidth, boxHeight) {
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
-    ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
-    ctx.strokeStyle = 'rgba(74, 158, 255, 0.8)';
-    ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
-    
-    if (selectedReferenceFrame === 0) {
-        ctx.strokeStyle = 'white';
-        ctx.lineWidth = 3;
-        ctx.strokeRect(boxX - 2, boxY - 2, boxWidth + 4, boxHeight + 4);
-    }
-    
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
-    ctx.font = 'bold 11px Arial';
-    ctx.fillText('Origine', boxX + 5, boxY + 12);
-    
-    ctx.font = '10px Arial';
-    ctx.fillText('v = 0% c', boxX + 5, boxY + 25);
-    ctx.fillText('a = 0 c²/t', boxX + 5, boxY + 37);
-    ctx.fillText('t = 0 t', boxX + 5, boxY + 49);
-    ctx.fillText('Référentiel inertiel', boxX + 5, boxY + 61);
-}
-
-// Draw reference frame info box
-function drawReferenceInfoBox(boxX, boxY, boxWidth, boxHeight, coneIndex) {
-    const physics = calculateCumulativePhysics(coneIndex, coneOrigins);
-    const cone = coneOrigins[coneIndex];
-    
-    const finalVelocityPercent = (Math.abs(physics.segmentVelocity) / 1 * 100).toFixed(1);
-    const cumulativeVelocityPercent = (Math.abs(physics.cumulativeVelocity) / 1 * 100).toFixed(1);
-    
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
-    ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
-    
-    ctx.strokeStyle = 'rgba(255, 159, 74, 0.8)';
-    ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
-    
-    if (selectedReferenceFrame === coneIndex) {
-        ctx.strokeStyle = 'white';
-        ctx.lineWidth = 3;
-        ctx.strokeRect(boxX - 2, boxY - 2, boxWidth + 4, boxHeight + 4);
-    }
-    
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
-    ctx.font = 'bold 11px Arial';
-    ctx.fillText(`Réf ${coneIndex}`, boxX + 5, boxY + 12);
-    
-    ctx.font = '10px Arial';
-    ctx.fillText(`v = ${cumulativeVelocityPercent}% c`, boxX + 5, boxY + 25);
-    ctx.fillText(`a = ${physics.segmentAcceleration.toFixed(3)} c²/t`, boxX + 5, boxY + 37);
-    ctx.fillText(`t = ${physics.cumulativeProperTime.toFixed(2)} t`, boxX + 5, boxY + 49);
-    ctx.fillText(`Δt = ${physics.segmentCoordinateTime.toFixed(2)} t`, boxX + 5, boxY + 61);
-    ctx.fillText(`X = ${cone.x.toFixed(1)}, T = ${cone.t.toFixed(1)}`, boxX + 5, boxY + 73);
-    ctx.fillText(`v_seg = ${finalVelocityPercent}% c`, boxX + 5, boxY + 85);
-    ctx.fillText(`Source: Réf ${cone.sourceIndex}`, boxX + 5, boxY + 97);
-}
-
-// Draw isochrone tooltip
-function drawIsochroneTooltip() {
-    if (!isochroneHoverInfo) return;
-    
-    const tooltip = isochroneHoverInfo;
-    const tooltipWidth = 200;
-    const tooltipHeight = 80;
-    
-    let tooltipX = tooltip.x + 15;
-    let tooltipY = tooltip.y - tooltipHeight - 15;
-    
-    if (tooltipX + tooltipWidth > canvas.width) {
-        tooltipX = tooltip.x - tooltipWidth - 15;
-    }
-    if (tooltipY < 0) {
-        tooltipY = tooltip.y + 15;
-    }
-    
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
-    ctx.fillRect(tooltipX, tooltipY, tooltipWidth, tooltipHeight);
-    ctx.strokeStyle = 'rgba(255, 165, 0, 0.8)';
-    ctx.strokeRect(tooltipX, tooltipY, tooltipWidth, tooltipHeight);
-    
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
-    ctx.font = 'bold 11px Arial';
-    ctx.fillText('Isochrone', tooltipX + 5, tooltipY + 15);
-    
-    ctx.font = '10px Arial';
-    ctx.fillText(`Vitesse: ${tooltip.velocityPercent.toFixed(1)}% c`, tooltipX + 5, tooltipY + 30);
-    ctx.fillText(`Temps propre: ${tooltip.properTimePercent.toFixed(1)}%`, tooltipX + 5, tooltipY + 45);
-    ctx.fillText(`Position: x=${tooltip.spatialPosition.toFixed(1)}`, tooltipX + 5, tooltipY + 60);
-}
-
-// Draw light cone envelopes
-function drawLightConeEnvelopes() {
-    if (selectedReferenceFrame === 0) return;
-    
-    const selectedCone = coneOrigins[selectedReferenceFrame];
-    const c = 1;
-    
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([5, 5]);
-    
-    ctx.beginPath();
-    
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height - 50;
-    const scale = 2;
-    
-    const maxExtent = Math.max(canvas.width, canvas.height);
-    
-    // Left boundary of future cone
-    const leftStartFuture = spacetimeToScreen(selectedCone.x, selectedCone.t);
-    ctx.moveTo(leftStartFuture.screenX, leftStartFuture.screenY);
-    
-    const futureTime = selectedCone.t + maxExtent / scale;
-    const leftFutureX = selectedCone.x - c * (futureTime - selectedCone.t);
-    const leftFutureScreen = spacetimeToScreen(leftFutureX, futureTime);
-    ctx.lineTo(leftFutureScreen.screenX, leftFutureScreen.screenY);
-    
-    // Right boundary of future cone
-    ctx.moveTo(leftStartFuture.screenX, leftStartFuture.screenY);
-    const rightFutureX = selectedCone.x + c * (futureTime - selectedCone.t);
-    const rightFutureScreen = spacetimeToScreen(rightFutureX, futureTime);
-    ctx.lineTo(rightFutureScreen.screenX, rightFutureScreen.screenY);
-    
-    ctx.stroke();
-    
-    // Past light cone (optional)
-    if (config.showPastCone) {
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
-        ctx.lineWidth = 1;
-        ctx.setLineDash([3, 3]);
-        
-        ctx.beginPath();
-        
-        const leftStartPast = spacetimeToScreen(selectedCone.x, selectedCone.t);
-        ctx.moveTo(leftStartPast.screenX, leftStartPast.screenY);
-        
-        const pastTime = selectedCone.t - maxExtent / 2;
-        const leftPastX = selectedCone.x - c * (selectedCone.t - pastTime);
-        const leftPastScreen = spacetimeToScreen(leftPastX, pastTime);
-        ctx.lineTo(leftPastScreen.screenX, leftPastScreen.screenY);
-        
-        ctx.moveTo(leftStartPast.screenX, leftStartPast.screenY);
-        const rightPastX = selectedCone.x + c * (selectedCone.t - pastTime);
-        const rightPastScreen = spacetimeToScreen(rightPastX, pastTime);
-        ctx.lineTo(rightPastScreen.screenX, rightPastScreen.screenY);
-        
-        ctx.stroke();
-    }
-    
-    ctx.setLineDash([]);
-}
-
-// Main drawing function
-function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height - 50;
-    const scale = 2;
-    
-    // Draw heatmap - using original algorithm with individual cone rendering
-    const imageData = ctx.createImageData(canvas.width, canvas.height);
-    const data = imageData.data;
-    
-    // Clear with black
-    for (let i = 0; i < data.length; i += 4) {
-        data[i] = 0;     // R
-        data[i + 1] = 0; // G
-        data[i + 2] = 0; // B
-        data[i + 3] = 255; // A
-    }
-    
-    const pixelSize = resolutionSettings[config.resolution].pixelSize;
-    
-    // Draw all cones using transparency layering (oldest to newest)
-    for (let coneIndex = 0; coneIndex < coneOrigins.length; coneIndex++) {
-        const coneOrigin = coneOrigins[coneIndex];
-        
-        // Draw the cone heatmap
-        for (let px = 0; px < canvas.width; px += pixelSize) {
-            for (let py = 0; py < canvas.height; py += pixelSize) {
-                // Convert pixel coordinates to spacetime coordinates
-                const spacetime = screenToSpacetime(px, py);
-                
-                // Calculate relative position from this cone's origin
-                const relativeX = spacetime.x - coneOrigin.x;
-                const relativeT = spacetime.t - coneOrigin.t;
-                
-                // Only draw future light cone (t > 0)
-                if (relativeT > 0) {
-                    const velocityRatio = calculateVelocityRatio(relativeX, 0, relativeT);
-                    
-                    // Check if point is inside the light cone
-                    if (velocityRatio <= 1) {
-                        const color = getColorForVelocity(velocityRatio);
-                        
-                        // Apply cone-specific color modulation
-                        const coneModulation = coneIndex === selectedReferenceFrame ? 1.2 : 
-                                             (coneIndex === 0 ? 1.0 : 0.8);
-                        
-                        // Only draw if the color has some opacity
-                        if (color.alpha > 0) {
-                            // Fill pixel block
-                            for (let dx = 0; dx < pixelSize; dx++) {
-                                for (let dy = 0; dy < pixelSize; dy++) {
-                                    const index = ((py + dy) * canvas.width + (px + dx)) * 4;
-                                    if (index < data.length - 3) {
-                                        // Alpha blending with existing pixels
-                                        const newAlpha = (color.alpha / 255) * coneModulation;
-                                        const existingAlpha = data[index + 3] / 255;
-                                        const blendAlpha = newAlpha + existingAlpha * (1 - newAlpha);
-                                        
-                                        if (blendAlpha > 0) {
-                                            // Blend colors
-                                            const newWeight = newAlpha / blendAlpha;
-                                            const existingWeight = (existingAlpha * (1 - newAlpha)) / blendAlpha;
-                                            
-                                            data[index] = Math.floor(color.r * coneModulation * newWeight + data[index] * existingWeight);
-                                            data[index + 1] = Math.floor(color.g * coneModulation * newWeight + data[index + 1] * existingWeight);
-                                            data[index + 2] = Math.floor(color.b * coneModulation * newWeight + data[index + 2] * existingWeight);
-                                            data[index + 3] = Math.floor(blendAlpha * 255);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    
-    ctx.putImageData(imageData, 0, 0);
-    
-    // Draw acceleration paths
-    for (let i = 1; i < coneOrigins.length; i++) {
-        const cone = coneOrigins[i];
-        if (cone.sourceIndex !== -1) {
-            drawAccelerationPath(coneOrigins[cone.sourceIndex], cone, i);
-        }
-    }
-    
-    // Draw isochrone for selected reference frame
-    drawSelectedIsochrone();
-    
-    // Draw light cone envelopes
-    drawLightConeEnvelopes();
-    
-    // Draw axes and labels
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-    ctx.lineWidth = 1;
-    
-    // Time axis
-    ctx.beginPath();
-    ctx.moveTo(centerX, 0);
-    ctx.lineTo(centerX, canvas.height);
-    ctx.stroke();
-    
-    // Space axis
-    ctx.beginPath();
-    ctx.moveTo(0, centerY);
-    ctx.lineTo(canvas.width, centerY);
-    ctx.stroke();
-    
-    // Labels
-    ctx.fillStyle = 'white';
-    ctx.font = '14px Arial';
-    ctx.fillText('Temps', centerX + 10, 30);
-    ctx.fillText('Espace', canvas.width - 380, centerY - 10);
-    
-    // Collect all info boxes
-    const infoBoxes = [];
-    
-    for (let i = 0; i < coneOrigins.length; i++) {
-        const origin = coneOrigins[i];
-        const screen = spacetimeToScreen(origin.x, origin.t);
-        
-        if (i === 0) {
-            infoBoxes.push({
-                idealX: screen.screenX + 20,
-                idealY: screen.screenY - 55,
-                width: 120,
-                height: 65,
-                index: i,
-                isOrigin: true,
-                coneIndex: i,
-                originX: screen.screenX,
-                originY: screen.screenY
-            });
-        } else {
-            infoBoxes.push({
-                idealX: screen.screenX + 20,
-                idealY: screen.screenY - 80,
-                width: 150,
-                height: 105,
-                index: i,
-                isOrigin: false,
-                coneIndex: i,
-                originX: screen.screenX,
-                originY: screen.screenY
-            });
-        }
-    }
-    
-    // Calculate optimal placements
-    const placements = calculateBoxPlacements(infoBoxes);
-    
-    // Apply manual offsets
-    const finalPlacements = placements.map(placement => {
-        const coneIndex = placement.originalBox.coneIndex;
-        return applyCartoucheOffset(placement, coneIndex);
-    });
-    
-    // Store placements globally
-    currentPlacements = finalPlacements;
-    
-    // Draw all origin points and their info boxes
-    for (const placement of finalPlacements) {
-        const i = placement.originalBox.coneIndex;
-        const origin = coneOrigins[i];
-        const screen = spacetimeToScreen(origin.x, origin.t);
-        
-        // Draw the origin point
-        ctx.fillStyle = i === 0 ? '#4a9eff' : '#ff9f4a';
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = i === 0 ? '#4a9eff' : '#ff9f4a';
-        ctx.beginPath();
-        ctx.arc(screen.screenX, screen.screenY, 5, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.shadowBlur = 0;
-        
-        // Draw selection indicator
-        if (i === selectedReferenceFrame) {
-            ctx.strokeStyle = 'white';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.arc(screen.screenX, screen.screenY, 8, 0, Math.PI * 2);
-            ctx.stroke();
-        }
-        
-        // Draw connection line if box was moved
-        const wasMoved = placement.x !== placement.originalBox.idealX || 
-                       placement.y !== placement.originalBox.idealY;
-        if (wasMoved) {
-            drawBoxConnection(
-                screen.screenX, screen.screenY,
-                placement.x + placement.width / 2, placement.y + placement.height / 2
-            );
-        }
-        
-        // Draw the info box
-        if (i === 0) {
-            drawOriginInfoBox(placement.x, placement.y, placement.width, placement.height);
-        } else {
-            drawReferenceInfoBox(placement.x, placement.y, placement.width, placement.height, i);
-        }
-    }
-    
-    // Draw isochrone tooltip
-    drawIsochroneTooltip();
-}
-
-// Animation loop
-function animate() {
-    draw();
-    requestAnimationFrame(animate);
+// Fonction pour obtenir les données de rendu pour le module Renderer
+function getRenderData() {
+    return {
+        config,
+        coneOrigins,
+        selectedReferenceFrame,
+        cartoucheOffsets
+    };
 }
 
 // Update calculations display
@@ -1515,7 +690,7 @@ function init() {
     
     // Update initial display
     updateCalculationsDisplay();
-    updateGradientBar();
+    updateGradientBar(config);
     
     // Set up control event listeners
     const resolutionSlider = document.getElementById('resolution');
@@ -1534,7 +709,7 @@ function init() {
         greenLimitSlider.addEventListener('input', function() {
             config.greenLimit = parseFloat(this.value);
             document.getElementById('greenLimitValue').textContent = config.greenLimit.toFixed(2) + 'c';
-            updateGradientBar();
+            updateGradientBar(config);
         });
     }
     
@@ -1576,7 +751,7 @@ function init() {
             
             // Update UI
             updateCalculationsDisplay();
-            updateGradientBar();
+            updateGradientBar(config);
             
             // Update controls
             if (resolutionSlider) {
@@ -1788,7 +963,7 @@ function init() {
                             if (showPastConeCheckbox) {
                                 showPastConeCheckbox.checked = config.showPastCone;
                             }
-                            updateGradientBar();
+                            updateGradientBar(config);
                         }
                         
                         if (saveData.comments && !saveData.comments.includes('Cliquez ici pour ajouter')) {
@@ -1875,7 +1050,7 @@ function init() {
                 if (showPastConeCheckbox) {
                     showPastConeCheckbox.checked = config.showPastCone;
                 }
-                updateGradientBar();
+                updateGradientBar(config);
             }
             
             if (saveData.comments && !saveData.comments.includes('Cliquez ici pour ajouter')) {
@@ -1899,9 +1074,14 @@ function init() {
     // Set up comments panel management
     setupCommentsPanel();
     
-    // Start animation
+    // Initialize renderer and start animation
+    console.log('Initializing renderer...');
+    initRenderer(document.getElementById('canvas'));
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    
     console.log('Starting animation loop...');
-    animate();
+    animate(getRenderData);
 }
 
 // Start the application when DOM is loaded
@@ -1954,7 +1134,7 @@ window.addEventListener('load', function() {
                 if (showPastConeCheckbox) {
                     showPastConeCheckbox.checked = config.showPastCone;
                 }
-                updateGradientBar();
+                updateGradientBar(config);
             }
             
             // Restore comments

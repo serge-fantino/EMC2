@@ -64,13 +64,15 @@ Phase 4: Optimisation      [░░░░░░░░░░]   0%
 - [x] **js/physics/index.js** : Point d'entrée du module (28 lignes)
 - [x] **Adaptation main.js** : Imports ES6, suppression code dupliqué (-200 lignes)
 - [x] **index.html** : Script avec type="module"
-- [x] **tests/unit/physics.test.js** : Suite complète de tests unitaires (316 lignes)
+- [x] **tests/unit/physics.test.js** : Suite complète de tests unitaires (21 tests)
 - [x] **test-runner.html** : Interface graphique pour exécuter les tests
 - [x] **README.md** : Instructions de lancement + section tests
 - [x] **scripts/start-server.sh** : Script de lancement facile
 - [x] **package.json** : Scripts npm + commandes de test
-- [x] **Tests validés** : Application fonctionnelle via HTTP server
+- [x] **Tests validés** : 21/21 tests passent (100% succès)
+- [x] **Bug corrigé** : Test limites relativistes (zone sécurité)
 - [x] **Commit f7822c5** : Module Physics + Infrastructure
+- [x] **Commit 44b91f7** : Correction tests + suite complète
 
 ### 🔄 Module Renderer (Suivant)
 - [ ] Créer `js/renderer/canvas.js` avec coordonnées et canvas
