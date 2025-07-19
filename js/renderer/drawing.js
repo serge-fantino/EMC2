@@ -3,7 +3,7 @@
  * Refactoring Phase 3 - Dessin spécialisé et rendu principal
  */
 
-import { canvas, ctx, spacetimeToScreen, getCanvasTransform, isInCanvasBounds } from './canvas.js';
+import { spacetimeToScreen, screenToSpacetime, getCanvasTransform, isInCanvasBounds, getCanvas, getCtx } from './canvas.js';
 import { getColorForVelocity, getConeColorModulation, blendColors, UI_COLORS } from './colors.js';
 import { 
     calculateVelocityRatio, 
@@ -12,10 +12,25 @@ import {
     limitVelocity 
 } from '../physics/index.js';
 
+// Variables globales pour le rendu
+let _canvas = null;
+let _ctx = null;
+
 // Variables globales pour hover et placement
 let currentIsochronePoints = [];
 let isochroneHoverInfo = null;
 let currentPlacements = [];
+
+/**
+ * Initialise les références canvas/ctx pour ce module
+ * @param {HTMLCanvasElement} canvas 
+ * @param {CanvasRenderingContext2D} ctx 
+ */
+export function initDrawingModule(canvas, ctx) {
+    _canvas = canvas;
+    _ctx = ctx;
+    console.log('Drawing module initialized');
+}
 
 /**
  * ========== FONCTIONS HELPER ==========
@@ -135,10 +150,10 @@ export function applyCartoucheOffset(placement, coneIndex, cartoucheOffsets) {
  * @param {Object} resolutionSettings - Paramètres de résolution
  */
 export function drawLightConeHeatmap(config, coneOrigins, selectedReferenceFrame, resolutionSettings) {
-    if (!ctx || !canvas) return;
+    if (!_ctx || !_canvas) return;
     
     // Créer ImageData pour la heatmap
-    const imageData = ctx.createImageData(canvas.width, canvas.height);
+    const imageData = _ctx.createImageData(_canvas.width, _canvas.height);
     const data = imageData.data;
     
     // Effacer avec du noir
@@ -156,8 +171,8 @@ export function drawLightConeHeatmap(config, coneOrigins, selectedReferenceFrame
         const coneOrigin = coneOrigins[coneIndex];
         
         // Dessiner la heatmap du cône
-        for (let px = 0; px < canvas.width; px += pixelSize) {
-            for (let py = 0; py < canvas.height; py += pixelSize) {
+        for (let px = 0; px < _canvas.width; px += pixelSize) {
+            for (let py = 0; py < _canvas.height; py += pixelSize) {
                 // Convertir coordonnées pixel vers espace-temps
                 const spacetime = screenToSpacetime(px, py);
                 
@@ -181,7 +196,7 @@ export function drawLightConeHeatmap(config, coneOrigins, selectedReferenceFrame
                             // Remplir bloc de pixels
                             for (let dx = 0; dx < pixelSize; dx++) {
                                 for (let dy = 0; dy < pixelSize; dy++) {
-                                    const index = ((py + dy) * canvas.width + (px + dx)) * 4;
+                                                                            const index = ((py + dy) * _canvas.width + (px + dx)) * 4;
                                     if (index < data.length - 3) {
                                         // Mélange alpha avec pixels existants
                                         const existingColor = {
@@ -207,7 +222,7 @@ export function drawLightConeHeatmap(config, coneOrigins, selectedReferenceFrame
         }
     }
     
-    ctx.putImageData(imageData, 0, 0);
+    _ctx.putImageData(imageData, 0, 0);
 }
 
 /**
@@ -219,7 +234,7 @@ export function drawLightConeHeatmap(config, coneOrigins, selectedReferenceFrame
  * @param {number} selectedReferenceFrame - Référentiel sélectionné
  */
 export function drawAccelerationPath(fromCone, toCone, newConeIndex, coneOrigins, selectedReferenceFrame) {
-    if (!ctx) return;
+    if (!_ctx) return;
     
     const fromScreen = spacetimeToScreen(fromCone.x, fromCone.t);
     const toScreen = spacetimeToScreen(toCone.x, toCone.t);
@@ -259,17 +274,17 @@ export function drawAccelerationPath(fromCone, toCone, newConeIndex, coneOrigins
     
     // Définir style de ligne selon sélection
     if (isPartOfSelectedTrajectory_result) {
-        ctx.strokeStyle = UI_COLORS.PATH_SELECTED; // Blanc brillant pour sélectionné
-        ctx.lineWidth = 4; // Ligne épaisse
-        ctx.setLineDash([8, 4]); // Tirets plus longs
+        _ctx.strokeStyle = UI_COLORS.PATH_SELECTED; // Blanc brillant pour sélectionné
+        _ctx.lineWidth = 4; // Ligne épaisse
+        _ctx.setLineDash([8, 4]); // Tirets plus longs
     } else {
-        ctx.strokeStyle = UI_COLORS.PATH_NORMAL;
-        ctx.lineWidth = 2;
-        ctx.setLineDash([5, 5]);
+        _ctx.strokeStyle = UI_COLORS.PATH_NORMAL;
+        _ctx.lineWidth = 2;
+        _ctx.setLineDash([5, 5]);
     }
     
-    ctx.beginPath();
-    ctx.moveTo(fromScreen.screenX, fromScreen.screenY);
+    _ctx.beginPath();
+    _ctx.moveTo(fromScreen.screenX, fromScreen.screenY);
     
     // Dessiner la trajectoire d'accélération relativiste avec vitesse initiale
     const steps = 50;
@@ -284,27 +299,38 @@ export function drawAccelerationPath(fromCone, toCone, newConeIndex, coneOrigins
             const x_rel = (c * c / properAccel) * (Math.sqrt(1 + at_over_c * at_over_c) - 1);
             x = fromCone.x + Math.sign(X) * x_rel;
         } else {
-            // Partir avec vitesse initiale v0
+            // Partir avec vitesse initiale v0 - approche physique simplifiée
             const t_norm = t / T; // Temps normalisé (0 à 1)
             
-            // Composant inertiel (ce qui arriverait avec vitesse constante)
+            // Déplacement inertiel si pas d'accélération
             const x_inertial = fromCone.x + v0 * t;
             
-            // Correction d'accélération pour atteindre la cible
-            const x_target_correction = (toCone.x - fromCone.x) - v0 * T;
+            // Déplacement nécessaire pour corriger et atteindre la cible
+            const x_correction_needed = (toCone.x - fromCone.x) - v0 * T;
             
-            // Interpolation non-linéaire pour trajectoire relativiste
-            const accel_factor = t_norm * t_norm * (3 - 2 * t_norm); // Interpolation lisse
+            // Fonction de transition lisse qui respecte les contraintes relativistes
+            // Utilise une courbe en S pour éviter les discontinuités de vitesse
+            const s_curve = t_norm * t_norm * (3 - 2 * t_norm); // Hermite interpolation
             
-            x = x_inertial + x_target_correction * accel_factor;
+            // Appliquer la correction progressivement
+            x = x_inertial + x_correction_needed * s_curve;
+            
+            // Vérification de validité physique
+            const instantaneous_velocity = (x - fromCone.x) / t;
+            if (Math.abs(instantaneous_velocity) > c * 0.98) {
+                // Si la vitesse dépasse c, utiliser trajectoire linéaire contrainte
+                const max_displacement = c * 0.98 * t;
+                const direction = Math.sign(X);
+                x = fromCone.x + direction * Math.min(Math.abs(X * t_norm), max_displacement);
+            }
         }
         
         const screen = spacetimeToScreen(x, fromCone.t + t);
-        ctx.lineTo(screen.screenX, screen.screenY);
+        _ctx.lineTo(screen.screenX, screen.screenY);
     }
     
-    ctx.stroke();
-    ctx.setLineDash([]);
+    _ctx.stroke();
+    _ctx.setLineDash([]);
 }
 
 /**
@@ -313,6 +339,8 @@ export function drawAccelerationPath(fromCone, toCone, newConeIndex, coneOrigins
  * @param {Array} coneOrigins - Origines des cônes
  */
 export function drawSelectedIsochrone(selectedReferenceFrame, coneOrigins) {
+    const canvas = getCanvas();
+    const ctx = getCtx();
     if (!ctx || !canvas) return;
     
     if (selectedReferenceFrame === 0) {
@@ -330,32 +358,32 @@ export function drawSelectedIsochrone(selectedReferenceFrame, coneOrigins) {
     }
     
     const origin = coneOrigins[0];
-    const isochronePoints = calculateIsochronePoints(tau, origin, selectedCone, canvas.width);
+    const isochronePoints = calculateIsochronePoints(tau, origin, selectedCone, _canvas.width);
     
     currentIsochronePoints = isochronePoints;
     
     if (isochronePoints.length < 2) return;
     
     // Dessiner la courbe isochrone
-    ctx.strokeStyle = UI_COLORS.ISOCHRONE;
-    ctx.lineWidth = 2;
-    ctx.setLineDash([10, 5]);
+    _ctx.strokeStyle = UI_COLORS.ISOCHRONE;
+    _ctx.lineWidth = 2;
+    _ctx.setLineDash([10, 5]);
     
-    ctx.beginPath();
+    _ctx.beginPath();
     
     let firstScreen = spacetimeToScreen(isochronePoints[0].x, isochronePoints[0].t);
-    ctx.moveTo(firstScreen.screenX, firstScreen.screenY);
+    _ctx.moveTo(firstScreen.screenX, firstScreen.screenY);
     
     for (let i = 1; i < isochronePoints.length; i++) {
         const screen = spacetimeToScreen(isochronePoints[i].x, isochronePoints[i].t);
         
         if (isInCanvasBounds(screen.screenX, screen.screenY)) {
-            ctx.lineTo(screen.screenX, screen.screenY);
+            _ctx.lineTo(screen.screenX, screen.screenY);
         }
     }
     
-    ctx.stroke();
-    ctx.setLineDash([]);
+    _ctx.stroke();
+    _ctx.setLineDash([]);
 }
 
 /**
@@ -365,95 +393,95 @@ export function drawSelectedIsochrone(selectedReferenceFrame, coneOrigins) {
  * @param {Object} config - Configuration
  */
 export function drawLightConeEnvelopes(selectedReferenceFrame, coneOrigins, config) {
-    if (!ctx || !canvas) return;
+    if (!_ctx || !_canvas) return;
     
     if (selectedReferenceFrame === 0) return;
     
     const selectedCone = coneOrigins[selectedReferenceFrame];
     const c = 1;
     
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([5, 5]);
+    _ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+    _ctx.lineWidth = 1;
+    _ctx.setLineDash([5, 5]);
     
-    ctx.beginPath();
+    _ctx.beginPath();
     
     const { centerX, centerY, scale } = getCanvasTransform();
-    const maxExtent = Math.max(canvas.width, canvas.height);
+    const maxExtent = Math.max(_canvas.width, _canvas.height);
     
     // Frontière gauche du cône futur
     const leftStartFuture = spacetimeToScreen(selectedCone.x, selectedCone.t);
-    ctx.moveTo(leftStartFuture.screenX, leftStartFuture.screenY);
+    _ctx.moveTo(leftStartFuture.screenX, leftStartFuture.screenY);
     
     const futureTime = selectedCone.t + maxExtent / scale;
     const leftFutureX = selectedCone.x - c * (futureTime - selectedCone.t);
     const leftFutureScreen = spacetimeToScreen(leftFutureX, futureTime);
-    ctx.lineTo(leftFutureScreen.screenX, leftFutureScreen.screenY);
+    _ctx.lineTo(leftFutureScreen.screenX, leftFutureScreen.screenY);
     
     // Frontière droite du cône futur
-    ctx.moveTo(leftStartFuture.screenX, leftStartFuture.screenY);
+    _ctx.moveTo(leftStartFuture.screenX, leftStartFuture.screenY);
     const rightFutureX = selectedCone.x + c * (futureTime - selectedCone.t);
     const rightFutureScreen = spacetimeToScreen(rightFutureX, futureTime);
-    ctx.lineTo(rightFutureScreen.screenX, rightFutureScreen.screenY);
+    _ctx.lineTo(rightFutureScreen.screenX, rightFutureScreen.screenY);
     
-    ctx.stroke();
+    _ctx.stroke();
     
     // Cône de lumière passé (optionnel)
     if (config.showPastCone) {
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
-        ctx.lineWidth = 1;
-        ctx.setLineDash([3, 3]);
+        _ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+        _ctx.lineWidth = 1;
+        _ctx.setLineDash([3, 3]);
         
-        ctx.beginPath();
+        _ctx.beginPath();
         
         const leftStartPast = spacetimeToScreen(selectedCone.x, selectedCone.t);
-        ctx.moveTo(leftStartPast.screenX, leftStartPast.screenY);
+        _ctx.moveTo(leftStartPast.screenX, leftStartPast.screenY);
         
         const pastTime = selectedCone.t - maxExtent / 2;
         const leftPastX = selectedCone.x - c * (selectedCone.t - pastTime);
         const leftPastScreen = spacetimeToScreen(leftPastX, pastTime);
-        ctx.lineTo(leftPastScreen.screenX, leftPastScreen.screenY);
+        _ctx.lineTo(leftPastScreen.screenX, leftPastScreen.screenY);
         
-        ctx.moveTo(leftStartPast.screenX, leftStartPast.screenY);
+        _ctx.moveTo(leftStartPast.screenX, leftStartPast.screenY);
         const rightPastX = selectedCone.x + c * (selectedCone.t - pastTime);
         const rightPastScreen = spacetimeToScreen(rightPastX, pastTime);
-        ctx.lineTo(rightPastScreen.screenX, rightPastScreen.screenY);
+        _ctx.lineTo(rightPastScreen.screenX, rightPastScreen.screenY);
         
-        ctx.stroke();
+        _ctx.stroke();
     }
     
-    ctx.setLineDash([]);
+    _ctx.setLineDash([]);
 }
 
 /**
  * Dessine les axes et labels
  */
 export function drawAxesAndLabels() {
-    if (!ctx || !canvas) return;
+    if (!_ctx || !_canvas) return;
     
     const { centerX, centerY } = getCanvasTransform();
     
     // Dessiner axes
-    ctx.strokeStyle = UI_COLORS.AXES;
-    ctx.lineWidth = 1;
+    _ctx.strokeStyle = UI_COLORS.AXES;
+    _ctx.lineWidth = 1;
     
     // Axe du temps
-    ctx.beginPath();
-    ctx.moveTo(centerX, 0);
-    ctx.lineTo(centerX, canvas.height);
-    ctx.stroke();
+    _ctx.beginPath();
+    _ctx.moveTo(centerX, 0);
+    _ctx.lineTo(centerX, _canvas.height);
+    _ctx.stroke();
     
     // Axe de l'espace
-    ctx.beginPath();
-    ctx.moveTo(0, centerY);
-    ctx.lineTo(canvas.width, centerY);
-    ctx.stroke();
+    _ctx.beginPath();
+    _ctx.moveTo(0, centerY);
+    _ctx.lineTo(_canvas.width, centerY);
+    _ctx.stroke();
     
     // Labels
-    ctx.fillStyle = UI_COLORS.WHITE;
-    ctx.font = '14px Arial';
-    ctx.fillText('Temps', centerX + 10, 30);
-    ctx.fillText('Espace', canvas.width - 380, centerY - 10);
+    _ctx.fillStyle = UI_COLORS.WHITE;
+    _ctx.font = '14px Arial';
+    _ctx.fillText('Temps', centerX + 10, 30);
+    _ctx.fillText('Espace', _canvas.width - 380, centerY - 10);
 }
 
 /**
@@ -466,7 +494,7 @@ export function drawAxesAndLabels() {
  * @returns {Array} Placements optimisés
  */
 export function calculateBoxPlacements(infoBoxes) {
-    if (!canvas) return [];
+    if (!_canvas) return [];
     
     const placements = [];
     const margin = 10;
@@ -477,8 +505,8 @@ export function calculateBoxPlacements(infoBoxes) {
         let bestY = box.idealY;
         
         // S'assurer que la boîte reste dans les limites du canvas
-        bestX = Math.max(margin, Math.min(canvas.width - box.width - margin, bestX));
-        bestY = Math.max(margin, Math.min(canvas.height - box.height - margin, bestY));
+        bestX = Math.max(margin, Math.min(_canvas.width - box.width - margin, bestX));
+        bestY = Math.max(margin, Math.min(_canvas.height - box.height - margin, bestY));
         
         // Évitement de collision simple avec boîtes précédentes
         let hasCollision = true;
@@ -522,18 +550,18 @@ export function calculateBoxPlacements(infoBoxes) {
  * @param {number} boxCenterY - Y centre boîte
  */
 export function drawBoxConnection(originX, originY, boxCenterX, boxCenterY) {
-    if (!ctx) return;
+    if (!_ctx) return;
     
-    ctx.strokeStyle = UI_COLORS.CONNECTION_LINE;
-    ctx.lineWidth = 1;
-    ctx.setLineDash([2, 2]);
+    _ctx.strokeStyle = UI_COLORS.CONNECTION_LINE;
+    _ctx.lineWidth = 1;
+    _ctx.setLineDash([2, 2]);
     
-    ctx.beginPath();
-    ctx.moveTo(originX, originY);
-    ctx.lineTo(boxCenterX, boxCenterY);
-    ctx.stroke();
+    _ctx.beginPath();
+    _ctx.moveTo(originX, originY);
+    _ctx.lineTo(boxCenterX, boxCenterY);
+    _ctx.stroke();
     
-    ctx.setLineDash([]);
+    _ctx.setLineDash([]);
 }
 
 /**
@@ -545,28 +573,28 @@ export function drawBoxConnection(originX, originY, boxCenterX, boxCenterY) {
  * @param {number} selectedReferenceFrame - Référentiel sélectionné
  */
 export function drawOriginInfoBox(boxX, boxY, boxWidth, boxHeight, selectedReferenceFrame) {
-    if (!ctx) return;
+    if (!_ctx) return;
     
-    ctx.fillStyle = UI_COLORS.BOX_BACKGROUND;
-    ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
-    ctx.strokeStyle = UI_COLORS.BOX_BORDER_ORIGIN;
-    ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
+    _ctx.fillStyle = UI_COLORS.BOX_BACKGROUND;
+    _ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
+    _ctx.strokeStyle = UI_COLORS.BOX_BORDER_ORIGIN;
+    _ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
     
     if (selectedReferenceFrame === 0) {
-        ctx.strokeStyle = UI_COLORS.WHITE;
-        ctx.lineWidth = 3;
-        ctx.strokeRect(boxX - 2, boxY - 2, boxWidth + 4, boxHeight + 4);
+        _ctx.strokeStyle = UI_COLORS.WHITE;
+        _ctx.lineWidth = 3;
+        _ctx.strokeRect(boxX - 2, boxY - 2, boxWidth + 4, boxHeight + 4);
     }
     
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
-    ctx.font = 'bold 11px Arial';
-    ctx.fillText('Origine', boxX + 5, boxY + 12);
+    _ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+    _ctx.font = 'bold 11px Arial';
+    _ctx.fillText('Origine', boxX + 5, boxY + 12);
     
-    ctx.font = '10px Arial';
-    ctx.fillText('v = 0% c', boxX + 5, boxY + 25);
-    ctx.fillText('a = 0 c²/t', boxX + 5, boxY + 37);
-    ctx.fillText('t = 0 t', boxX + 5, boxY + 49);
-    ctx.fillText('Référentiel inertiel', boxX + 5, boxY + 61);
+    _ctx.font = '10px Arial';
+    _ctx.fillText('v = 0% c', boxX + 5, boxY + 25);
+    _ctx.fillText('a = 0 c²/t', boxX + 5, boxY + 37);
+    _ctx.fillText('t = 0 t', boxX + 5, boxY + 49);
+    _ctx.fillText('Référentiel inertiel', boxX + 5, boxY + 61);
 }
 
 /**
@@ -580,7 +608,7 @@ export function drawOriginInfoBox(boxX, boxY, boxWidth, boxHeight, selectedRefer
  * @param {number} selectedReferenceFrame - Référentiel sélectionné
  */
 export function drawReferenceInfoBox(boxX, boxY, boxWidth, boxHeight, coneIndex, coneOrigins, selectedReferenceFrame) {
-    if (!ctx) return;
+    if (!_ctx) return;
     
     const physics = calculateCumulativePhysics(coneIndex, coneOrigins);
     const cone = coneOrigins[coneIndex];
@@ -588,30 +616,30 @@ export function drawReferenceInfoBox(boxX, boxY, boxWidth, boxHeight, coneIndex,
     const finalVelocityPercent = (Math.abs(physics.segmentVelocity) / 1 * 100).toFixed(1);
     const cumulativeVelocityPercent = (Math.abs(physics.cumulativeVelocity) / 1 * 100).toFixed(1);
     
-    ctx.fillStyle = UI_COLORS.BOX_BACKGROUND;
-    ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
+    _ctx.fillStyle = UI_COLORS.BOX_BACKGROUND;
+    _ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
     
-    ctx.strokeStyle = UI_COLORS.BOX_BORDER_REFERENCE;
-    ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
+    _ctx.strokeStyle = UI_COLORS.BOX_BORDER_REFERENCE;
+    _ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
     
     if (selectedReferenceFrame === coneIndex) {
-        ctx.strokeStyle = UI_COLORS.WHITE;
-        ctx.lineWidth = 3;
-        ctx.strokeRect(boxX - 2, boxY - 2, boxWidth + 4, boxHeight + 4);
+        _ctx.strokeStyle = UI_COLORS.WHITE;
+        _ctx.lineWidth = 3;
+        _ctx.strokeRect(boxX - 2, boxY - 2, boxWidth + 4, boxHeight + 4);
     }
     
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
-    ctx.font = 'bold 11px Arial';
-    ctx.fillText(`Réf ${coneIndex}`, boxX + 5, boxY + 12);
+    _ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+    _ctx.font = 'bold 11px Arial';
+    _ctx.fillText(`Réf ${coneIndex}`, boxX + 5, boxY + 12);
     
-    ctx.font = '10px Arial';
-    ctx.fillText(`v = ${cumulativeVelocityPercent}% c`, boxX + 5, boxY + 25);
-    ctx.fillText(`a = ${physics.segmentAcceleration.toFixed(3)} c²/t`, boxX + 5, boxY + 37);
-    ctx.fillText(`t = ${physics.cumulativeProperTime.toFixed(2)} t`, boxX + 5, boxY + 49);
-    ctx.fillText(`Δt = ${physics.segmentCoordinateTime.toFixed(2)} t`, boxX + 5, boxY + 61);
-    ctx.fillText(`X = ${cone.x.toFixed(1)}, T = ${cone.t.toFixed(1)}`, boxX + 5, boxY + 73);
-    ctx.fillText(`v_seg = ${finalVelocityPercent}% c`, boxX + 5, boxY + 85);
-    ctx.fillText(`Source: Réf ${cone.sourceIndex}`, boxX + 5, boxY + 97);
+    _ctx.font = '10px Arial';
+    _ctx.fillText(`v = ${cumulativeVelocityPercent}% c`, boxX + 5, boxY + 25);
+    _ctx.fillText(`a = ${physics.segmentAcceleration.toFixed(3)} c²/t`, boxX + 5, boxY + 37);
+    _ctx.fillText(`t = ${physics.cumulativeProperTime.toFixed(2)} t`, boxX + 5, boxY + 49);
+    _ctx.fillText(`Δt = ${physics.segmentCoordinateTime.toFixed(2)} t`, boxX + 5, boxY + 61);
+    _ctx.fillText(`X = ${cone.x.toFixed(1)}, T = ${cone.t.toFixed(1)}`, boxX + 5, boxY + 73);
+    _ctx.fillText(`v_seg = ${finalVelocityPercent}% c`, boxX + 5, boxY + 85);
+    _ctx.fillText(`Source: Réf ${cone.sourceIndex}`, boxX + 5, boxY + 97);
 }
 
 /**
@@ -701,7 +729,7 @@ export function checkIsochroneHover(mouseX, mouseY, selectedReferenceFrame, cone
  * Dessine le tooltip de l'isochrone
  */
 export function drawIsochroneTooltip() {
-    if (!isochroneHoverInfo || !ctx || !canvas) return;
+    if (!isochroneHoverInfo || !_ctx || !_canvas) return;
     
     const tooltip = isochroneHoverInfo;
     const tooltipWidth = 200;
@@ -710,26 +738,26 @@ export function drawIsochroneTooltip() {
     let tooltipX = tooltip.x + 15;
     let tooltipY = tooltip.y - tooltipHeight - 15;
     
-    if (tooltipX + tooltipWidth > canvas.width) {
+    if (tooltipX + tooltipWidth > _canvas.width) {
         tooltipX = tooltip.x - tooltipWidth - 15;
     }
     if (tooltipY < 0) {
         tooltipY = tooltip.y + 15;
     }
     
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
-    ctx.fillRect(tooltipX, tooltipY, tooltipWidth, tooltipHeight);
-    ctx.strokeStyle = UI_COLORS.ISOCHRONE;
-    ctx.strokeRect(tooltipX, tooltipY, tooltipWidth, tooltipHeight);
+    _ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
+    _ctx.fillRect(tooltipX, tooltipY, tooltipWidth, tooltipHeight);
+    _ctx.strokeStyle = UI_COLORS.ISOCHRONE;
+    _ctx.strokeRect(tooltipX, tooltipY, tooltipWidth, tooltipHeight);
     
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
-    ctx.font = 'bold 11px Arial';
-    ctx.fillText('Isochrone', tooltipX + 5, tooltipY + 15);
+    _ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+    _ctx.font = 'bold 11px Arial';
+    _ctx.fillText('Isochrone', tooltipX + 5, tooltipY + 15);
     
-    ctx.font = '10px Arial';
-    ctx.fillText(`Vitesse: ${tooltip.velocityPercent.toFixed(1)}% c`, tooltipX + 5, tooltipY + 30);
-    ctx.fillText(`Temps propre: ${tooltip.properTimePercent.toFixed(1)}%`, tooltipX + 5, tooltipY + 45);
-    ctx.fillText(`Position: x=${tooltip.spatialPosition.toFixed(1)}`, tooltipX + 5, tooltipY + 60);
+    _ctx.font = '10px Arial';
+    _ctx.fillText(`Vitesse: ${tooltip.velocityPercent.toFixed(1)}% c`, tooltipX + 5, tooltipY + 30);
+    _ctx.fillText(`Temps propre: ${tooltip.properTimePercent.toFixed(1)}%`, tooltipX + 5, tooltipY + 45);
+    _ctx.fillText(`Position: x=${tooltip.spatialPosition.toFixed(1)}`, tooltipX + 5, tooltipY + 60);
 }
 
 /**
@@ -742,6 +770,7 @@ export function drawIsochroneTooltip() {
  * @param {number} selectedReferenceFrame - Référentiel sélectionné
  */
 export function drawOriginPoints(coneOrigins, selectedReferenceFrame) {
+    const ctx = getCtx();
     if (!ctx) return;
     
     for (let i = 0; i < coneOrigins.length; i++) {
