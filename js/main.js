@@ -1,5 +1,25 @@
 // JavaScript principal extrait de cone-lumiere-colore.html
 // Refactoring Phase 1 - Extraction JavaScript
+// Refactoring Phase 3 - Modularisation avec module Physics
+
+// === IMPORTS ===
+import {
+    // Constantes
+    SPEED_OF_LIGHT,
+    VELOCITY_EPSILON,
+    MAX_VELOCITY,
+    
+    // Fonctions de calculs relativistes
+    limitVelocity,
+    calculateVelocityRatio,
+    calculateCumulativePhysics,
+    isReachableFromSource,
+    
+    // Fonctions de trajectoires
+    calculateIsochronePoints,
+    calculateAccelerationTrajectory,
+    getContainingCone
+} from './physics/index.js';
 
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
@@ -11,20 +31,6 @@ let config = {
     redLimit: 1.0, // Fixed at speed of light
     showPastCone: false
 };
-
-// Physical constants
-const SPEED_OF_LIGHT = 1; // c = 1 in our units
-const VELOCITY_EPSILON = 0.001; // Maximum allowed approach to c (99.9% of c)
-const MAX_VELOCITY = SPEED_OF_LIGHT * (1 - VELOCITY_EPSILON); // 0.999c
-
-// Function to limit velocity to stay below c
-function limitVelocity(velocity) {
-    const absV = Math.abs(velocity);
-    if (absV >= MAX_VELOCITY) {
-        return Math.sign(velocity) * MAX_VELOCITY;
-    }
-    return velocity;
-}
 
 // Drag and drop state
 let dragState = {
@@ -134,20 +140,7 @@ function getColorForVelocity(v) {
     }
 }
 
-// Calculate velocity ratio for a point in spacetime
-function calculateVelocityRatio(x, y, t) {
-    // Distance in space
-    const spatialDistance = Math.sqrt(x * x + y * y);
-    
-    // For a light cone, points on the surface satisfy: spatialDistance = c * t
-    // Inside the cone: spatialDistance < c * t
-    // The velocity ratio is spatialDistance / (c * t)
-    
-    if (t <= 0) return 0;
-    
-    const velocityRatio = spatialDistance / t;
-    return Math.min(1, velocityRatio); // Cap at 1 (speed of light)
-}
+
 
 // Convert screen coordinates to spacetime coordinates
 function screenToSpacetime(screenX, screenY) {
@@ -173,29 +166,7 @@ function spacetimeToScreen(x, t) {
     return { screenX, screenY };
 }
 
-// Check if a point is inside any light cone
-function isInsideLightCone(x, t, coneOrigin) {
-    const relativeX = x - coneOrigin.x;
-    const relativeT = t - coneOrigin.t;
-    
-    if (relativeT <= 0) return false; // Only future light cone
-    
-    const spatialDistance = Math.abs(relativeX);
-    return spatialDistance <= relativeT; // Inside light cone
-}
 
-// Check if mouse position is inside any light cone and return the cone index
-function getMouseConeIndex(mouseX, mouseY) {
-    const spacetime = screenToSpacetime(mouseX, mouseY);
-    
-    // Check from newest to oldest (reverse order for priority)
-    for (let i = coneOrigins.length - 1; i >= 0; i--) {
-        if (isInsideLightCone(spacetime.x, spacetime.t, coneOrigins[i])) {
-            return i;
-        }
-    }
-    return -1;
-}
 
 // Check if mouse is over a cone origin point
 function getConeAtPosition(mouseX, mouseY) {
@@ -216,16 +187,7 @@ function getConeAtPosition(mouseX, mouseY) {
     return -1;
 }
 
-// Check if a point is reachable from a source cone
-function isReachableFromSource(targetX, targetT, sourceCone) {
-    const deltaX = targetX - sourceCone.x;
-    const deltaT = targetT - sourceCone.t;
-    
-    // Must be in the future and within the light cone
-    // Add a small margin to avoid getting too close to c
-    const margin = 0.02; // 2% margin from light cone boundary
-    return deltaT > 0 && Math.abs(deltaX) < deltaT * (1 - margin);
-}
+
 
 // Store placements globally for mouse event access
 let currentPlacements = [];
@@ -252,76 +214,7 @@ function applyCartoucheOffset(placement, coneIndex) {
     };
 }
 
-// Calculate cumulative physics for a cone from origin
-function calculateCumulativePhysics(coneIndex) {
-    const cone = coneOrigins[coneIndex];
-    
-    if (cone.sourceIndex === -1) {
-        // This is the origin
-        return {
-            cumulativeVelocity: 0,
-            cumulativeProperTime: 0,
-            totalCoordinateTime: 0,
-            segmentVelocity: 0,
-            segmentAcceleration: 0,
-            segmentProperTime: 0,
-            segmentCoordinateTime: 0
-        };
-    }
-    
-    // Get source cone physics
-    const sourceCone = coneOrigins[cone.sourceIndex];
-    const sourcePhysics = calculateCumulativePhysics(cone.sourceIndex);
-    
-    // Calculate this segment
-    const X = cone.x - sourceCone.x;
-    const T = cone.t - sourceCone.t;
-    const c = 1;
-    
-    let segmentAcceleration, segmentVelocity, segmentProperTime;
-    
-    // Add safety margin to avoid getting too close to c
-    const safetyMargin = 0.02; // 2% margin from light cone boundary
-    
-    if (Math.abs(X) >= T * c * (1 - safetyMargin) || T <= 0) {
-        // Invalid trajectory or too close to light speed
-        segmentAcceleration = 0;
-        segmentVelocity = 0;
-        segmentProperTime = T;
-    } else if (Math.abs(X) < 0.001) {
-        // No spatial displacement
-        segmentAcceleration = 0.001;
-        segmentVelocity = 0;
-        segmentProperTime = T;
-    } else {
-        // Calculate relativistic motion starting from source velocity
-        segmentAcceleration = 2 * Math.abs(X) * c * c / (T * T - X * X);
-        const aT_over_c = segmentAcceleration * T / c;
-        segmentVelocity = (segmentAcceleration * T) / Math.sqrt(1 + aT_over_c * aT_over_c);
-        segmentProperTime = (c / segmentAcceleration) * Math.asinh(aT_over_c);
-        
-        // Apply velocity limit to segment velocity
-        segmentVelocity = limitVelocity(segmentVelocity);
-    }
-    
-    // For relativistic velocity addition: v_total = (v1 + v2) / (1 + v1*v2/c²)
-    const v1 = sourcePhysics.cumulativeVelocity;
-    const v2 = Math.sign(X) * segmentVelocity;
-    let cumulativeVelocity = (v1 + v2) / (1 + v1 * v2 / (c * c));
-    
-    // Apply velocity limit to cumulative velocity
-    cumulativeVelocity = limitVelocity(cumulativeVelocity);
-    
-    return {
-        cumulativeVelocity: cumulativeVelocity,
-        cumulativeProperTime: sourcePhysics.cumulativeProperTime + segmentProperTime,
-        totalCoordinateTime: cone.t,
-        segmentVelocity: segmentVelocity,
-        segmentAcceleration: segmentAcceleration,
-        segmentProperTime: segmentProperTime,
-        segmentCoordinateTime: T
-    };
-}
+
 
 // Event handlers
 function handleMouseDown(event) {
@@ -362,7 +255,8 @@ function handleMouseDown(event) {
     }
     
     // Check if clicking inside a light cone
-    const sourceConeIndex = getMouseConeIndex(mouseX, mouseY);
+    const spacetime = screenToSpacetime(mouseX, mouseY);
+    const sourceConeIndex = getContainingCone(spacetime.x, spacetime.t, coneOrigins);
     if (sourceConeIndex !== -1) {
         console.log('🚀 Creating new cone from source cone:', sourceConeIndex);
         
@@ -472,12 +366,15 @@ function handleMouseMove(event) {
         const coneIndex = getConeAtPosition(mouseX, mouseY);
         if (coneIndex !== -1) {
             canvas.style.cursor = 'grab';
-        } else if (getMouseConeIndex(mouseX, mouseY) !== -1) {
-            canvas.classList.add('inside-cone');
-            canvas.style.cursor = '';
         } else {
-            canvas.classList.remove('inside-cone');
-            canvas.style.cursor = '';
+            const spacetime = screenToSpacetime(mouseX, mouseY);
+            if (getContainingCone(spacetime.x, spacetime.t, coneOrigins) !== -1) {
+                canvas.classList.add('inside-cone');
+                canvas.style.cursor = '';
+            } else {
+                canvas.classList.remove('inside-cone');
+                canvas.style.cursor = '';
+            }
         }
     }
 }
@@ -557,7 +454,7 @@ function drawAccelerationPath(fromCone, toCone, newConeIndex) {
     const c = 1; // c = 1 in our units (45° cone)
     
     // Get physics for this cone and the source cone
-    const physics = calculateCumulativePhysics(newConeIndex);
+                const physics = calculateCumulativePhysics(newConeIndex, coneOrigins);
     
     // Get initial velocity from the cone we're starting from (fromCone)
     let fromConeIndex = -1;
@@ -567,7 +464,7 @@ function drawAccelerationPath(fromCone, toCone, newConeIndex) {
             break;
         }
     }
-    const fromPhysics = calculateCumulativePhysics(fromConeIndex);
+            const fromPhysics = calculateCumulativePhysics(fromConeIndex, coneOrigins);
     
     let properAccel = physics.segmentAcceleration;
     let isValidTrajectory = !(Math.abs(X) >= T * c * (1 - 0.02)); // Same safety margin
@@ -702,68 +599,7 @@ function distanceToLineSegment(px, py, x1, y1, x2, y2) {
     return Math.sqrt((px - projX) * (px - projX) + (py - projY) * (py - projY));
 }
 
-// Calculate isochrone points
-function calculateIsochronePoints(tau, origin, selectedCone) {
-    const points = [];
-    const c = 1;
-    
-    // Calculate screen bounds
-    const centerX = canvas.width / 2;
-    const scale = 2;
-    const maxScreenX = canvas.width;
-    const minScreenX = 0;
-    
-    // Convert screen bounds to spacetime coordinates
-    const maxSpatialExtent = (maxScreenX - centerX) / scale;
-    const minSpatialExtent = (minScreenX - centerX) / scale;
-    
-    // Extend a bit beyond screen for smooth curves
-    const margin = 50;
-    const xMin = minSpatialExtent - margin;
-    const xMax = maxSpatialExtent + margin;
-    
-    if (xMax <= xMin) return [];
-    
-    const step = Math.max(1, Math.abs(xMax - xMin) / 500);
-    
-    // Calibration factor for isochrone
-    let tauCalibration = 1.0;
-    
-    if (selectedCone) {
-        const deltaX_selected = selectedCone.x - origin.x;
-        const deltaT_selected = selectedCone.t - origin.t;
-        const t_formula = Math.sqrt(tau * tau + (deltaX_selected * deltaX_selected) / (c * c));
-        
-        if (t_formula > 0 && deltaT_selected > 0) {
-            tauCalibration = deltaT_selected / t_formula;
-        }
-    }
-    
-    for (let x = xMin; x <= xMax; x += step) {
-        const t_base = Math.sqrt(tau * tau + (x * x) / (c * c));
-        const t = t_base * tauCalibration;
-        
-        if (t > 0 && t < 500 && isFinite(t)) {
-            const absoluteX = origin.x + x;
-            const absoluteT = origin.t + t;
-            
-            if (!isFinite(absoluteX) || !isFinite(absoluteT)) continue;
-            
-            const lightConeMargin = 1.1;
-            const spatialDistance = Math.abs(absoluteX - origin.x);
-            const temporalDistance = absoluteT - origin.t;
-            
-            if (temporalDistance > 0 && spatialDistance <= c * temporalDistance * lightConeMargin) {
-                points.push({
-                    x: absoluteX,
-                    t: absoluteT
-                });
-            }
-        }
-    }
-    
-    return points;
-}
+
 
 // Draw isochrone for the selected reference frame
 function drawSelectedIsochrone() {
@@ -773,7 +609,7 @@ function drawSelectedIsochrone() {
     }
     
     const selectedCone = coneOrigins[selectedReferenceFrame];
-    const physics = calculateCumulativePhysics(selectedReferenceFrame);
+    const physics = calculateCumulativePhysics(selectedReferenceFrame, coneOrigins);
     const tau = physics.cumulativeProperTime;
     
     if (tau <= 0.01) {
@@ -782,7 +618,7 @@ function drawSelectedIsochrone() {
     }
     
     const origin = coneOrigins[0];
-    const isochronePoints = calculateIsochronePoints(tau, origin, selectedCone);
+    const isochronePoints = calculateIsochronePoints(tau, origin, selectedCone, canvas.width);
     
     currentIsochronePoints = isochronePoints;
     
@@ -859,7 +695,7 @@ function checkIsochroneHover(mouseX, mouseY) {
     if (closestPoint && minDistance < threshold) {
         const origin = coneOrigins[0];
         const selectedCone = coneOrigins[selectedReferenceFrame];
-        const selectedPhysics = calculateCumulativePhysics(selectedReferenceFrame);
+        const selectedPhysics = calculateCumulativePhysics(selectedReferenceFrame, coneOrigins);
         
         const deltaX = closestPoint.x - origin.x;
         const deltaT = closestPoint.t - origin.t;
@@ -972,7 +808,7 @@ function drawOriginInfoBox(boxX, boxY, boxWidth, boxHeight) {
 
 // Draw reference frame info box
 function drawReferenceInfoBox(boxX, boxY, boxWidth, boxHeight, coneIndex) {
-    const physics = calculateCumulativePhysics(coneIndex);
+    const physics = calculateCumulativePhysics(coneIndex, coneOrigins);
     const cone = coneOrigins[coneIndex];
     
     const finalVelocityPercent = (Math.abs(physics.segmentVelocity) / 1 * 100).toFixed(1);
@@ -1325,7 +1161,7 @@ function updateCalculationsDisplay() {
     }
     
     const cone = coneOrigins[selectedReferenceFrame];
-    const physics = calculateCumulativePhysics(selectedReferenceFrame);
+    const physics = calculateCumulativePhysics(selectedReferenceFrame, coneOrigins);
     
     // Create title with delete button if not origin
     let titleContent = `<h4 style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">

@@ -6,7 +6,7 @@ Refactoriser `cone-lumiere-colore.html` (2966 lignes) en architecture modulaire 
 ## 📈 Progression Générale
 ```
 Phase 1: Extraction JS     [██████████] 100% ✅
-Phase 2: Extraction CSS    [░░░░░░░░░░]   0%
+Phase 2: Extraction CSS    [██████████] 100% ✅
 Phase 3: Modularisation    [░░░░░░░░░░]   0%
 Phase 4: Optimisation      [░░░░░░░░░░]   0%
 ```
@@ -36,23 +36,50 @@ Phase 4: Optimisation      [░░░░░░░░░░]   0%
 ### 🎯 Résultat
 ✅ **Application fonctionnelle à 100%** - identique à l'original
 
-## 📋 Phase 2 - Extraction CSS (🟢 Sans Impact UX)
+## 📋 Phase 2 - Extraction CSS (✅ TERMINÉE)
 
-### 🔄 À faire
-- [ ] Créer `css/styles.css` avec les styles principaux
-- [ ] Créer `css/components.css` avec les composants UI
-- [ ] Modifier `index.html` pour inclure les fichiers CSS
-- [ ] Tester l'apparence identique
+### ✅ Terminé
+- [x] Créer `css/styles.css` avec les styles principaux (59 lignes)
+- [x] Créer `css/components.css` avec les composants UI (369 lignes)
+- [x] Modifier `index.html` pour inclure les fichiers CSS
+- [x] Supprimer 418 lignes de CSS intégré du HTML
+- [x] Corriger les erreurs de linter (prefixes webkit)
+- [x] Tester l'apparence identique
 
-## 📋 Phase 3 - Modularisation JavaScript (🟡 Refactoring Interne)
+### 🔧 Architecture CSS
+- **css/styles.css** : Layout de base, canvas, éléments fondamentaux
+- **css/components.css** : Composants UI (boutons, panels, modale, etc.)
+- **Préfixes webkit** : Support Safari pour backdrop-filter
+- **Séparation logique** : Styles de base vs composants UI
 
-### 🔄 À faire
-- [ ] Analyser les dépendances du code JavaScript
-- [ ] Créer le module Physics (`js/physics/`)
-- [ ] Créer le module Renderer (`js/renderer/`)
-- [ ] Créer le module Interaction (`js/interaction/`)
-- [ ] Intégrer tous les modules
-- [ ] Tester le comportement identique
+### 🎯 Résultat
+✅ **CSS complètement séparé** - Architecture modulaire respectée
+
+## 📋 Phase 3 - Modularisation JavaScript (🔄 EN COURS)
+
+### ✅ Module Physics Terminé
+- [x] **js/physics/constants.js** : Constantes physiques (14 lignes)
+- [x] **js/physics/relativity.js** : Calculs relativistes purs (102 lignes)  
+- [x] **js/physics/trajectory.js** : Trajectoires et isochrones (146 lignes)
+- [x] **js/physics/index.js** : Point d'entrée du module (28 lignes)
+- [x] **Adaptation main.js** : Imports ES6, suppression code dupliqué (-200 lignes)
+- [x] **index.html** : Script avec type="module"
+
+### 🔄 Module Renderer (Suivant)
+- [ ] Créer `js/renderer/canvas.js` avec coordonnées et canvas
+- [ ] Créer `js/renderer/drawing.js` avec fonctions de dessin  
+- [ ] Créer `js/renderer/colors.js` avec calculs de couleurs
+- [ ] Créer `js/renderer/index.js` comme point d'entrée
+
+### 🔄 Module Interaction (En attente)
+- [ ] Créer `js/interaction/mouse.js` avec événements souris
+- [ ] Créer `js/interaction/controls.js` avec panneaux de contrôle
+- [ ] Créer `js/interaction/ui.js` avec interface utilisateur
+- [ ] Créer `js/interaction/index.js` comme point d'entrée
+
+### 🔄 Finalisation
+- [ ] Refactoriser `js/main.js` comme orchestrateur
+- [ ] Tester toute la fonctionnalité préservée
 
 ## 📋 Phase 4 - Optimisation et Tests (🟡 Améliorations)
 
@@ -68,19 +95,25 @@ Phase 4: Optimisation      [░░░░░░░░░░]   0%
 EMC2/
 ├── REFACTORING_STRATEGY.md      ✅ Stratégie complète
 ├── PROGRESS.md                  ✅ Ce fichier d'avancement
-├── index.html                   ✅ HTML principal (CSS intégré)
+├── index.html                   ✅ HTML principal (script ES module)
 ├── backup-original.html         ✅ Sauvegarde de l'original
 ├── js/
-│   └── main.js                  ✅ JavaScript complet (1972 lignes)
-├── css/                         ✅ Dossier créé
+│   ├── main.js                  ✅ Orchestrateur principal (~1780 lignes)
+│   └── physics/                 ✅ Module Physics complet
+│       ├── constants.js         ✅ Constantes physiques (14 lignes)
+│       ├── relativity.js        ✅ Calculs relativistes (102 lignes)
+│       ├── trajectory.js        ✅ Trajectoires (146 lignes)
+│       └── index.js             ✅ Point d'entrée (28 lignes)
+├── css/
+│   ├── styles.css               ✅ Styles principaux (59 lignes)
+│   └── components.css           ✅ Composants UI (369 lignes)
 └── tests/unit/                  ✅ Dossier créé
 ```
 
 ## 🔄 Fichiers en Cours
 
 ```
-css/styles.css                   ⏳ Phase 2
-css/components.css               ⏳ Phase 2
+Phases 1 et 2 terminées - Prêt pour Phase 3 (Modularisation)
 ```
 
 ## 🧪 Tests de Validation

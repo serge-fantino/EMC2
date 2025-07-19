@@ -1,0 +1,66 @@
+/* Styles principaux - Refactoring Phase 2 */
+/* Extraction CSS : Styles de base et layout */
+
+/* === LAYOUT DE BASE === */
+body {
+    margin: 0;
+    padding: 0;
+    background-color: #000;
+    color: white;
+    font-family: 'Arial', sans-serif;
+    overflow: hidden;
+}
+
+/* === CANVAS === */
+#canvas {
+    display: block;
+    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><text y="24" font-size="24">🚫</text></svg>') 16 16, not-allowed;
+}
+
+#canvas.inside-cone {
+    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><text y="24" font-size="24">🚀</text></svg>') 16 16, pointer;
+}
+
+/* === ÉLÉMENTS DE BASE === */
+label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 14px;
+}
+
+input[type="range"] {
+    width: 100%;
+    margin: 5px 0;
+}
+
+/* === CLASSES UTILITAIRES === */
+.value {
+    color: #4a9eff;
+    font-weight: bold;
+}
+
+.color-limit {
+    color: #ff9f4a;
+    font-weight: bold;
+}
+
+.gradient-bar {
+    width: 100%;
+    height: 20px;
+    background: linear-gradient(to right, #0000ff, #00ff00, #ff0000, #000000);
+    margin: 10px 0;
+    border-radius: 3px;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+}
+
+.gradient-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+}
+
+.legend {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+} 
