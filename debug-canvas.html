@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Canvas Resize</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #1a1a1a;
+            color: white;
+        }
+        
+        .debug-info {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.8);
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            z-index: 1000;
+        }
+        
+        .test-layout {
+            display: flex;
+            height: 100vh;
+        }
+        
+        .test-panel {
+            width: 350px;
+            min-width: 250px;
+            background: rgba(0,0,0,0.3);
+            border-right: 2px solid #4a9eff;
+            transition: width 0.3s ease;
+        }
+        
+        .test-panel.collapsed {
+            width: 0;
+            min-width: 0;
+            overflow: hidden;
+            border-right: none;
+        }
+        
+        .test-canvas-container {
+            flex: 1;
+            position: relative;
+        }
+        
+        #testCanvas {
+            width: 100%;
+            height: 100%;
+            background: #000;
+        }
+        
+        .controls {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+        }
+        
+        button {
+            padding: 10px;
+            margin: 5px;
+            background: #4a9eff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="debug-info" id="debugInfo">
+        Loading...
+    </div>
+    
+    <div class="controls">
+        <button onclick="togglePanel()">Toggle Panel</button>
+        <button onclick="testResize()">Test Resize</button>
+    </div>
+    
+    <div class="test-layout">
+        <div class="test-panel" id="testPanel">
+            <div style="padding: 20px;">
+                <h3>Test Panel</h3>
+                <p>This panel simulates the side panel behavior.</p>
+            </div>
+        </div>
+        
+        <div class="test-canvas-container" id="testCanvasContainer">
+            <canvas id="testCanvas"></canvas>
+        </div>
+    </div>
+
+    <script type="module">
+        // Importer les fonctions de canvas
+        import { initCanvas, resizeCanvas, getCanvas, getCanvasTransform, spacetimeToScreen } from './js/renderer/canvas.js';
+        
+        let isCollapsed = false;
+        let debugInfo = document.getElementById('debugInfo');
+        
+        // Initialiser le canvas
+        const canvas = document.getElementById('testCanvas');
+        initCanvas(canvas);
+        
+        // Fonction de debug
+        function updateDebugInfo() {
+            const canvasRef = getCanvas();
+            const container = canvasRef?.parentElement;
+            const transform = getCanvasTransform();
+            
+            if (canvasRef && container) {
+                const containerRect = container.getBoundingClientRect();
+                
+                debugInfo.innerHTML = `
+                    <strong>Canvas Debug Info:</strong><br>
+                    Canvas Size: ${canvasRef.width} x ${canvasRef.height}<br>
+                    Container Size: ${containerRect.width.toFixed(0)} x ${containerRect.height.toFixed(0)}<br>
+                    Adaptive Scale: ${transform.scale.toFixed(2)}<br>
+                    Center: (${transform.centerX.toFixed(0)}, ${transform.centerY.toFixed(0)})<br>
+                    Panel Collapsed: ${isCollapsed}<br>
+                    Min Dimension: ${Math.min(canvasRef.width, canvasRef.height - 100)}<br>
+                    <br>
+                    <strong>Light Cone Test:</strong><br>
+                    Origin: (0, 0) → (${transform.centerX}, ${transform.centerY})<br>
+                    Point (100, 100) → ${JSON.stringify(spacetimeToScreen(100, 100))}
+                `;
+            }
+        }
+        
+        // Dessiner un cône de lumière simple pour test
+        function drawTestCone() {
+            const canvasRef = getCanvas();
+            const ctx = canvasRef?.getContext('2d');
+            if (!ctx) return;
+            
+            const transform = getCanvasTransform();
+            const { centerX, centerY, scale } = transform;
+            
+            // Effacer
+            ctx.clearRect(0, 0, canvasRef.width, canvasRef.height);
+            
+            // Dessiner axes
+            ctx.strokeStyle = '#666';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(centerX, 0);
+            ctx.lineTo(centerX, canvasRef.height);
+            ctx.moveTo(0, centerY);
+            ctx.lineTo(canvasRef.width, centerY);
+            ctx.stroke();
+            
+            // Dessiner cône de lumière à 45°
+            ctx.strokeStyle = '#ff0000';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            
+            // Ligne à 45° vers la droite (c = 1)
+            const maxT = 200; // unités de temps
+            for (let t = 0; t <= maxT; t += 10) {
+                const x1 = t;  // x = t pour la vitesse de la lumière
+                const x2 = -t; // x = -t pour l'autre côté
+                
+                const screen1 = spacetimeToScreen(x1, t);
+                const screen2 = spacetimeToScreen(x2, t);
+                
+                if (t === 0) {
+                    ctx.moveTo(screen1.screenX, screen1.screenY);
+                } else {
+                    ctx.lineTo(screen1.screenX, screen1.screenY);
+                }
+            }
+            
+            ctx.moveTo(centerX, centerY);
+            for (let t = 0; t <= maxT; t += 10) {
+                const x = -t;
+                const screen = spacetimeToScreen(x, t);
+                if (t === 0) {
+                    ctx.moveTo(screen.screenX, screen.screenY);
+                } else {
+                    ctx.lineTo(screen.screenX, screen.screenY);
+                }
+            }
+            
+            ctx.stroke();
+            
+            // Dessiner origine
+            ctx.fillStyle = '#00ff00';
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 5, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Mesurer angle du cône
+            const testPoint = spacetimeToScreen(100, 100);
+            const angle = Math.atan2(centerY - testPoint.screenY, testPoint.screenX - centerX) * 180 / Math.PI;
+            
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '14px Arial';
+            ctx.fillText(`Angle du cône: ${angle.toFixed(1)}° (devrait être 45°)`, 10, 30);
+        }
+        
+        // Fonctions globales
+        window.togglePanel = function() {
+            isCollapsed = !isCollapsed;
+            const panel = document.getElementById('testPanel');
+            
+            if (isCollapsed) {
+                panel.classList.add('collapsed');
+            } else {
+                panel.classList.remove('collapsed');
+            }
+            
+            // Attendre la transition CSS puis redimensionner
+            setTimeout(() => {
+                console.log('🔄 Triggering resize after panel toggle...');
+                resizeCanvas();
+                updateDebugInfo();
+                drawTestCone();
+            }, 350);
+        };
+        
+        window.testResize = function() {
+            console.log('🔄 Manual resize test...');
+            resizeCanvas();
+            updateDebugInfo();
+            drawTestCone();
+        };
+        
+        // Initialisation
+        setTimeout(() => {
+            resizeCanvas();
+            updateDebugInfo();
+            drawTestCone();
+            
+            // Mettre à jour périodiquement
+            setInterval(() => {
+                updateDebugInfo();
+            }, 1000);
+        }, 100);
+        
+        // Redimensionner à chaque changement de fenêtre
+        window.addEventListener('resize', () => {
+            setTimeout(() => {
+                resizeCanvas();
+                updateDebugInfo();
+                drawTestCone();
+            }, 100);
+        });
+    </script>
+</body>
+</html> 

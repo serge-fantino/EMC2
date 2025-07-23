@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧮 Tests Unitaires - Module Physics</title>
+    <style>
+        body {
+            font-family: 'Consolas', 'Monaco', monospace;
+            background: #1a1a1a;
+            color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            color: #4a9eff;
+            text-align: center;
+            margin-bottom: 30px;
+            text-shadow: 0 0 10px rgba(74, 158, 255, 0.5);
+        }
+        
+        #output {
+            background: #2d2d2d;
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 20px;
+            min-height: 400px;
+            white-space: pre-wrap;
+            font-family: inherit;
+            overflow-y: auto;
+            max-height: 80vh;
+        }
+        
+        .controls {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        button {
+            background: #4a9eff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 0 10px;
+            transition: all 0.3s;
+            box-shadow: 0 0 10px rgba(74, 158, 255, 0.3);
+        }
+        
+        button:hover {
+            background: #3a8eef;
+            box-shadow: 0 0 20px rgba(74, 158, 255, 0.6);
+            transform: translateY(-2px);
+        }
+        
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .status {
+            text-align: center;
+            margin: 15px 0;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        .status.running {
+            color: #ffa500;
+        }
+        
+        .status.success {
+            color: #00ff00;
+        }
+        
+        .status.failed {
+            color: #ff4444;
+        }
+        
+        .loading {
+            display: inline-block;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .info {
+            background: rgba(74, 158, 255, 0.1);
+            border: 1px solid rgba(74, 158, 255, 0.3);
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-left: 4px solid #4a9eff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧮 Tests Unitaires - Module Physics</h1>
+        
+        <div class="info">
+            <strong>💡 À propos :</strong> Ces tests vérifient que tous les calculs de physique relativiste 
+            fonctionnent correctement et permettent de détecter les régressions lors du refactoring.
+        </div>
+        
+        <div class="controls">
+            <button id="runTests" onclick="runTests()">🚀 Lancer les Tests</button>
+            <button id="clearOutput" onclick="clearOutput()">🗑️ Vider Console</button>
+        </div>
+        
+        <div class="status" id="status">Prêt à lancer les tests</div>
+        
+        <div id="output"></div>
+    </div>
+
+    <script type="module">
+        import test from './tests/unit/physics.test.js';
+        
+        const output = document.getElementById('output');
+        const status = document.getElementById('status');
+        const runButton = document.getElementById('runTests');
+        
+        // Capturer les console.log pour les afficher dans la page
+        const originalLog = console.log;
+        const originalError = console.error;
+        
+        function captureConsole() {
+            console.log = (...args) => {
+                output.textContent += args.join(' ') + '\n';
+                output.scrollTop = output.scrollHeight;
+                originalLog(...args);
+            };
+            
+            console.error = (...args) => {
+                output.textContent += args.join(' ') + '\n';
+                output.scrollTop = output.scrollHeight;
+                originalError(...args);
+            };
+        }
+        
+        function restoreConsole() {
+            console.log = originalLog;
+            console.error = originalError;
+        }
+        
+        window.runTests = async function() {
+            runButton.disabled = true;
+            status.className = 'status running';
+            status.innerHTML = '<span class="loading">⟳</span> Tests en cours...';
+            output.textContent = '';
+            
+            captureConsole();
+            
+            try {
+                const startTime = performance.now();
+                const success = await test.run();
+                const endTime = performance.now();
+                const duration = (endTime - startTime).toFixed(2);
+                
+                output.textContent += `\n⏱️ Temps d'exécution: ${duration}ms\n`;
+                
+                if (success) {
+                    status.className = 'status success';
+                    status.textContent = '✅ Tous les tests sont passés !';
+                } else {
+                    status.className = 'status failed';
+                    status.textContent = '❌ Certains tests ont échoué';
+                }
+            } catch (error) {
+                status.className = 'status failed';
+                status.textContent = '💥 Erreur lors de l\'exécution';
+                output.textContent += `\n💥 ERREUR: ${error.message}\n`;
+                console.error('Erreur tests:', error);
+            }
+            
+            restoreConsole();
+            runButton.disabled = false;
+        };
+        
+        window.clearOutput = function() {
+            output.textContent = '';
+            status.className = 'status';
+            status.textContent = 'Console vidée';
+        };
+        
+        // Lancer automatiquement les tests au chargement
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                runTests();
+            }, 500);
+        });
+    </script>
+</body>
+</html> 
