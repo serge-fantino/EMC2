@@ -7,6 +7,7 @@ import { getCanvas, getCtx, screenToSpacetime } from '../renderer/canvas.js';
 import { getConeAtPosition, getCartoucheAtPosition, checkIsochroneHover } from '../renderer/drawing.js';
 import { getContainingCone } from '../physics/trajectory.js';
 import { isReachableFromSource } from '../physics/relativity.js';
+import { addConeAndDocument } from './controls.js';
 
 // États de drag & drop
 let dragState = {
@@ -144,7 +145,10 @@ export function handleMouseDown(event) {
             coneOrigins.push(newCone);
             const newConeIndex = coneOrigins.length - 1;
             console.log('✅ Created new cone at:', spacetime.x.toFixed(2), spacetime.t.toFixed(2));
-            
+            // Documentation automatique (hors mode démo)
+            if (!window.isDemoMode) {
+                addConeAndDocument(spacetime.x, spacetime.t);
+            }
             // Maintenant commencer à drag le nouveau cône créé
             dragState.isDragging = true;
             dragState.draggedConeIndex = newConeIndex;
@@ -295,6 +299,7 @@ export function handleCanvasClick(event) {
     const coneIndex = getConeAtPosition(mouseX, mouseY, coneOrigins);
     if (coneIndex !== -1) {
         selectedReferenceFrame = coneIndex;
+        window.selectedReferenceFrame = coneIndex;
         updateSelectedReferenceFrame(coneIndex);
         updateCalculationsDisplay();
         return;
@@ -304,6 +309,7 @@ export function handleCanvasClick(event) {
     const cartoucheIndex = getCartoucheAtPosition(mouseX, mouseY, getCurrentPlacements());
     if (cartoucheIndex !== -1) {
         selectedReferenceFrame = cartoucheIndex;
+        window.selectedReferenceFrame = cartoucheIndex;
         updateSelectedReferenceFrame(cartoucheIndex);
         updateCalculationsDisplay();
         return;

@@ -3,6 +3,9 @@
  * @module interaction/controls
  */
 
+import { openSection } from '../ui/sidepanel.js';
+import { updateGradientBar } from '../renderer/colors.js';
+
 // Variables globales à injecter
 let coneOrigins = [];
 let selectedReferenceFrame = 0;
@@ -30,16 +33,15 @@ export function initControlsModule(_coneOrigins, _selectedReferenceFrame, _carto
  * Supprime le référentiel sélectionné et tous ses dérivés
  */
 export function deleteSelectedReferenceFrame() {
-    console.log('deleteSelectedReferenceFrame called, selectedReferenceFrame:', selectedReferenceFrame);
-    
-    if (selectedReferenceFrame <= 0) {
+    // Lire dynamiquement le référentiel sélectionné
+    let ref = window.selectedReferenceFrame;
+    if (typeof ref !== 'number') ref = selectedReferenceFrame;
+    if (ref <= 0) {
         console.log('Cannot delete origin, returning');
         return;
     }
-    
-    const frameToDelete = selectedReferenceFrame;
+    const frameToDelete = ref;
     const framesToDelete = [frameToDelete];
-    
     function findDerivedFrames(parentIndex) {
         for (let i = 0; i < coneOrigins.length; i++) {
             const cone = coneOrigins[i];
@@ -49,33 +51,27 @@ export function deleteSelectedReferenceFrame() {
             }
         }
     }
-    
     findDerivedFrames(frameToDelete);
     framesToDelete.sort((a, b) => b - a);
-    
     framesToDelete.forEach(index => {
         coneOrigins.splice(index, 1);
         delete cartoucheOffsets[index];
     });
-    
     // Mettre à jour les offsets des cartouches
     const newCartoucheOffsets = {};
     Object.keys(cartoucheOffsets).forEach(key => {
         const oldIndex = parseInt(key);
         let newIndex = oldIndex;
-        
         for (const deletedIndex of framesToDelete) {
             if (deletedIndex < oldIndex) {
                 newIndex--;
             }
         }
-        
         if (newIndex >= 0) {
             newCartoucheOffsets[newIndex] = cartoucheOffsets[key];
         }
     });
     cartoucheOffsets = newCartoucheOffsets;
-    
     // Mettre à jour les indices source
     for (let i = 0; i < coneOrigins.length; i++) {
         const cone = coneOrigins[i];
@@ -87,13 +83,12 @@ export function deleteSelectedReferenceFrame() {
                 }
             }
             cone.sourceIndex -= adjustment;
-            
             if (cone.sourceIndex < 0) {
                 cone.sourceIndex = 0;
             }
         }
     }
-    
+    window.selectedReferenceFrame = 0;
     selectedReferenceFrame = 0;
     updateCalculationsDisplay();
 }
@@ -169,27 +164,22 @@ export function twinParadox() {
                 // Mettre à jour le panneau de commentaires au lieu d'afficher une alerte
                 setTimeout(() => {
                     const commentContent = `
-                        <div style="line-height: 1.6;">
-                            <p><strong style="color: #ff9f4a;">📊 Scénario créé :</strong></p>
-                            <ul style="margin: 10px 0; padding-left: 20px;">
-                                <li><strong style="color: #4a9eff;">Réf 1</strong> : Jumeau terrestre reste sur Terre (x=0, t=${T})</li>
-                                <li><strong style="color: #ff6b6b;">Réf 2</strong> : Jumeau voyageur va loin (x=${X}, t=${T * 0.45})</li>
-                                <li><strong style="color: #00ff00;">Réf 3</strong> : Jumeau voyageur revient sur Terre (x=0, t=${T})</li>
+                        <div style="line-height:1.7; font-size: 14px;">
+                            <div><strong style="color:#ff9f4a;">📊 Scénario créé:</strong></div>
+                            <ul style="margin:0 0 10px 2px; padding:0;">
+                                <li><span style="color:#4a9eff; font-weight:bold;">Réf 1</span> : Jumeau terrestre reste sur Terre (x=0, t=${T})</li>
+                                <li><span style="color:#ff6b6b; font-weight:bold;">Réf 2</span> : Jumeau voyageur va loin (x=${X}, t=${T * 0.45})</li>
+                                <li><span style="color:#00ff00; font-weight:bold;">Réf 3</span> : Jumeau voyageur revient sur Terre (x=0, t=${T})</li>
                             </ul>
-                            
-                            <p><strong style="color: #feca57;">🎯 Résultat clé :</strong></p>
-                            <p>Les deux jumeaux se retrouvent au <em>même endroit</em> et au <em>même temps coordonnée</em>, MAIS le jumeau voyageur (réf 3) a un <strong style="color: #ff6b6b;">temps propre cumulé plus petit</strong> !</p>
-                            
-                            <p><strong style="color: #4a9eff;">💡 Observation :</strong></p>
-                            <p>Le jumeau voyageur a <strong>vieilli moins</strong> ! Regardez les calculs pour comparer les temps propres entre réf 1 et réf 3.</p>
-                            
-                            <p style="margin-top: 15px; padding: 10px; background: rgba(74, 158, 255, 0.1); border-radius: 5px; border-left: 3px solid #4a9eff;">
+                            <div><strong style="color:#feca57;">🎯 Résultat clé :</strong> Les deux jumeaux se retrouvent au <em>même endroit</em> et au <em>même temps coordonnée</em>, MAIS le jumeau voyageur (réf 3) a un <strong style="color:#ff6b6b;">temps propre cumulé plus petit</strong> !</div>
+                            <div><strong style="color:#4a9eff;">💡 Observation :</strong> Le jumeau voyageur a <strong>vieilli moins</strong> ! Regardez les calculs pour comparer les temps propres entre réf 1 et réf 3.</div>
+                            <div style="margin-top: 10px; padding: 8px 12px; background:rgba(74,158,255,0.08); border-radius:5px; border-left:3px solid #4a9eff; font-size:13px;">
                                 <em>Cliquez sur les différents référentiels pour explorer chaque étape du voyage et comprendre l'accumulation des effets relativistes.</em>
-                            </p>
+                            </div>
                         </div>
                     `;
-                    
                     updateCommentsPanel('🚀 Démonstration du Paradoxe des Jumeaux', commentContent);
+                    openSection && openSection('comments');
                 }, 500);
             }, 300);
         }, 300);
@@ -244,8 +234,125 @@ export function setupCommentsPanel() {
         localStorage.setItem('lightConeComments', this.innerHTML);
     });
     
-    // Charger les commentaires sauvegardés
-    loadCommentsOnly();
+    // BOUTONS DE FORMATTAGE
+    const boldBtn = document.getElementById('boldBtn');
+    if (boldBtn) boldBtn.onclick = () => document.execCommand('bold');
+    const italicBtn = document.getElementById('italicBtn');
+    if (italicBtn) italicBtn.onclick = () => document.execCommand('italic');
+    const underlineBtn = document.getElementById('underlineBtn');
+    if (underlineBtn) underlineBtn.onclick = () => document.execCommand('underline');
+    const colorBtn = document.getElementById('colorBtn');
+    if (colorBtn) colorBtn.onclick = () => document.execCommand('foreColor', false, '#ff6b6b');
+    const clearFormatBtn = document.getElementById('clearFormatBtn');
+    if (clearFormatBtn) clearFormatBtn.onclick = () => document.execCommand('removeFormat');
+
+    // BOUTONS ACTIONS
+    const saveBtn = document.getElementById('saveComments');
+    if (saveBtn) saveBtn.onclick = () => {
+        // Sauvegarde complète
+        const saveData = {
+            comments: commentsEditor.innerHTML,
+            coneOrigins: coneOrigins,
+            cartoucheOffsets: cartoucheOffsets,
+            selectedReferenceFrame: selectedReferenceFrame,
+            config: config,
+            timestamp: new Date().toISOString()
+        };
+        localStorage.setItem('lightConeComments', commentsEditor.innerHTML);
+        localStorage.setItem('lightConeDiagram', JSON.stringify(saveData));
+        // Feedback visuel
+        saveBtn.innerHTML = '✅ Sauvé !';
+        saveBtn.style.background = '#00ff00';
+        setTimeout(() => {
+            saveBtn.innerHTML = '💾 Sauver';
+            saveBtn.style.background = '#4a9eff';
+        }, 1500);
+    };
+    const loadBtn = document.getElementById('loadComments');
+    if (loadBtn) loadBtn.onclick = () => {
+        const savedDiagram = localStorage.getItem('lightConeDiagram');
+        if (savedDiagram) {
+            try {
+                const saveData = JSON.parse(savedDiagram);
+                // Restaurer tout l'état
+                if (saveData.coneOrigins && Array.isArray(saveData.coneOrigins)) {
+                    coneOrigins.length = 0;
+                    saveData.coneOrigins.forEach(c => coneOrigins.push({...c}));
+                }
+                if (saveData.cartoucheOffsets) {
+                    cartoucheOffsets = {...saveData.cartoucheOffsets};
+                }
+                if (saveData.selectedReferenceFrame !== undefined) {
+                    selectedReferenceFrame = saveData.selectedReferenceFrame;
+                }
+                if (saveData.config) {
+                    Object.assign(config, saveData.config);
+                }
+                if (saveData.comments && !saveData.comments.includes('Cliquez ici pour ajouter')) {
+                    commentsEditor.innerHTML = saveData.comments;
+                }
+                updateCalculationsDisplay();
+                // Feedback visuel
+                loadBtn.innerHTML = '✅ Chargé !';
+                loadBtn.style.background = '#00ff00';
+                setTimeout(() => {
+                    loadBtn.innerHTML = '📂 Charger';
+                    loadBtn.style.background = '#4a9eff';
+                }, 1500);
+            } catch (e) {
+                alert('Erreur lors du chargement de la sauvegarde !');
+            }
+        } else {
+            alert('Aucune sauvegarde trouvée !');
+        }
+    };
+    const clearBtn = document.getElementById('clearComments');
+    if (clearBtn) clearBtn.onclick = () => {
+        // Effacer commentaires
+        commentsEditor.innerHTML = '';
+        // Effacer cônes
+        coneOrigins.length = 0;
+        coneOrigins.push({
+            x: 0, y: 0, t: 0, sourceIndex: -1,
+            cumulativeVelocity: 0,
+            cumulativeProperTime: 0,
+            totalCoordinateTime: 0
+        });
+        cartoucheOffsets = {};
+        selectedReferenceFrame = 0;
+        localStorage.removeItem('lightConeComments');
+        localStorage.removeItem('lightConeDiagram');
+        updateCalculationsDisplay();
+    };
+    
+    // Charger automatiquement la sauvegarde complète au démarrage
+    (function autoLoadFullDiagram() {
+        const savedDiagram = localStorage.getItem('lightConeDiagram');
+        if (savedDiagram) {
+            try {
+                const saveData = JSON.parse(savedDiagram);
+                if (saveData.coneOrigins && Array.isArray(saveData.coneOrigins)) {
+                    coneOrigins.length = 0;
+                    saveData.coneOrigins.forEach(c => coneOrigins.push({...c}));
+                }
+                if (saveData.cartoucheOffsets) {
+                    cartoucheOffsets = {...saveData.cartoucheOffsets};
+                }
+                if (saveData.selectedReferenceFrame !== undefined) {
+                    selectedReferenceFrame = saveData.selectedReferenceFrame;
+                }
+                if (saveData.config) {
+                    Object.assign(config, saveData.config);
+                }
+                if (saveData.comments && !saveData.comments.includes('Cliquez ici pour ajouter')) {
+                    commentsEditor.innerHTML = saveData.comments;
+                }
+                updateCalculationsDisplay();
+            } catch (e) {
+                // fallback : ne rien faire
+            }
+        }
+    })();
 }
 
 /**
@@ -266,20 +373,42 @@ function loadCommentsOnly() {
 export function setupUIControls() {
     // Slider de résolution
     const resolutionSlider = document.getElementById('resolutionSlider');
+    const resolutionValue = document.getElementById('resolutionValue');
     if (resolutionSlider) {
         resolutionSlider.addEventListener('input', function() {
-            resolutionSettings.resolution = parseInt(this.value);
-            updateResolutionDisplay();
+            config.resolution = parseInt(this.value);
+            if (resolutionValue) {
+                const names = {1: 'Basse', 2: 'Moyenne', 3: 'Haute'};
+                resolutionValue.textContent = names[this.value] || this.value;
+            }
+            if (window.requestAnimationFrame) window.requestAnimationFrame(() => updateCalculationsDisplay());
         });
+        // Initialisation affichage
+        if (resolutionValue) {
+            const names = {1: 'Basse', 2: 'Moyenne', 3: 'Haute'};
+            resolutionValue.textContent = names[resolutionSlider.value] || resolutionSlider.value;
+        }
+        // Initialiser la valeur dans config
+        config.resolution = parseInt(resolutionSlider.value);
     }
     
     // Slider de limite verte
     const greenLimitSlider = document.getElementById('greenLimitSlider');
+    const greenLimitValue = document.getElementById('greenLimitValue');
+    const greenLabel = document.getElementById('greenLabel');
     if (greenLimitSlider) {
         greenLimitSlider.addEventListener('input', function() {
             config.greenLimit = parseFloat(this.value);
+            const percent = Math.round(config.greenLimit * 100);
+            if (greenLimitValue) greenLimitValue.textContent = percent + '% c';
+            if (greenLabel) greenLabel.textContent = percent + '% c';
             updateGreenLimitDisplay();
+            updateGradientBar(config);
         });
+        // Initialisation affichage
+        const percent = Math.round(parseFloat(greenLimitSlider.value) * 100);
+        if (greenLimitValue) greenLimitValue.textContent = percent + '% c';
+        if (greenLabel) greenLabel.textContent = percent + '% c';
     }
     
     // Checkbox cône passé
@@ -287,7 +416,10 @@ export function setupUIControls() {
     if (showPastConeCheckbox) {
         showPastConeCheckbox.addEventListener('change', function() {
             config.showPastCone = this.checked;
+            if (window.requestAnimationFrame) window.requestAnimationFrame(() => updateCalculationsDisplay());
         });
+        // Initialisation
+        config.showPastCone = showPastConeCheckbox.checked;
     }
     
     // Bouton paradoxe des jumeaux
@@ -300,16 +432,28 @@ export function setupUIControls() {
     const resetButton = document.getElementById('resetButton');
     if (resetButton) {
         resetButton.addEventListener('click', function() {
-            coneOrigins.length = 0;
-            coneOrigins.push({
-                x: 0, y: 0, t: 0, sourceIndex: -1,
-                cumulativeVelocity: 0,
-                cumulativeProperTime: 0,
-                totalCoordinateTime: 0
-            });
-            cartoucheOffsets = {};
-            selectedReferenceFrame = 0;
-            updateCalculationsDisplay();
+            // Valeurs par défaut (alignées sur l'original)
+            if (resolutionSlider) {
+                resolutionSlider.value = 2;
+                if (resolutionValue) {
+                    const names = {1: 'Basse', 2: 'Moyenne', 3: 'Haute'};
+                    resolutionValue.textContent = names[2];
+                }
+                config.resolution = 2;
+            }
+            if (greenLimitSlider) {
+                greenLimitSlider.value = 0.8;
+                const percent = 80;
+                if (greenLimitValue) greenLimitValue.textContent = percent + '% c';
+                if (greenLabel) greenLabel.textContent = percent + '% c';
+                config.greenLimit = 0.8;
+                updateGradientBar(config);
+            }
+            if (showPastConeCheckbox) {
+                showPastConeCheckbox.checked = true;
+                config.showPastCone = true;
+            }
+            if (window.requestAnimationFrame) window.requestAnimationFrame(() => updateCalculationsDisplay());
         });
     }
     
@@ -356,11 +500,19 @@ export function setupUIControls() {
         });
     }
     
-    // Démo paradoxe des jumeaux dans le panneau d'info
-    const infoPanelTwinDemo = document.getElementById('infoPanelTwinDemo');
-    if (infoPanelTwinDemo) {
-        infoPanelTwinDemo.addEventListener('click', twinParadox);
-    }
+    // Tous les boutons de démo du paradoxe des jumeaux dans la popup Info
+    [
+        '#infoPanelTwinDemo',
+        '#twinParadoxDemo',
+        '.twin-paradox-demo-btn'
+    ].forEach(selector => {
+        document.querySelectorAll(selector).forEach(btn => {
+            btn.addEventListener('click', function() {
+                twinParadox();
+                document.getElementById('helpModal').style.display = 'none';
+            });
+        });
+    });
     
     // Bouton toggle détails
     const toggleDetailsButton = document.getElementById('toggleDetails');
@@ -414,5 +566,20 @@ function updateGreenLimitDisplay() {
     const display = document.getElementById('greenLimitDisplay');
     if (display) {
         display.textContent = config.greenLimit.toFixed(2);
+    }
+} 
+
+// Ajout automatique de documentation lors de l'ajout d'un cône (hors mode démo)
+export function addConeAndDocument(x, t) {
+    const refNum = coneOrigins.length - 1;
+    const line = `<div>🟠 <b>Ref ${refNum}</b> : t = ${t.toFixed(2)}, x = ${x.toFixed(2)}</div>`;
+    const commentsEditor = document.getElementById('commentsEditor');
+    if (commentsEditor) {
+        if (commentsEditor.innerHTML.includes('Cliquez ici pour ajouter')) {
+            commentsEditor.innerHTML = line;
+        } else {
+            commentsEditor.innerHTML += line;
+        }
+        localStorage.setItem('lightConeComments', commentsEditor.innerHTML);
     }
 } 

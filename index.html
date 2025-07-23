@@ -95,20 +95,9 @@
                     </div>
                 </div>
                 
-                <div class="accordion-section" data-section="calculations">
-                    <div class="accordion-header">
-                        <span>🧮 Calculs</span>
-                        <span class="accordion-icon">▶</span>
-                    </div>
-                    <div class="accordion-content">
-                        <h4>Calculs</h4>
-                        <p>Cliquez sur un point d'origine pour voir les calculs détaillés...</p>
-                    </div>
-                </div>
-                
                 <div class="accordion-section" data-section="comments">
                     <div class="accordion-header">
-                        <span>📝 Commentaires</span>
+                        <span>📝 Description de la scène</span>
                         <span class="accordion-icon">▶</span>
                     </div>
                     <div class="accordion-content">
@@ -121,7 +110,6 @@
                         </div>
                         
                         <div id="commentsEditor" class="comments-content" contenteditable="true" 
-                             style="white-space: pre-wrap;" 
                              placeholder="Documentez votre diagramme ici...">
                             <p style="color: #888; font-style: italic;">Cliquez ici pour ajouter vos commentaires sur le diagramme...</p>
                         </div>
@@ -134,6 +122,17 @@
                     </div>
                 </div>
                 
+                <div class="accordion-section" data-section="calculations">
+                    <div class="accordion-header">
+                        <span>🧮 Calculs</span>
+                        <span class="accordion-icon">▶</span>
+                    </div>
+                    <div class="accordion-content">
+                        <h4>Calculs</h4>
+                        <p>Cliquez sur un point d'origine pour voir les calculs détaillés...</p>
+                    </div>
+                </div>
+                
                 <div class="accordion-section" data-section="settings">
                     <div class="accordion-header">
                         <span>⚙️ Réglages</span>
@@ -142,13 +141,22 @@
                     <div class="accordion-content">
                         <!-- Contenu sera migré depuis controls panel -->
                         <div class="control-group">
-                            <label for="resolutionSlider">Résolution d'affichage: <span id="resolutionValue">50</span></label>
-                            <input type="range" id="resolutionSlider" min="10" max="200" value="50" step="10">
+                            <label for="resolutionSlider">Résolution d'affichage: <span id="resolutionValue">Moyenne</span></label>
+                            <input type="range" id="resolutionSlider" min="1" max="3" value="2" step="1">
                         </div>
                         
                         <div class="control-group">
-                            <label for="greenLimitSlider">Limite verte: <span id="greenLimitValue">0.8</span>c</label>
+                            <label for="greenLimitSlider">Limite verte: <span id="greenLimitValue">80% c</span></label>
                             <input type="range" id="greenLimitSlider" min="0.1" max="0.95" value="0.8" step="0.05">
+                            <!-- Déplacer la barre de gradient et la légende juste ici -->
+                            <div class="gradient-bar-container">
+                                <div class="gradient-bar" id="gradientBar"></div>
+                                <div class="gradient-labels">
+                                    <span>0</span>
+                                    <span id="greenLabel">80% c</span>
+                                    <span>c</span>
+                                </div>
+                            </div>
                         </div>
                         
                         <div class="control-group">
@@ -159,20 +167,10 @@
                         </div>
                         
                         <div class="control-group">
-                            <button id="twinParadoxDemo">🚀 Paradoxe des Jumeaux</button>
                             <button id="resetButton">🔄 Réinitialiser</button>
-                            <button id="clearConesButton">🗑️ Effacer Cônes</button>
                         </div>
                         
                         <!-- Barre de gradient -->
-                        <div class="gradient-bar-container">
-                            <div class="gradient-bar" id="gradientBar"></div>
-                            <div class="gradient-labels">
-                                <span>0</span>
-                                <span id="greenLimitLabel">0.8c</span>
-                                <span>c</span>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -186,221 +184,221 @@
             <canvas id="canvas"></canvas>
             <!-- Bouton flottant pour réouvrir le panneau quand il est masqué -->
             <button id="floatingReopenBtn" class="floating-reopen-btn" title="Afficher le panneau d'informations">▶</button>
-        </div>
-    </div>
-    
-    <!-- Help Modal -->
-    <div id="helpModal" class="help-modal">
-        <div class="help-modal-content">
-            <span class="help-close">&times;</span>
-            <h1 style="color: #4a9eff; text-align: center; margin-bottom: 30px; text-shadow: 0 0 15px rgba(74, 158, 255, 0.5);">
-                🌌 Guide Mathématique et Physique
-            </h1>
             
-            <div class="help-section">
-                <h3>🎯 Objectif de l'Application</h3>
-                <p>Cette application visualise interactivement les <strong>cônes de lumière</strong> en relativité restreinte et permet d'explorer les effets de <strong>l'accélération</strong> et de la <strong>dilatation temporelle</strong> à travers des trajectoires dans l'espace-temps.</p>
-                <p>Chaque clic dans un cône crée un nouveau <strong>référentiel</strong> connecté causalement, permettant de construire des trajectoires complexes et d'observer leurs effets cumulatifs.</p>
-            </div>
+            <!-- Help Modal déplacée ici pour ne couvrir que le canevas -->
+            <div id="helpModal" class="help-modal">
+                <div class="help-modal-content">
+                    <span id="helpClose" class="help-close">&times;</span>
+                    <h1 style="color: #4a9eff; text-align: center; margin-bottom: 30px; text-shadow: 0 0 15px rgba(74, 158, 255, 0.5);">
+                        🌌 Guide Mathématique et Physique
+                    </h1>
+                    
+                    <div class="help-section">
+                        <h3>🎯 Objectif de l'Application</h3>
+                        <p>Cette application visualise interactivement les <strong>cônes de lumière</strong> en relativité restreinte et permet d'explorer les effets de <strong>l'accélération</strong> et de la <strong>dilatation temporelle</strong> à travers des trajectoires dans l'espace-temps.</p>
+                        <p>Chaque clic dans un cône crée un nouveau <strong>référentiel</strong> connecté causalement, permettant de construire des trajectoires complexes et d'observer leurs effets cumulatifs.</p>
+                    </div>
 
-            <div class="help-section">
-                <h3>📐 Système de Coordonnées</h3>
-                <p>Nous utilisons un diagramme d'espace-temps de Minkowski en 2D :</p>
-                <ul>
-                    <li><strong>Axe horizontal</strong> : Position spatiale <span class="help-variable">x</span></li>
-                    <li><strong>Axe vertical</strong> : Temps coordonnée <span class="help-variable">t</span> (vers le haut = futur)</li>
-                    <li><strong>Unités normalisées</strong> : <span class="help-constant">c = 1</span> (vitesse de la lumière)</li>
-                    <li><strong>Origine</strong> : Point (0, 0) au bas de l'écran</li>
-                </ul>
-                
-                <div class="help-formula">
-                    Métrique de Minkowski : ds² = -c²dt² + dx²
-                    <br>Avec c = 1 : ds² = -dt² + dx²
-                </div>
-            </div>
+                    <div class="help-section">
+                        <h3>📐 Système de Coordonnées</h3>
+                        <p>Nous utilisons un diagramme d'espace-temps de Minkowski en 2D :</p>
+                        <ul>
+                            <li><strong>Axe horizontal</strong> : Position spatiale <span class="help-variable">x</span></li>
+                            <li><strong>Axe vertical</strong> : Temps coordonnée <span class="help-variable">t</span> (vers le haut = futur)</li>
+                            <li><strong>Unités normalisées</strong> : <span class="help-constant">c = 1</span> (vitesse de la lumière)</li>
+                            <li><strong>Origine</strong> : Point (0, 0) au bas de l'écran</li>
+                        </ul>
+                        
+                        <div class="help-formula">
+                            Métrique de Minkowski : ds² = -c²dt² + dx²
+                            <br>Avec c = 1 : ds² = -dt² + dx²
+                        </div>
+                    </div>
 
-            <div class="help-section">
-                <h3>🔆 Cônes de Lumière</h3>
-                <p>Les cônes de lumière délimitent les régions causalement connectées :</p>
-                
-                <div class="help-formula">
-                    Condition du cône de lumière : |<span class="help-variable">Δx</span>| ≤ <span class="help-constant">c</span> × <span class="help-variable">Δt</span>
-                    <br>Avec c = 1 : |<span class="help-variable">Δx</span>| ≤ <span class="help-variable">Δt</span>
-                </div>
-                
-                <ul>
-                    <li><strong>Intérieur du cône</strong> : Connexion causale possible (v &lt; c)</li>
-                    <li><strong>Surface du cône</strong> : Propagation à la vitesse de la lumière (v = c)</li>
-                    <li><strong>Extérieur du cône</strong> : Causalement déconnecté (v &gt; c)</li>
-                </ul>
-                
-                <div class="help-example">
-                    <strong>💡 Exemple :</strong> Si Δt = 3 unités, alors |Δx| doit être ≤ 3 unités pour rester dans le cône.
-                </div>
-            </div>
+                    <div class="help-section">
+                        <h3>🔆 Cônes de Lumière</h3>
+                        <p>Les cônes de lumière délimitent les régions causalement connectées :</p>
+                        
+                        <div class="help-formula">
+                            Condition du cône de lumière : |<span class="help-variable">Δx</span>| ≤ <span class="help-constant">c</span> × <span class="help-variable">Δt</span>
+                            <br>Avec c = 1 : |<span class="help-variable">Δx</span>| ≤ <span class="help-variable">Δt</span>
+                        </div>
+                        
+                        <ul>
+                            <li><strong>Intérieur du cône</strong> : Connexion causale possible (v &lt; c)</li>
+                            <li><strong>Surface du cône</strong> : Propagation à la vitesse de la lumière (v = c)</li>
+                            <li><strong>Extérieur du cône</strong> : Causalement déconnecté (v &gt; c)</li>
+                        </ul>
+                        
+                        <div class="help-example">
+                            <strong>💡 Exemple :</strong> Si Δt = 3 unités, alors |Δx| doit être ≤ 3 unités pour rester dans le cône.
+                        </div>
+                    </div>
 
-            <div class="help-section">
-                <h3>🚀 Accélération Relativiste</h3>
-                <p>Pour une trajectoire d'accélération constante entre deux événements :</p>
-                
-                <div class="help-formula">
-                    Accélération propre : <span class="help-variable">a</span> = 2|<span class="help-variable">ΔX</span>|<span class="help-constant">c²</span> / (<span class="help-variable">ΔT²</span> - <span class="help-variable">ΔX²</span>)
-                </div>
-                
-                <div class="help-formula">
-                    Vitesse finale : <span class="help-variable">v</span> = (<span class="help-variable">a</span><span class="help-variable">ΔT</span>) / √(1 + (<span class="help-variable">a</span><span class="help-variable">ΔT</span>/<span class="help-constant">c</span>)²)
-                </div>
-                
-                <div class="help-formula">
-                    Trajectoire hyperbolique : <span class="help-variable">x</span>(t) = (<span class="help-constant">c²</span>/<span class="help-variable">a</span>) × (√(1 + (<span class="help-variable">at</span>/<span class="help-constant">c</span>)²) - 1)
-                </div>
-                
-                <div class="help-warning">
-                    ⚠️ <strong>Limite physique :</strong> Notre application limite les vitesses à 99.9% de c pour éviter les singularités numériques.
-                </div>
-            </div>
+                    <div class="help-section">
+                        <h3>🚀 Accélération Relativiste</h3>
+                        <p>Pour une trajectoire d'accélération constante entre deux événements :</p>
+                        
+                        <div class="help-formula">
+                            Accélération propre : <span class="help-variable">a</span> = 2|<span class="help-variable">ΔX</span>|<span class="help-constant">c²</span> / (<span class="help-variable">ΔT²</span> - <span class="help-variable">ΔX²</span>)
+                        </div>
+                        
+                        <div class="help-formula">
+                            Vitesse finale : <span class="help-variable">v</span> = (<span class="help-variable">a</span><span class="help-variable">ΔT</span>) / √(1 + (<span class="help-variable">a</span><span class="help-variable">ΔT</span>/<span class="help-constant">c</span>)²)
+                        </div>
+                        
+                        <div class="help-formula">
+                            Trajectoire hyperbolique : <span class="help-variable">x</span>(t) = (<span class="help-constant">c²</span>/<span class="help-variable">a</span>) × (√(1 + (<span class="help-variable">at</span>/<span class="help-constant">c</span>)²) - 1)
+                        </div>
+                        
+                        <div class="help-warning">
+                            ⚠️ <strong>Limite physique :</strong> Notre application limite les vitesses à 99.9% de c pour éviter les singularités numériques.
+                        </div>
+                    </div>
 
-            <div class="help-section">
-                <h3>⏰ Temps Propre et Dilatation Temporelle</h3>
-                <p>Le temps propre est le temps mesuré par une horloge en mouvement :</p>
-                
-                <div class="help-formula">
-                    Temps propre : <span class="help-variable">τ</span> = (<span class="help-constant">c</span>/<span class="help-variable">a</span>) × sinh⁻¹(<span class="help-variable">a</span><span class="help-variable">ΔT</span>/<span class="help-constant">c</span>)
-                </div>
-                
-                <div class="help-formula">
-                    Facteur de Lorentz : <span class="help-variable">γ</span> = 1/√(1 - <span class="help-variable">v²</span>/<span class="help-constant">c²</span>)
-                </div>
-                
-                <div class="help-formula">
-                    Relation : <span class="help-variable">dt</span> = <span class="help-variable">γ</span> × <span class="help-variable">dτ</span>
-                </div>
-                
-                <div class="help-example">
-                    <strong>🎯 Paradoxe des jumeaux :</strong> Un voyageur accéléré vieillit moins qu'un observateur au repos. Le pourcentage affiché montre le rapport τ/t.
-                </div>
-                
-                <!-- BOUTON DEMO PARADOXE DES JUMEAUX - SECTION TEMPS PROPRE -->
-                <div style="text-align: center; margin: 15px 0;">
-                    <button class="twin-paradox-demo-btn" style="
-                        background: linear-gradient(45deg, #ff6b6b, #feca57);
-                        color: white;
-                        border: none;
-                        padding: 8px 16px;
-                        border-radius: 20px;
-                        cursor: pointer;
-                        font-size: 12px;
-                        font-weight: bold;
-                        box-shadow: 0 3px 10px rgba(255, 107, 107, 0.4);
-                        transition: all 0.3s;
-                        text-transform: uppercase;
-                        letter-spacing: 0.5px;
-                    " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
-                        🚀 Voir la Démo
-                    </button>
-                </div>
-            </div>
+                    <div class="help-section">
+                        <h3>⏰ Temps Propre et Dilatation Temporelle</h3>
+                        <p>Le temps propre est le temps mesuré par une horloge en mouvement :</p>
+                        
+                        <div class="help-formula">
+                            Temps propre : <span class="help-variable">τ</span> = (<span class="help-constant">c</span>/<span class="help-variable">a</span>) × sinh⁻¹(<span class="help-variable">a</span><span class="help-variable">ΔT</span>/<span class="help-constant">c</span>)
+                        </div>
+                        
+                        <div class="help-formula">
+                            Facteur de Lorentz : <span class="help-variable">γ</span> = 1/√(1 - <span class="help-variable">v²</span>/<span class="help-constant">c²</span>)
+                        </div>
+                        
+                        <div class="help-formula">
+                            Relation : <span class="help-variable">dt</span> = <span class="help-variable">γ</span> × <span class="help-variable">dτ</span>
+                        </div>
+                        
+                        <div class="help-example">
+                            <strong>🎯 Paradoxe des jumeaux :</strong> Un voyageur accéléré vieillit moins qu'un observateur au repos. Le pourcentage affiché montre le rapport τ/t.
+                        </div>
+                        
+                        <!-- BOUTON DEMO PARADOXE DES JUMEAUX - SECTION TEMPS PROPRE -->
+                        <div style="text-align: center; margin: 15px 0;">
+                            <button class="twin-paradox-demo-btn" style="
+                                background: linear-gradient(45deg, #ff6b6b, #feca57);
+                                color: white;
+                                border: none;
+                                padding: 8px 16px;
+                                border-radius: 20px;
+                                cursor: pointer;
+                                font-size: 12px;
+                                font-weight: bold;
+                                box-shadow: 0 3px 10px rgba(255, 107, 107, 0.4);
+                                transition: all 0.3s;
+                                text-transform: uppercase;
+                                letter-spacing: 0.5px;
+                            " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                                🚀 Voir la Démo
+                            </button>
+                        </div>
+                    </div>
 
-            <div class="help-section">
-                <h3>➕ Addition Relativiste des Vitesses</h3>
-                <p>Les vitesses ne s'additionnent pas simplement en relativité :</p>
-                
-                <div class="help-formula">
-                    <span class="help-variable">v</span>_total = (<span class="help-variable">v₁</span> + <span class="help-variable">v₂</span>) / (1 + <span class="help-variable">v₁</span><span class="help-variable">v₂</span>/<span class="help-constant">c²</span>)
-                </div>
-                
-                <div class="help-example">
-                    <strong>💡 Exemple :</strong> Si v₁ = 0.6c et v₂ = 0.6c, alors v_total = 1.2c/(1 + 0.36) = 0.88c ≠ 1.2c
-                </div>
-                
-                <p>Cette formule garantit que la vitesse résultante reste toujours inférieure à c.</p>
-            </div>
+                    <div class="help-section">
+                        <h3>➕ Addition Relativiste des Vitesses</h3>
+                        <p>Les vitesses ne s'additionnent pas simplement en relativité :</p>
+                        
+                        <div class="help-formula">
+                            <span class="help-variable">v</span>_total = (<span class="help-variable">v₁</span> + <span class="help-variable">v₂</span>) / (1 + <span class="help-variable">v₁</span><span class="help-variable">v₂</span>/<span class="help-constant">c²</span>)
+                        </div>
+                        
+                        <div class="help-example">
+                            <strong>💡 Exemple :</strong> Si v₁ = 0.6c et v₂ = 0.6c, alors v_total = 1.2c/(1 + 0.36) = 0.88c ≠ 1.2c
+                        </div>
+                        
+                        <p>Cette formule garantit que la vitesse résultante reste toujours inférieure à c.</p>
+                    </div>
 
-            <div class="help-section">
-                <h3>📈 Isochrones</h3>
-                <p>Les courbes orange montrent tous les événements atteignables avec le même temps propre :</p>
-                
-                <div class="help-formula">
-                    Équation d'isochrone : <span class="help-variable">t</span> = √(<span class="help-variable">τ²</span> + <span class="help-variable">x²</span>/<span class="help-constant">c²</span>)
-                </div>
-                
-                <p>Ces hyperboles révèlent la géométrie non-euclidienne de l'espace-temps de Minkowski.</p>
-                
-                <div class="help-example">
-                    <strong>🔍 Interprétation :</strong> Tous les points sur une isochrone représentent des événements que le voyageur peut atteindre en vieillissant du même temps propre τ.
-                </div>
-            </div>
+                    <div class="help-section">
+                        <h3>📈 Isochrones</h3>
+                        <p>Les courbes orange montrent tous les événements atteignables avec le même temps propre :</p>
+                        
+                        <div class="help-formula">
+                            Équation d'isochrone : <span class="help-variable">t</span> = √(<span class="help-variable">τ²</span> + <span class="help-variable">x²</span>/<span class="help-constant">c²</span>)
+                        </div>
+                        
+                        <p>Ces hyperboles révèlent la géométrie non-euclidienne de l'espace-temps de Minkowski.</p>
+                        
+                        <div class="help-example">
+                            <strong>🔍 Interprétation :</strong> Tous les points sur une isochrone représentent des événements que le voyageur peut atteindre en vieillissant du même temps propre τ.
+                        </div>
+                    </div>
 
-            <div class="help-section">
-                <h3>🎨 Code Couleur de la Heatmap</h3>
-                <ul>
-                    <li><span style="color: #0000ff;">🔵 Bleu</span> : Repos relatif (v ≈ 0)</li>
-                    <li><span style="color: #00ff00;">🟢 Vert</span> : Vitesse intermédiaire (ajustable)</li>
-                    <li><span style="color: #ff0000;">🔴 Rouge</span> : Vitesse élevée (proche de c)</li>
-                    <li><span style="color: #888;">⚫ Transparent</span> : Causalement déconnecté (v ≥ c)</li>
-                </ul>
-                
-                <div class="help-formula">
-                    Vitesse relative : <span class="help-variable">v</span> = |<span class="help-variable">Δx</span>| / <span class="help-variable">Δt</span>
-                </div>
-            </div>
+                    <div class="help-section">
+                        <h3>🎨 Code Couleur de la Heatmap</h3>
+                        <ul>
+                            <li><span style="color: #0000ff;">🔵 Bleu</span> : Repos relatif (v ≈ 0)</li>
+                            <li><span style="color: #00ff00;">🟢 Vert</span> : Vitesse intermédiaire (ajustable)</li>
+                            <li><span style="color: #ff0000;">🔴 Rouge</span> : Vitesse élevée (proche de c)</li>
+                            <li><span style="color: #888;">⚫ Transparent</span> : Causalement déconnecté (v ≥ c)</li>
+                        </ul>
+                        
+                        <div class="help-formula">
+                            Vitesse relative : <span class="help-variable">v</span> = |<span class="help-variable">Δx</span>| / <span class="help-variable">Δt</span>
+                        </div>
+                    </div>
 
-            <div class="help-section">
-                <h3>🎮 Utilisation Interactive</h3>
-                <ol>
-                    <li><strong>Créer un référentiel :</strong> Cliquez dans un cône de lumière</li>
-                    <li><strong>Déplacer un référentiel :</strong> Glissez-déposez les points orange</li>
-                    <li><strong>Contrainte verticale :</strong> Maintenez Ctrl pendant le déplacement</li>
-                    <li><strong>Sélectionner :</strong> Cliquez sur un point pour voir les calculs détaillés</li>
-                    <li><strong>Supprimer :</strong> Utilisez le bouton 🗑️ dans le panneau de calculs</li>
-                    <li><strong>Explorer les isochrones :</strong> Survolez les courbes orange</li>
-                </ol>
-                
-                <div class="help-example">
-                    <strong>🎓 Conseil pédagogique :</strong> Créez plusieurs référentiels en chaîne pour observer l'accumulation des effets relativistes et comparer les temps propres !
-                </div>
-                
-                <div style="text-align: center; margin: 20px 0;">
-                    <button id="twinParadoxDemo" style="
-                        background: linear-gradient(45deg, #ff6b6b, #feca57);
-                        color: white;
-                        border: none;
-                        padding: 12px 24px;
-                        border-radius: 25px;
-                        cursor: pointer;
-                        font-size: 14px;
-                        font-weight: bold;
-                        box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
-                        transition: all 0.3s;
-                        text-transform: uppercase;
-                        letter-spacing: 1px;
-                    " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
-                        🚀 Démo du Paradoxe des Jumeaux
-                    </button>
-                </div>
-                
-                <div class="help-example">
-                    <strong>🎭 Scénario de la démo :</strong> 
-                    <br>• <strong>Jumeau terrestre</strong> reste à l'origine (référentiel 0)
-                    <br>• <strong>Jumeau voyageur</strong> accélère vers l'espace (référentiel 1)
-                    <br>• <strong>Demi-tour</strong> à mi-parcours (référentiel 2)
-                    <br>• <strong>Retour sur Terre</strong> (référentiel 3)
-                    <br>• <strong>Comparaison</strong> des temps propres et âges !
-                </div>
-            </div>
+                    <div class="help-section">
+                        <h3>🎮 Utilisation Interactive</h3>
+                        <ol>
+                            <li><strong>Créer un référentiel :</strong> Cliquez dans un cône de lumière</li>
+                            <li><strong>Déplacer un référentiel :</strong> Glissez-déposez les points orange</li>
+                            <li><strong>Contrainte verticale :</strong> Maintenez Ctrl pendant le déplacement</li>
+                            <li><strong>Sélectionner :</strong> Cliquez sur un point pour voir les calculs détaillés</li>
+                            <li><strong>Supprimer :</strong> Utilisez le bouton 🗑️ dans le panneau de calculs</li>
+                            <li><strong>Explorer les isochrones :</strong> Survolez les courbes orange</li>
+                        </ol>
+                        
+                        <div class="help-example">
+                            <strong>🎓 Conseil pédagogique :</strong> Créez plusieurs référentiels en chaîne pour observer l'accumulation des effets relativistes et comparer les temps propres !
+                        </div>
+                        
+                        <div style="text-align: center; margin: 20px 0;">
+                            <button id="twinParadoxDemo" style="
+                                background: linear-gradient(45deg, #ff6b6b, #feca57);
+                                color: white;
+                                border: none;
+                                padding: 12px 24px;
+                                border-radius: 25px;
+                                cursor: pointer;
+                                font-size: 14px;
+                                font-weight: bold;
+                                box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
+                                transition: all 0.3s;
+                                text-transform: uppercase;
+                                letter-spacing: 1px;
+                            " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                                🚀 Démo du Paradoxe des Jumeaux
+                            </button>
+                        </div>
+                        
+                        <div class="help-example">
+                            <strong>🎭 Scénario de la démo :</strong> 
+                            <br>• <strong>Jumeau terrestre</strong> reste à l'origine (référentiel 0)
+                            <br>• <strong>Jumeau voyageur</strong> accélère vers l'espace (référentiel 1)
+                            <br>• <strong>Demi-tour</strong> à mi-parcours (référentiel 2)
+                            <br>• <strong>Retour sur Terre</strong> (référentiel 3)
+                            <br>• <strong>Comparaison</strong> des temps propres et âges !
+                        </div>
+                    </div>
 
-            <div class="help-section">
-                <h3>📚 Références Théoriques</h3>
-                <ul>
-                    <li><strong>Relativité restreinte</strong> : Einstein (1905)</li>
-                    <li><strong>Espace-temps de Minkowski</strong> : Hermann Minkowski (1908)</li>
-                    <li><strong>Géométrie hyperbolique</strong> : Théorie des espaces pseudo-euclidiens</li>
-                    <li><strong>Paradoxe des jumeaux</strong> : Langevin (1911)</li>
-                </ul>
-                
-                <p style="text-align: center; margin-top: 30px; color: #4a9eff;">
-                    <em>Cette application est un outil pédagogique pour explorer visuellement les concepts fondamentaux de la relativité restreinte.</em>
-                </p>
+                    <div class="help-section">
+                        <h3>📚 Références Théoriques</h3>
+                        <ul>
+                            <li><strong>Relativité restreinte</strong> : Einstein (1905)</li>
+                            <li><strong>Espace-temps de Minkowski</strong> : Hermann Minkowski (1908)</li>
+                            <li><strong>Géométrie hyperbolique</strong> : Théorie des espaces pseudo-euclidiens</li>
+                            <li><strong>Paradoxe des jumeaux</strong> : Langevin (1911)</li>
+                        </ul>
+                        
+                        <p style="text-align: center; margin-top: 30px; color: #4a9eff;">
+                            <em>Cette application est un outil pédagogique pour explorer visuellement les concepts fondamentaux de la relativité restreinte.</em>
+                        </p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

@@ -327,6 +327,9 @@ function init() {
     // Debug: vérifier que resizeCanvas fonctionne
     console.log('🔧 window.resizeCanvas exposed:', typeof window.resizeCanvas);
     
+    // Exposer la fonction de suppression de référentiel pour le bouton inline
+    window.deleteSelectedReferenceFrame = deleteSelectedReferenceFrame;
+    
     // Mettre à jour l'affichage initial après un court délai pour s'assurer que le DOM est prêt
     setTimeout(() => {
         updateCalculationsDisplay();
