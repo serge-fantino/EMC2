@@ -1,0 +1,492 @@
+/* Styles pour le panneau latéral avec accordéons */
+/* Refactoring UX - Phase 2 */
+
+/* === LAYOUT PRINCIPAL === */
+.app-layout {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+}
+
+/* === PANNEAU LATÉRAL === */
+.side-panel {
+    width: 350px;
+    min-width: 250px;
+    max-width: 50vw;
+    background: rgba(0, 0, 0, 0.95);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    border-right: 1px solid rgba(255, 255, 255, 0.2);
+    display: flex;
+    flex-direction: column;
+    z-index: 100;
+    transition: width 0.3s ease;
+    position: relative;
+    color: white;
+    font-family: 'Arial', sans-serif;
+}
+
+.side-panel.collapsed {
+    width: 0 !important;
+    min-width: 0 !important;
+    overflow: hidden;
+    border-right: none;
+}
+
+.side-panel.collapsed .side-panel-header,
+.side-panel.collapsed .accordion-container,
+.side-panel.collapsed .resize-handle {
+    display: none;
+}
+
+/* === HEADER DU PANNEAU === */
+.side-panel-header {
+    display: flex;
+    align-items: center;
+    padding: 15px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(74, 158, 255, 0.1);
+    position: relative;
+}
+
+.panel-toggle {
+    background: #4a9eff;
+    color: white;
+    border: none;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 10px rgba(74, 158, 255, 0.5);
+    margin-right: 10px;
+    flex-shrink: 0;
+}
+
+.panel-toggle:hover {
+    background: #3a8eef;
+    box-shadow: 0 0 20px rgba(74, 158, 255, 0.8);
+    transform: scale(1.1);
+}
+
+.side-panel-header h3 {
+    color: #4a9eff;
+    margin: 0;
+    font-size: 18px;
+    text-shadow: 0 0 10px rgba(74, 158, 255, 0.5);
+    transition: opacity 0.3s ease;
+}
+
+/* === CONTAINER D'ACCORDÉONS === */
+.accordion-container {
+    flex: 1;
+    overflow-y: auto;
+    transition: opacity 0.3s ease;
+}
+
+/* === SECTIONS ACCORDÉON === */
+.accordion-section {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.accordion-header {
+    padding: 15px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.05);
+    transition: all 0.3s ease;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+.accordion-header:hover {
+    background: rgba(74, 158, 255, 0.1);
+}
+
+.accordion-header span:first-child {
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.accordion-icon {
+    font-size: 12px;
+    transition: transform 0.3s ease;
+    color: #4a9eff;
+}
+
+.accordion-section.expanded .accordion-icon {
+    transform: rotate(90deg);
+}
+
+.accordion-content {
+    padding: 0;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease, padding 0.3s ease;
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.accordion-section.expanded .accordion-content {
+    max-height: 600px;
+    padding: 15px;
+}
+
+/* === CONTENU SPÉCIFIQUE DES ACCORDÉONS === */
+
+/* Accordéon À Propos */
+.accordion-section[data-section="about"] .info-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 15px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    flex-wrap: wrap;
+}
+
+.accordion-section[data-section="about"] .info-details {
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.accordion-section[data-section="about"] .info-details p {
+    margin: 10px 0;
+}
+
+/* Accordéon Calculs */
+.accordion-section[data-section="calculations"] h4 {
+    color: #4a9eff;
+    margin-top: 0;
+    margin-bottom: 10px;
+    text-shadow: 0 0 5px #4a9eff;
+}
+
+.accordion-section[data-section="calculations"] .formula {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 8px;
+    border-radius: 5px;
+    margin: 8px 0;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    border-left: 3px solid #4a9eff;
+}
+
+.accordion-section[data-section="calculations"] .variable {
+    color: #ff9f4a;
+    font-weight: bold;
+}
+
+.accordion-section[data-section="calculations"] .result {
+    color: #00ff00;
+    font-weight: bold;
+}
+
+/* Accordéon Commentaires */
+.accordion-section[data-section="comments"] .comments-toolbar {
+    display: flex;
+    justify-content: center;
+    gap: 5px;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    flex-wrap: wrap;
+}
+
+.accordion-section[data-section="comments"] .comments-toolbar button {
+    background: #4a9eff;
+    color: white;
+    border: none;
+    padding: 5px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 10px;
+    transition: all 0.3s;
+    min-width: 25px;
+}
+
+.accordion-section[data-section="comments"] .comments-toolbar button:hover {
+    background: #3a8eef;
+    transform: scale(1.1);
+}
+
+.accordion-section[data-section="comments"] .comments-content {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 5px;
+    padding: 10px;
+    min-height: 100px;
+    max-height: 200px;
+    overflow-y: auto;
+    font-size: 12px;
+    line-height: 1.4;
+    outline: none;
+}
+
+.accordion-section[data-section="comments"] .comments-content:focus {
+    border-color: #4a9eff;
+    box-shadow: 0 0 10px rgba(74, 158, 255, 0.3);
+}
+
+.accordion-section[data-section="comments"] .comments-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 5px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
+
+.accordion-section[data-section="comments"] .comments-actions button {
+    background: #4a9eff;
+    color: white;
+    border: none;
+    padding: 5px 8px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 10px;
+    transition: all 0.3s;
+    flex: 1;
+    min-width: 60px;
+}
+
+.accordion-section[data-section="comments"] .comments-actions button:hover {
+    background: #3a8eef;
+    transform: scale(1.02);
+}
+
+.accordion-section[data-section="comments"] .comments-actions .clear-btn {
+    background: #ff6b6b;
+}
+
+.accordion-section[data-section="comments"] .comments-actions .clear-btn:hover {
+    background: #ff5252;
+}
+
+/* Accordéon Réglages */
+.accordion-section[data-section="settings"] .control-group {
+    margin: 15px 0;
+}
+
+.accordion-section[data-section="settings"] .control-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 12px;
+    color: #ccc;
+}
+
+.accordion-section[data-section="settings"] input[type="range"] {
+    width: 100%;
+    margin: 5px 0;
+    background: transparent;
+}
+
+.accordion-section[data-section="settings"] input[type="range"]::-webkit-slider-track {
+    background: rgba(255, 255, 255, 0.2);
+    height: 4px;
+    border-radius: 2px;
+}
+
+.accordion-section[data-section="settings"] input[type="range"]::-webkit-slider-thumb {
+    background: #4a9eff;
+    height: 16px;
+    width: 16px;
+    border-radius: 50%;
+    cursor: pointer;
+    -webkit-appearance: none;
+    box-shadow: 0 0 10px rgba(74, 158, 255, 0.5);
+}
+
+.accordion-section[data-section="settings"] input[type="checkbox"] {
+    margin-right: 8px;
+    accent-color: #4a9eff;
+}
+
+.accordion-section[data-section="settings"] button {
+    background: #4a9eff;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    margin: 3px;
+    transition: all 0.3s;
+    box-shadow: 0 0 10px rgba(74, 158, 255, 0.5);
+    font-size: 11px;
+}
+
+.accordion-section[data-section="settings"] button:hover {
+    background: #3a8eef;
+    box-shadow: 0 0 20px rgba(74, 158, 255, 0.8);
+    transform: scale(1.05);
+}
+
+.gradient-bar-container {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.gradient-bar {
+    height: 20px;
+    border-radius: 10px;
+    margin: 10px 0;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    background: linear-gradient(to right, #0066ff, #00ff00, #ffff00, #ff0000, #000000);
+}
+
+.gradient-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: #ccc;
+}
+
+/* === HANDLE DE REDIMENSIONNEMENT === */
+.resize-handle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 4px;
+    height: 100%;
+    background: rgba(74, 158, 255, 0.3);
+    cursor: ew-resize;
+    transition: all 0.3s ease;
+    opacity: 0;
+}
+
+.resize-handle:hover,
+.side-panel:hover .resize-handle {
+    opacity: 1;
+    background: rgba(74, 158, 255, 0.6);
+    width: 6px;
+}
+
+.resize-handle.resizing {
+    opacity: 1;
+    background: #4a9eff;
+    width: 6px;
+}
+
+/* === BOUTON FLOTTANT POUR RÉOUVRIR === */
+.floating-reopen-btn {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    background: #4a9eff;
+    color: white;
+    border: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 16px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 20px rgba(74, 158, 255, 0.6);
+    z-index: 2000;
+}
+
+.floating-reopen-btn:hover {
+    background: #3a8eef;
+    box-shadow: 0 0 30px rgba(74, 158, 255, 0.9);
+    transform: scale(1.1);
+}
+
+.floating-reopen-btn.visible {
+    display: flex;
+}
+
+/* === CONTAINER CANVAS === */
+.canvas-container {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background: #000;
+}
+
+.canvas-container canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+/* === SCROLLBAR CUSTOM === */
+.accordion-container::-webkit-scrollbar,
+.comments-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.accordion-container::-webkit-scrollbar-track,
+.comments-content::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+.accordion-container::-webkit-scrollbar-thumb,
+.comments-content::-webkit-scrollbar-thumb {
+    background: rgba(74, 158, 255, 0.5);
+    border-radius: 4px;
+}
+
+.accordion-container::-webkit-scrollbar-thumb:hover,
+.comments-content::-webkit-scrollbar-thumb:hover {
+    background: rgba(74, 158, 255, 0.8);
+}
+
+/* === ANIMATIONS === */
+@keyframes slideIn {
+    from {
+        transform: translateX(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.side-panel {
+    animation: slideIn 0.5s ease-out;
+}
+
+/* === RESPONSIVE === */
+@media (max-width: 768px) {
+    .side-panel {
+        width: 300px;
+        min-width: 250px;
+    }
+    
+    .accordion-section[data-section="about"] .info-buttons,
+    .accordion-section[data-section="comments"] .comments-toolbar,
+    .accordion-section[data-section="comments"] .comments-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .accordion-section[data-section="comments"] .comments-actions button {
+        margin: 2px 0;
+    }
+}
+
+@media (max-width: 480px) {
+    .side-panel {
+        width: 280px;
+        min-width: 250px;
+    }
+    
+    .side-panel-header {
+        padding: 10px;
+    }
+    
+    .accordion-content {
+        font-size: 12px;
+    }
+} 

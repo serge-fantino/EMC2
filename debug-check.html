@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug - Vérification DOM</title>
+    <link rel="stylesheet" href="css/sidepanel.css">
+</head>
+<body>
+    <h1>Debug - Vérification des éléments DOM</h1>
+    
+    <div id="sidePanel" class="side-panel">
+        <div class="side-panel-header">
+            <button id="sidePanelToggle" class="panel-toggle">◀</button>
+            <h3>Test</h3>
+        </div>
+        
+        <div class="accordion-container">
+            <div class="accordion-section expanded" data-section="calculations">
+                <div class="accordion-header">
+                    <span>🧮 Calculs</span>
+                    <span class="accordion-icon">▼</span>
+                </div>
+                <div class="accordion-content">
+                    <h4>Test Content</h4>
+                    <p>Ceci est un test</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        console.log('=== DEBUG CHECK ===');
+        
+        // Test 1: Vérifier que l'élément principal existe
+        const sidePanel = document.getElementById('sidePanel');
+        console.log('1. SidePanel element:', sidePanel ? '✅ Found' : '❌ Not found');
+        
+        // Test 2: Vérifier le sélecteur de calculs
+        const calculationsDiv = document.querySelector('.accordion-section[data-section="calculations"] .accordion-content');
+        console.log('2. Calculations div:', calculationsDiv ? '✅ Found' : '❌ Not found');
+        
+        // Test 3: Tester l'écriture
+        if (calculationsDiv) {
+            try {
+                calculationsDiv.innerHTML = '<p>✅ Test d\'écriture réussi</p>';
+                console.log('3. Write test: ✅ Success');
+            } catch (error) {
+                console.log('3. Write test: ❌ Error:', error);
+            }
+        }
+        
+        // Test 4: Vérifier tous les accordéons
+        const accordions = document.querySelectorAll('.accordion-section');
+        console.log(`4. Accordion sections found: ${accordions.length}`);
+        accordions.forEach((section, index) => {
+            console.log(`   - Section ${index}: data-section="${section.dataset.section}"`);
+        });
+        
+        console.log('=== END DEBUG ===');
+    </script>
+</body>
+</html> 

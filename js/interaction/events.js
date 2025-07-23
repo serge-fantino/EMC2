@@ -51,6 +51,32 @@ export function initEventsModule(_coneOrigins, _selectedReferenceFrame, _cartouc
 }
 
 /**
+ * Convertit les coordonnées de souris en coordonnées relatives au canvas
+ * @param {MouseEvent} event - Événement souris
+ * @returns {{x: number, y: number}} Coordonnées relatives au canvas
+ */
+function getCanvasRelativeCoordinates(event) {
+    const canvas = getCanvas();
+    if (!canvas) return { x: 0, y: 0 };
+    
+    const rect = canvas.getBoundingClientRect();
+    const relativeX = event.clientX - rect.left;
+    const relativeY = event.clientY - rect.top;
+    
+    // Debug pour Chrome vs Safari
+    console.log(`🖱️ Mouse Debug:
+        Client: (${event.clientX}, ${event.clientY})
+        Canvas rect: left=${rect.left}, top=${rect.top}, width=${rect.width}, height=${rect.height}
+        Relative: (${relativeX}, ${relativeY})
+        Browser: ${navigator.userAgent.includes('Chrome') ? 'Chrome' : 'Safari/Other'}`);
+    
+    return {
+        x: relativeX,
+        y: relativeY
+    };
+}
+
+/**
  * Gestionnaire d'événement mousedown
  * @param {MouseEvent} event - Événement souris
  */
@@ -58,8 +84,9 @@ export function handleMouseDown(event) {
     const canvas = getCanvas();
     if (!canvas) return;
     
-    const mouseX = event.clientX;
-    const mouseY = event.clientY;
+    const mouseCoords = getCanvasRelativeCoordinates(event);
+    const mouseX = mouseCoords.x;
+    const mouseY = mouseCoords.y;
     
     // Vérifier si on clique sur un cartouche
     const cartoucheIndex = getCartoucheAtPosition(mouseX, mouseY, getCurrentPlacements());
@@ -146,8 +173,9 @@ export function handleMouseMove(event) {
     const canvas = getCanvas();
     if (!canvas) return;
     
-    const mouseX = event.clientX;
-    const mouseY = event.clientY;
+    const mouseCoords = getCanvasRelativeCoordinates(event);
+    const mouseX = mouseCoords.x;
+    const mouseY = mouseCoords.y;
     
     // Vérifier le hover sur l'isochrone
     checkIsochroneHover(mouseX, mouseY, selectedReferenceFrame, coneOrigins);
@@ -234,8 +262,9 @@ export function handleMouseUp(event) {
     const canvas = getCanvas();
     if (!canvas) return;
     
-    const mouseX = event.clientX;
-    const mouseY = event.clientY;
+    const mouseCoords = getCanvasRelativeCoordinates(event);
+    const mouseX = mouseCoords.x;
+    const mouseY = mouseCoords.y;
     
     if (cartoucheDragState.isDragging) {
         cartoucheDragState.isDragging = false;
@@ -258,8 +287,9 @@ export function handleMouseUp(event) {
  * @param {MouseEvent} event - Événement souris
  */
 export function handleCanvasClick(event) {
-    const mouseX = event.clientX;
-    const mouseY = event.clientY;
+    const mouseCoords = getCanvasRelativeCoordinates(event);
+    const mouseX = mouseCoords.x;
+    const mouseY = mouseCoords.y;
     
     // Vérifier si on clique sur une origine de cône pour la sélectionner
     const coneIndex = getConeAtPosition(mouseX, mouseY, coneOrigins);
