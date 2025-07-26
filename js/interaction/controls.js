@@ -117,9 +117,9 @@ export function twinParadox() {
     // Réinitialiser la sélection à l'origine
     selectedReferenceFrame = 0;
     
-    // Paramètres de démo (basés sur l'original - valeurs sûres qui respectent le cône de lumière)
-    const T = 300; // Temps total pour le jumeau terrestre (3x plus grand pour meilleure visibilité)
-    const X = 120; // Distance parcourue par le jumeau spatial (3x plus grand, bien dans le cône de lumière)
+    // Paramètres de démo (ratio x₂/t₂ = 1/3 pour vitesse très modérée)
+    const T = 300; // Temps total pour le jumeau terrestre
+    const X = 100; // Distance parcourue par le jumeau spatial
     
     // Créer le scénario du paradoxe des jumeaux (version simple 3-référentiels)
     setTimeout(() => {
@@ -136,9 +136,9 @@ export function twinParadox() {
         setTimeout(() => {
             // Référentiel 2 : Jumeau spatial voyage loin (point de retournement)
             const ref2 = {
-                x: X,           // Distance lointaine X
+                x: T / 6,       // x₂ = t₁/6 = 300/6 = 50 années-lumière
                 y: 0,
-                t: T * 0.45,    // Moins que T/2 pour rester bien dans le cône de lumière
+                t: T / 2,       // t₂ = t₁/2 = 300/2 = 150 ans
                 sourceIndex: 0  // Directement depuis l'origine (départ)
             };
             coneOrigins.push(ref2);

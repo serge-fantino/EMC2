@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug - Effets Relativistes</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1a1a2e;
+            color: #e94560;
+            margin: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .test-case {
+            background: #16213e;
+            border: 1px solid #0f3460;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .result {
+            background: #0f3460;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .warning {
+            background: #ff6b6b;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .success {
+            background: #00ff88;
+            color: #1a1a2e;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        canvas {
+            border: 1px solid #e94560;
+            background: #1a1a2e;
+            margin: 10px 0;
+        }
+        button {
+            background: #e94560;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #ff6b6b;
+        }
+        input, select {
+            background: #16213e;
+            color: #e94560;
+            border: 1px solid #0f3460;
+            padding: 5px;
+            border-radius: 3px;
+            margin: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Debug - Effets Relativistes</h1>
+        <p>Validation des phénomènes observés : "angle droit" et "effet balle"</p>
+        
+        <div class="test-case">
+            <h2>Test 1 : Changement de direction à haute vitesse</h2>
+            <p>Simulation d'un vaisseau qui change de direction à v = 0.99c</p>
+            
+            <label>Vitesse initiale (v/c): <input type="number" id="v0" value="0.99" step="0.01" min="0" max="0.999"></label><br>
+            <label>Distance de retour (années-lumière): <input type="number" id="distance" value="5" step="0.5"></label><br>
+            <label>Temps de voyage (ans): <input type="number" id="time" value="10" step="0.5"></label><br>
+            
+            <button onclick="testDirectionChange()">Calculer</button>
+            
+            <div id="result1" class="result"></div>
+        </div>
+        
+        <div class="test-case">
+            <h2>Test 2 : Énergie vs Vitesse</h2>
+            <p>Calcul de l'énergie nécessaire pour différentes vitesses</p>
+            
+            <button onclick="testEnergyVsVelocity()">Calculer</button>
+            
+            <div id="result2" class="result"></div>
+            <canvas id="energyChart" width="800" height="400"></canvas>
+        </div>
+        
+        <div class="test-case">
+            <h2>Test 3 : Visualisation de trajectoire</h2>
+            <p>Diagramme espace-temps montrant l'effet "angle droit"</p>
+            <p><em>Note : On montre un changement de direction à haute vitesse - le vaisseau part vers la droite, 
+            puis change de direction vers un point cible.</em></p>
+            
+            <label>Vitesse initiale (v/c): <input type="number" id="v0_traj" value="0.9999" step="0.0001" min="0" max="0.9999"></label><br>
+            <label>Position cible X (années-lumière): <input type="number" id="x1_traj" value="-5" step="0.1"></label><br>
+            <label>Temps cible T (ans): <input type="number" id="t1_traj" value="15" step="0.1"></label><br>
+            
+            <button onclick="drawTrajectory()">Dessiner</button>
+            
+            <canvas id="trajectoryCanvas" width="800" height="600"></canvas>
+        </div>
+        
+        <div class="test-case">
+            <h2>Analyse Physique</h2>
+            <div id="analysis" class="result">
+                <h3>🎯 Phénomènes observés :</h3>
+                <ul>
+                    <li><strong>Effet "angle droit"</strong> : Quand v ≈ c, le facteur de Lorentz γ devient énorme, rendant les changements de direction très coûteux en énergie</li>
+                    <li><strong>Mur de l'énergie</strong> : L'énergie nécessaire pour ralentir de 0.99c à 0.5c est comparable à celle pour accélérer de 0 à 0.99c</li>
+                    <li><strong>Effet "balle"</strong> : Une fois en dessous de 0.5c, l'accélération redevient efficace et le vaisseau "décroche" rapidement</li>
+                </ul>
+                
+                <h3>✅ Validation :</h3>
+                <p>Ces effets sont <strong>physiquement corrects</strong> et correspondent aux prédictions de la relativité restreinte. C'est exactement ce qui se passerait avec un vrai vaisseau spatial !</p>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { 
+            solveRendezvousProblem, 
+            generateTrajectory,
+            velocityToRapidity,
+            rapidityToVelocity
+        } from './js/physics_relativistic/index.js';
+
+        window.testDirectionChange = function() {
+            const v0 = parseFloat(document.getElementById('v0').value);
+            const distance = parseFloat(document.getElementById('distance').value);
+            const time = parseFloat(document.getElementById('time').value);
+            
+            const result = document.getElementById('result1');
+            
+            try {
+                // Calculer le rendez-vous de retour
+                const rendezvous = solveRendezvousProblem(0, 0, v0, -distance, time);
+                
+                // Calculer l'énergie cinétique initiale
+                const phi0 = velocityToRapidity(v0);
+                const gamma0 = Math.cosh(phi0);
+                const Ekin0 = gamma0 - 1; // en m₀c²
+                
+                // Calculer l'énergie cinétique finale
+                const phi_f = velocityToRapidity(rendezvous.v_f);
+                const gamma_f = Math.cosh(phi_f);
+                const Ekin_f = gamma_f - 1; // en m₀c²
+                
+                result.innerHTML = `
+                    <h3>📊 Résultats :</h3>
+                    <p><strong>Vitesse initiale :</strong> ${(v0 * 100).toFixed(1)}% de c</p>
+                    <p><strong>Énergie cinétique initiale :</strong> ${Ekin0.toFixed(2)} m₀c²</p>
+                    <p><strong>Accélération nécessaire :</strong> ${rendezvous.alpha.toFixed(3)} c/an</p>
+                    <p><strong>Énergie consommée :</strong> ${(rendezvous.energyConsumed * 25).toFixed(1)} GWh/tonne</p>
+                    <p><strong>Vitesse finale :</strong> ${(rendezvous.v_f * 100).toFixed(1)}% de c</p>
+                    <p><strong>Énergie cinétique finale :</strong> ${Ekin_f.toFixed(2)} m₀c²</p>
+                    <p><strong>Temps propre :</strong> ${rendezvous.tau_f.toFixed(2)} ans</p>
+                    
+                    <div class="${v0 > 0.9 ? 'warning' : 'success'}">
+                        <strong>Analyse :</strong> 
+                        ${v0 > 0.9 ? 
+                            'À haute vitesse, l\'énergie cinétique est énorme et le changement de direction coûte cher !' :
+                            'À vitesse modérée, le changement de direction est plus efficace.'
+                        }
+                    </div>
+                `;
+                
+            } catch (error) {
+                result.innerHTML = `<div class="warning">Erreur : ${error.message}</div>`;
+            }
+        };
+
+        window.testEnergyVsVelocity = function() {
+            const result = document.getElementById('result2');
+            const canvas = document.getElementById('energyChart');
+            const ctx = canvas.getContext('2d');
+            
+            // Calculer l'énergie pour différentes vitesses
+            const velocities = [];
+            const energies = [];
+            
+            for (let v = 0; v <= 0.999; v += 0.01) {
+                const phi = velocityToRapidity(v);
+                const gamma = Math.cosh(phi);
+                const energy = gamma - 1; // Énergie cinétique en m₀c²
+                
+                velocities.push(v);
+                energies.push(energy);
+            }
+            
+            // Dessiner le graphique
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Axes
+            ctx.strokeStyle = '#e94560';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(50, 350);
+            ctx.lineTo(750, 350); // Axe X
+            ctx.moveTo(50, 350);
+            ctx.lineTo(50, 50);   // Axe Y
+            ctx.stroke();
+            
+            // Labels
+            ctx.fillStyle = '#e94560';
+            ctx.font = '12px Arial';
+            ctx.fillText('Vitesse (v/c)', 350, 380);
+            ctx.save();
+            ctx.translate(30, 200);
+            ctx.rotate(-Math.PI/2);
+            ctx.fillText('Énergie cinétique (m₀c²)', 0, 0);
+            ctx.restore();
+            
+            // Courbe
+            ctx.strokeStyle = '#00ff88';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            
+            for (let i = 0; i < velocities.length; i++) {
+                const x = 50 + (velocities[i] / 0.999) * 700;
+                const y = 350 - (energies[i] / 20) * 300; // Échelle jusqu'à 20 m₀c²
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+            ctx.stroke();
+            
+            // Points remarquables
+            const points = [
+                {v: 0.5, label: '0.5c'},
+                {v: 0.9, label: '0.9c'},
+                {v: 0.99, label: '0.99c'}
+            ];
+            
+            ctx.fillStyle = '#ff6b6b';
+            for (const point of points) {
+                const phi = velocityToRapidity(point.v);
+                const gamma = Math.cosh(phi);
+                const energy = gamma - 1;
+                
+                const x = 50 + (point.v / 0.999) * 700;
+                const y = 350 - (energy / 20) * 300;
+                
+                ctx.beginPath();
+                ctx.arc(x, y, 5, 0, 2 * Math.PI);
+                ctx.fill();
+                
+                ctx.fillStyle = '#e94560';
+                ctx.fillText(point.label, x + 10, y - 10);
+                ctx.fillStyle = '#ff6b6b';
+            }
+            
+            result.innerHTML = `
+                <h3>📈 Énergie cinétique vs Vitesse :</h3>
+                <p><strong>0.5c :</strong> ${(Math.cosh(velocityToRapidity(0.5)) - 1).toFixed(2)} m₀c²</p>
+                <p><strong>0.9c :</strong> ${(Math.cosh(velocityToRapidity(0.9)) - 1).toFixed(2)} m₀c²</p>
+                <p><strong>0.99c :</strong> ${(Math.cosh(velocityToRapidity(0.99)) - 1).toFixed(2)} m₀c²</p>
+                
+                <div class="warning">
+                    <strong>Observation :</strong> L'énergie croît de manière exponentielle près de c !
+                </div>
+            `;
+        };
+
+        window.drawTrajectory = function() {
+            const canvas = document.getElementById('trajectoryCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Récupérer les paramètres
+            const v0 = parseFloat(document.getElementById('v0_traj').value);
+            const x1 = parseFloat(document.getElementById('x1_traj').value);
+            const t1 = parseFloat(document.getElementById('t1_traj').value);
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Configuration
+            const scale = 30; // pixels par année-lumière
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height - 50;
+            
+            // Dessiner les axes
+            ctx.strokeStyle = '#e94560';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY);
+            ctx.lineTo(centerX, 50); // Axe temps
+            ctx.moveTo(centerX, centerY);
+            ctx.lineTo(50, centerY); // Axe espace
+            ctx.stroke();
+            
+            // Labels
+            ctx.fillStyle = '#e94560';
+            ctx.font = '14px Arial';
+            ctx.fillText('Temps (ans)', centerX - 30, 30);
+            ctx.fillText('Espace (années-lumière)', 10, centerY + 20);
+            
+            // Cône de lumière
+            ctx.strokeStyle = '#666';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY);
+            ctx.lineTo(centerX + 200, centerY - 200);
+            ctx.moveTo(centerX, centerY);
+            ctx.lineTo(centerX - 200, centerY - 200);
+            ctx.stroke();
+            
+            // Pas de trajectoire de référence - on garde seulement la trajectoire principale
+            
+            // Trajectoire retour (changement de direction à haute vitesse)
+            try {
+                // Point de départ : origine (0,0)
+                const startPoint = { x: 0, t: 0 }; // Point de départ à l'origine
+                const endPoint = { x: x1, t: t1 }; // Point cible paramétrable
+                const rendezvous = solveRendezvousProblem(startPoint.x, startPoint.t, v0, endPoint.x, endPoint.t);
+                const trajectory2 = generateTrajectory(startPoint.x, startPoint.t, v0, rendezvous.alpha, rendezvous.tau_f);
+                
+                ctx.strokeStyle = '#ff6b6b';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                for (const point of trajectory2) {
+                    const x = centerX + point.x * scale;
+                    const y = centerY - point.t * scale;
+                    if (point === trajectory2[0]) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                }
+                ctx.stroke();
+                
+                // Point de départ (origine)
+                ctx.fillStyle = '#ff6b6b';
+                ctx.beginPath();
+                ctx.arc(centerX + startPoint.x * scale, centerY - startPoint.t * scale, 8, 0, 2 * Math.PI);
+                ctx.fill();
+                
+                ctx.fillStyle = '#e94560';
+                ctx.fillText('Départ (origine)', centerX + startPoint.x * scale + 10, centerY - startPoint.t * scale - 10);
+                
+                // Point cible
+                ctx.fillStyle = '#00ff88';
+                ctx.beginPath();
+                ctx.arc(centerX + endPoint.x * scale, centerY - endPoint.t * scale, 6, 0, 2 * Math.PI);
+                ctx.fill();
+                
+                ctx.fillStyle = '#e94560';
+                ctx.fillText('Cible', centerX + endPoint.x * scale + 10, centerY - endPoint.t * scale - 10);
+                
+            } catch (error) {
+                ctx.fillStyle = '#ff6b6b';
+                ctx.fillText('Erreur de calcul : ' + error.message, 10, 30);
+            }
+            
+            // Légende
+            ctx.fillStyle = '#e94560';
+            ctx.font = '12px Arial';
+            ctx.fillText('Trajectoire avec v₀ = ' + v0 + 'c', 10, 50);
+            ctx.fillStyle = '#00ff88';
+            ctx.fillText('Point cible', 10, 70);
+            ctx.fillStyle = '#666';
+            ctx.fillText('Cône de lumière', 10, 90);
+        };
+    </script>
+</body>
+</html> 

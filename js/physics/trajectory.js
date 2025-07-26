@@ -67,107 +67,13 @@ export function calculateIsochronePoints(tau, origin, selectedCone, canvasWidth)
 }
 
 /**
- * Calcule une trajectoire d'accélération relativiste entre deux points
- * @param {Object} fromCone - Point de départ {x, t, ...}
- * @param {Object} toCone - Point d'arrivée {x, t, ...}
- * @param {number} initialVelocity - Vitesse initiale (optionnelle)
- * @returns {Array} Tableau de points {x, t} de la trajectoire
+ * ANCIENNE FONCTION SUPPRIMÉE - Utilisez le bridge module
+ * Cette fonction a été remplacée par le nouveau système physics_relativistic
+ * via le bridge module pour des calculs plus précis
  */
-export function calculateAccelerationTrajectory(fromCone, toCone, initialVelocity = 0) {
-    const trajectory = [];
-    const c = SPEED_OF_LIGHT;
-    
-    const X = toCone.x - fromCone.x;
-    const T = toCone.t - fromCone.t;
-    
-    if (T <= 0) return trajectory; // Pas de trajectoire vers le passé
-    
-    // Calcul de l'accélération propre nécessaire
-    let properAccel;
-    const v0 = initialVelocity;
-    
-    if (Math.abs(X) < 0.001) {
-        // Mouvement principalement temporel
-        properAccel = 0.001;
-    } else {
-        // Accélération propre pour atteindre la cible
-        properAccel = 2 * Math.abs(X) * c * c / (T * T - X * X);
-    }
-    
-    // Génération des points de trajectoire
-    trajectory.push({ x: fromCone.x, t: fromCone.t });
-    
-    for (let i = 1; i <= TRAJECTORY_STEPS; i++) {
-        const t = (i / TRAJECTORY_STEPS) * T; // temps coordonnée
-        
-        let x, time;
-        
-        if (Math.abs(v0) < 0.001) {
-            // Départ du repos - formule simple
-            const at_over_c = properAccel * t / c;
-            const x_rel = (c * c / properAccel) * (Math.sqrt(1 + at_over_c * at_over_c) - 1);
-            x = fromCone.x + Math.sign(X) * x_rel;
-        } else {
-            // Départ avec vitesse initiale v0
-            const targetX = toCone.x;
-            const targetT = toCone.t;
-            const deltaX = targetX - fromCone.x;
-            const deltaT = targetT - fromCone.t;
-            
-            const t_norm = t / deltaT; // Temps normalisé (0 à 1)
-            
-            // Composante inertielle (mouvement à vitesse constante)
-            const x_inertial = fromCone.x + v0 * t;
-            
-            // Correction d'accélération pour atteindre la cible
-            const x_target_correction = deltaX - v0 * deltaT;
-            
-            // Trajectoire hyperbolique corrigée
-            if (Math.abs(x_target_correction) > 0.001) {
-                const correction_factor = x_target_correction / deltaT;
-                const at_over_c = properAccel * t / c;
-                const accel_term = (c * c / properAccel) * (Math.sqrt(1 + at_over_c * at_over_c) - 1);
-                
-                x = x_inertial + Math.sign(correction_factor) * accel_term * Math.abs(correction_factor) / Math.abs(x_target_correction) * deltaT;
-            } else {
-                x = x_inertial;
-            }
-        }
-        
-        time = fromCone.t + t;
-        trajectory.push({ x, t: time });
-    }
-    
-    return trajectory;
-}
 
 /**
- * Détermine quel cône contient un point donné
- * @param {number} x - Position spatiale
- * @param {number} t - Temps coordonnée  
- * @param {Array} coneOrigins - Tableau des cônes
- * @returns {number} Index du cône contenant le point, ou -1 si aucun
- */
-export function getContainingCone(x, t, coneOrigins) {
-    // Vérifier les cônes dans l'ordre inverse (les plus récents d'abord)
-    for (let i = coneOrigins.length - 1; i >= 0; i--) {
-        const cone = coneOrigins[i];
-        
-        // Position relative par rapport au cône
-        const relativeX = x - cone.x;
-        const relativeT = t - cone.t;
-        
-        // Le point doit être dans le futur de ce cône
-        if (relativeT > 0) {
-            // Vérifier si le point est dans le cône de lumière
-            const spatialDistance = Math.abs(relativeX);
-            const lightConeRadius = relativeT * SPEED_OF_LIGHT;
-            
-            if (spatialDistance <= lightConeRadius) {
-                return i; // Point trouvé dans ce cône
-            }
-        }
-    }
-    
-    return -1; // Point en dehors de tous les cônes
-} 
+ * ANCIENNE FONCTION SUPPRIMÉE - Utilisez le bridge module
+ * Cette fonction a été remplacée par le nouveau système physics_relativistic
+ * via le bridge module pour des calculs plus précis
+ */ 

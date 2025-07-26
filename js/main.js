@@ -269,11 +269,11 @@ let APP_VERSION = 'Loading...'; // Sera mise à jour par loadVersion()
 
 // Initialize the application
 function init() {
-    console.log('🚀 Initializing application with modular architecture...');
+    // console.log('🚀 Initializing application with modular architecture...');
     
     // Charger la version en premier
     loadVersion().then(() => {
-        console.log('📱 App Version:', APP_VERSION);
+        // console.log('📱 App Version:', APP_VERSION);
         updateVersionDisplay();
     }).catch(error => {
         console.warn('❌ Failed to load version:', error);
@@ -291,7 +291,7 @@ function init() {
     // Initialiser le panneau latéral en premier
     try {
         initSidePanel();
-        console.log('✅ SidePanel initialized successfully');
+        // console.log('✅ SidePanel initialized successfully');
     } catch (error) {
         console.error('❌ Failed to initialize SidePanel:', error);
     }
@@ -325,7 +325,7 @@ function init() {
     window.resizeCanvas = resizeCanvas;
     
     // Debug: vérifier que resizeCanvas fonctionne
-    console.log('🔧 window.resizeCanvas exposed:', typeof window.resizeCanvas);
+    // console.log('🔧 window.resizeCanvas exposed:', typeof window.resizeCanvas);
     
     // Exposer la fonction de suppression de référentiel pour le bouton inline
     window.deleteSelectedReferenceFrame = deleteSelectedReferenceFrame;
@@ -336,7 +336,7 @@ function init() {
         updateGradientBar(config);
     }, 100);
     
-    console.log('✅ Application initialisée avec succès');
+    // console.log('✅ Application initialisée avec succès');
 }
 
 /**
@@ -361,7 +361,7 @@ async function loadVersion() {
         const versionData = await response.json();
         APP_VERSION = versionData.version;
         
-        console.log('✅ Version loaded from version.json:', versionData);
+        // console.log('✅ Version loaded from version.json:', versionData);
         return versionData;
     } catch (error) {
         console.error('❌ Failed to load version.json:', error);
@@ -406,6 +406,6 @@ document.addEventListener('DOMContentLoaded', init);
 
 // Start animation loop when window is loaded
 window.addEventListener('load', function() {
-    console.log('🎬 Starting animation loop...');
+    // console.log('🎬 Starting animation loop...');
     animate(getRenderData);
 }); 

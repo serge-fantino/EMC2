@@ -24,9 +24,15 @@ export {
     isReachableFromSource
 } from './relativity.js';
 
-// === EXPORTS DE TRAJECTOIRES ===
+// === EXPORTS DE TRAJECTOIRES (BRIDGE VERS PHYSICS_RELATIVISTIC) ===
 export {
     calculateIsochronePoints,
     calculateAccelerationTrajectory,
-    getContainingCone
-} from './trajectory.js'; 
+    getContainingCone,
+    getRendezvousInfo,
+    validateTrajectoryWithNewSystem
+} from './bridge.js';
+
+// === EXPORTS DU NOUVEAU MODULE PHYSICS_RELATIVISTIC ===
+// Export direct pour accès aux nouvelles fonctions
+export * from '../physics_relativistic/index.js'; 

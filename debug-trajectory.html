@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug - Visualisation de Trajectoires Relativistes</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 20px;
+        }
+
+        .controls {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            height: fit-content;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+
+        .button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .button:hover {
+            background: #5a6fd8;
+        }
+
+        .preset-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .preset-button {
+            background: #f8f9fa;
+            color: #333;
+            border: 1px solid #ddd;
+            padding: 8px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .preset-button:hover {
+            background: #e9ecef;
+        }
+
+        .canvas-container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        #trajectoryCanvas {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #fafafa;
+        }
+
+        .info-panel {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-top: 20px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .info-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid #667eea;
+        }
+
+        .info-card h4 {
+            margin-top: 0;
+            color: #333;
+        }
+
+        .param-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+
+        .param-label {
+            font-weight: bold;
+            color: #555;
+        }
+
+        .param-value {
+            font-family: 'Courier New', monospace;
+            color: #333;
+        }
+
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 4px solid #c62828;
+        }
+
+        .success {
+            background: #e8f5e8;
+            color: #2e7d32;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 4px solid #2e7d32;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔬 Debug - Visualisation de Trajectoires Relativistes</h1>
+        <p>Phase 2 TDD - Visualisation des trajectoires basées sur la rapidité</p>
+    </div>
+
+    <div class="main-container">
+        <div class="controls">
+            <h3>🎛️ Contrôles</h3>
+            
+            <div class="preset-buttons">
+                <button class="preset-button" onclick="loadPreset('example1')">Exemple 1<br>v₀=0, Δx=10</button>
+                <button class="preset-button" onclick="loadPreset('example2')">Exemple 2<br>v₀=0.3, Δx=10</button>
+                <button class="preset-button" onclick="loadPreset('deceleration')">Décélération<br>v₀=0.5, Δx=-5</button>
+                <button class="preset-button" onclick="loadPreset('immobile')">Immobile<br>v₀=0, Δx=0</button>
+            </div>
+
+            <div class="input-group">
+                <label>Vitesse initiale v₀:</label>
+                <input type="number" id="v0" value="0.3" step="0.1" min="0" max="0.99" title="Vitesse initiale en unités de c">
+            </div>
+
+            <div class="input-group">
+                <label>Position finale x₁:</label>
+                <input type="number" id="x1" value="10" step="1" title="Position finale en années-lumière">
+            </div>
+
+            <div class="input-group">
+                <label>Temps final t₁:</label>
+                <input type="number" id="t1" value="12" step="1" min="0" title="Temps final en années">
+            </div>
+
+            <div class="input-group">
+                <label>Échelle du graphique:</label>
+                <input type="number" id="scale" value="15" step="1" min="5" max="50" title="Échelle en années-lumière/années">
+            </div>
+
+            <div class="input-group">
+                <label style="display: flex; align-items: center; cursor: pointer;">
+                    <input type="checkbox" id="showLightCones" checked style="margin-right: 8px; width: auto;">
+                    Afficher les cônes de lumière
+                </label>
+            </div>
+
+            <button class="button" onclick="calculateAndDraw()">🚀 Calculer & Dessiner</button>
+            <button class="button" onclick="clearCanvas()" style="background: #dc3545;">��️ Effacer</button>
+        </div>
+
+        <div class="canvas-container">
+            <h3>📊 Diagramme Espace-Temps</h3>
+            <canvas id="trajectoryCanvas" width="800" height="600"></canvas>
+        </div>
+    </div>
+
+    <div id="error-container"></div>
+
+    <div class="info-panel">
+        <h3>📋 Informations de la Trajectoire</h3>
+        <div class="info-grid">
+            <div class="info-card">
+                <h4>🎯 Paramètres du Rendez-vous</h4>
+                <div id="rendezvous-info">
+                    <div class="param-row">
+                        <span class="param-label">Accélération α:</span>
+                        <span class="param-value" id="alpha-value">-</span>
+                    </div>
+                    <div class="param-row">
+                        <span class="param-label">Temps propre τ_f:</span>
+                        <span class="param-value" id="tau-value">-</span>
+                    </div>
+                    <div class="param-row">
+                        <span class="param-label">Vitesse finale v_f:</span>
+                        <span class="param-value" id="vf-value">-</span>
+                    </div>
+                    <div class="param-row">
+                        <span class="param-label">Énergie consommée:</span>
+                        <span class="param-value" id="energy-value">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-card">
+                <h4>📈 Validation Physique</h4>
+                <div id="validation-info">
+                    <div class="param-row">
+                        <span class="param-label">Points de trajectoire:</span>
+                        <span class="param-value" id="points-count">-</span>
+                    </div>
+                    <div class="param-row">
+                        <span class="param-label">Vitesse max:</span>
+                        <span class="param-value" id="max-velocity">-</span>
+                    </div>
+                    <div class="param-row">
+                        <span class="param-label">Facteur γ max:</span>
+                        <span class="param-value" id="max-gamma">-</span>
+                    </div>
+                    <div class="param-row">
+                        <span class="param-label">Validation:</span>
+                        <span class="param-value" id="validation-status">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import {
+            SPEED_OF_LIGHT,
+            solveRendezvousProblem,
+            generateTrajectory,
+            validateTrajectory
+        } from './js/physics_relativistic/index.js';
+
+        // Variables globales
+        let canvas, ctx;
+        let currentTrajectory = null;
+        let currentRendezvous = null;
+
+        // Initialisation
+        window.addEventListener('load', function() {
+            canvas = document.getElementById('trajectoryCanvas');
+            ctx = canvas.getContext('2d');
+            
+            // Calcul initial
+            calculateAndDraw();
+        });
+
+        // Fonctions de contrôle
+        window.loadPreset = function(preset) {
+            switch(preset) {
+                case 'example1':
+                    document.getElementById('v0').value = '0';
+                    document.getElementById('x1').value = '10';
+                    document.getElementById('t1').value = '12';
+                    break;
+                case 'example2':
+                    document.getElementById('v0').value = '0.3';
+                    document.getElementById('x1').value = '10';
+                    document.getElementById('t1').value = '12';
+                    break;
+                case 'deceleration':
+                    document.getElementById('v0').value = '0.5';
+                    document.getElementById('x1').value = '-5';
+                    document.getElementById('t1').value = '10';
+                    break;
+                case 'immobile':
+                    document.getElementById('v0').value = '0';
+                    document.getElementById('x1').value = '0';
+                    document.getElementById('t1').value = '10';
+                    break;
+            }
+            calculateAndDraw();
+        };
+
+        window.calculateAndDraw = function() {
+            const v0 = parseFloat(document.getElementById('v0').value);
+            const x1 = parseFloat(document.getElementById('x1').value);
+            const t1 = parseFloat(document.getElementById('t1').value);
+            const scale = parseFloat(document.getElementById('scale').value);
+
+            const errorContainer = document.getElementById('error-container');
+            errorContainer.innerHTML = '';
+
+            try {
+                // Résolution du rendez-vous
+                currentRendezvous = solveRendezvousProblem(0, 0, v0, x1, t1);
+                
+                // Génération de la trajectoire
+                currentTrajectory = generateTrajectory(0, 0, v0, currentRendezvous.alpha, currentRendezvous.tau_f);
+                
+                // Validation
+                const validation = validateTrajectory(currentTrajectory);
+                
+                // Affichage
+                drawTrajectory(scale);
+                updateInfo(currentRendezvous, currentTrajectory, validation);
+                
+                // Message de succès
+                const motionType = currentRendezvous.alpha > 0 ? 'accélération' : 
+                                 currentRendezvous.alpha < 0 ? 'décélération' : 'immobile';
+                
+                errorContainer.innerHTML = `
+                    <div class="success">
+                        <strong>✅ Trajectoire calculée avec succès !</strong><br>
+                        Type de mouvement : ${motionType}<br>
+                        Points de trajectoire : ${currentTrajectory.length}
+                    </div>
+                `;
+
+            } catch (error) {
+                errorContainer.innerHTML = `
+                    <div class="error">
+                        <strong>❌ Erreur de calcul :</strong> ${error.message}
+                    </div>
+                `;
+            }
+        };
+
+        window.clearCanvas = function() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            currentTrajectory = null;
+            currentRendezvous = null;
+            
+            // Réinitialiser les informations
+            document.getElementById('alpha-value').textContent = '-';
+            document.getElementById('tau-value').textContent = '-';
+            document.getElementById('vf-value').textContent = '-';
+            document.getElementById('energy-value').textContent = '-';
+            document.getElementById('points-count').textContent = '-';
+            document.getElementById('max-velocity').textContent = '-';
+            document.getElementById('max-gamma').textContent = '-';
+            document.getElementById('validation-status').textContent = '-';
+            
+            document.getElementById('error-container').innerHTML = '';
+        };
+
+        function drawTrajectory(scale) {
+            if (!currentTrajectory || currentTrajectory.length === 0) return;
+
+            // Configuration du canvas
+            const padding = 50;
+            const width = canvas.width - 2 * padding;
+            const height = canvas.height - 2 * padding;
+
+            // Échelle
+            const xScale = width / (2 * scale);
+            const yScale = height / (2 * scale);
+
+            // Transformation : (0,0) au centre, y inversé
+            const transformX = (x) => padding + (x + scale) * xScale;
+            const transformY = (y) => padding + (scale - y) * yScale;
+
+            // Effacer le canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Dessiner la grille
+            drawGrid(scale, transformX, transformY);
+
+            // Dessiner les axes
+            drawAxes(scale, transformX, transformY);
+
+            // Dessiner les cônes de lumière (si activé)
+            const showLightCones = document.getElementById('showLightCones').checked;
+            if (showLightCones) {
+                drawLightCones(scale, transformX, transformY);
+            }
+
+            // Dessiner la trajectoire
+            drawTrajectoryLine(transformX, transformY);
+
+            // Dessiner les points clés
+            drawKeyPoints(transformX, transformY);
+
+            // Dessiner la légende
+            drawLegend(scale, transformX, transformY, showLightCones);
+        }
+
+        function drawGrid(scale, transformX, transformY) {
+            ctx.strokeStyle = '#e0e0e0';
+            ctx.lineWidth = 1;
+
+            // Lignes verticales (x)
+            for (let x = -scale; x <= scale; x += 2) {
+                ctx.beginPath();
+                ctx.moveTo(transformX(x), transformY(-scale));
+                ctx.lineTo(transformX(x), transformY(scale));
+                ctx.stroke();
+            }
+
+            // Lignes horizontales (t)
+            for (let t = -scale; t <= scale; t += 2) {
+                ctx.beginPath();
+                ctx.moveTo(transformX(-scale), transformY(t));
+                ctx.lineTo(transformX(scale), transformY(t));
+                ctx.stroke();
+            }
+        }
+
+        function drawAxes(scale, transformX, transformY) {
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 2;
+
+            // Axe x (espace)
+            ctx.beginPath();
+            ctx.moveTo(transformX(-scale), transformY(0));
+            ctx.lineTo(transformX(scale), transformY(0));
+            ctx.stroke();
+
+            // Axe t (temps)
+            ctx.beginPath();
+            ctx.moveTo(transformX(0), transformY(-scale));
+            ctx.lineTo(transformX(0), transformY(scale));
+            ctx.stroke();
+
+            // Flèches
+            ctx.fillStyle = '#333';
+            ctx.beginPath();
+            ctx.moveTo(transformX(scale), transformY(0));
+            ctx.lineTo(transformX(scale - 0.5), transformY(0.2));
+            ctx.lineTo(transformX(scale - 0.5), transformY(-0.2));
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.moveTo(transformX(0), transformY(scale));
+            ctx.lineTo(transformX(0.2), transformY(scale - 0.5));
+            ctx.lineTo(transformX(-0.2), transformY(scale - 0.5));
+            ctx.fill();
+
+            // Labels
+            ctx.fillStyle = '#333';
+            ctx.font = '14px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('x (années-lumière)', transformX(scale), transformY(0) + 20);
+            ctx.fillText('t (années)', transformX(0) - 20, transformY(scale) - 10);
+        }
+
+        function drawLightCones(scale, transformX, transformY) {
+            if (!currentTrajectory || currentTrajectory.length === 0) return;
+
+            // Dessiner les cônes de lumière seulement aux points de départ et d'arrivée
+            const start = currentTrajectory[0];
+            const end = currentTrajectory[currentTrajectory.length - 1];
+            
+            // Cône au point de départ
+            drawLightConeAtPoint(start, transformX, transformY, scale, 'start');
+            
+            // Cône au point d'arrivée
+            drawLightConeAtPoint(end, transformX, transformY, scale, 'end');
+        }
+
+        function drawLightConeAtPoint(point, transformX, transformY, scale, type) {
+            const x0 = point.x;
+            const t0 = point.t;
+            
+            // Couleurs différentes selon le type de point
+            const futureColor = type === 'start' ? 'rgba(255, 193, 7, 0.4)' : 'rgba(255, 193, 7, 0.6)';
+            const pastColor = type === 'start' ? 'rgba(108, 117, 125, 0.4)' : 'rgba(108, 117, 125, 0.6)';
+            const lineWidth = type === 'start' ? 2 : 3;
+            
+            // Cône de lumière futur (t > t0)
+            ctx.strokeStyle = futureColor;
+            ctx.lineWidth = lineWidth;
+            ctx.beginPath();
+            
+            // Ligne de lumière vers la droite (x = x0 + (t - t0))
+            const tMax = Math.min(scale, t0 + scale - x0);
+            if (tMax > t0) {
+                ctx.moveTo(transformX(x0), transformY(t0));
+                ctx.lineTo(transformX(x0 + (tMax - t0)), transformY(tMax));
+            }
+            
+            // Ligne de lumière vers la gauche (x = x0 - (t - t0))
+            const tMaxLeft = Math.min(scale, t0 + scale + x0);
+            if (tMaxLeft > t0) {
+                ctx.moveTo(transformX(x0), transformY(t0));
+                ctx.lineTo(transformX(x0 - (tMaxLeft - t0)), transformY(tMaxLeft));
+            }
+            ctx.stroke();
+
+            // Cône de lumière passé (t < t0)
+            ctx.strokeStyle = pastColor;
+            ctx.lineWidth = lineWidth;
+            ctx.beginPath();
+            
+            // Ligne de lumière depuis la droite (x = x0 + (t0 - t))
+            const tMin = Math.max(-scale, t0 - scale + x0);
+            if (tMin < t0) {
+                ctx.moveTo(transformX(x0), transformY(t0));
+                ctx.lineTo(transformX(x0 + (t0 - tMin)), transformY(tMin));
+            }
+            
+            // Ligne de lumière depuis la gauche (x = x0 - (t0 - t))
+            const tMinLeft = Math.max(-scale, t0 - scale - x0);
+            if (tMinLeft < t0) {
+                ctx.moveTo(transformX(x0), transformY(t0));
+                ctx.lineTo(transformX(x0 - (t0 - tMinLeft)), transformY(tMinLeft));
+            }
+            ctx.stroke();
+        }
+
+        function drawTrajectoryLine(transformX, transformY) {
+            if (!currentTrajectory || currentTrajectory.length < 2) return;
+
+            ctx.strokeStyle = '#667eea';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+
+            for (let i = 0; i < currentTrajectory.length; i++) {
+                const point = currentTrajectory[i];
+                const x = transformX(point.x);
+                const y = transformY(point.t);
+
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+
+            ctx.stroke();
+        }
+
+        function drawKeyPoints(transformX, transformY) {
+            if (!currentTrajectory || currentTrajectory.length === 0) return;
+
+            // Point initial
+            const start = currentTrajectory[0];
+            ctx.fillStyle = '#28a745';
+            ctx.beginPath();
+            ctx.arc(transformX(start.x), transformY(start.t), 6, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // Point final
+            const end = currentTrajectory[currentTrajectory.length - 1];
+            ctx.fillStyle = '#dc3545';
+            ctx.beginPath();
+            ctx.arc(transformX(end.x), transformY(end.t), 6, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // Labels
+            ctx.fillStyle = '#333';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText(`Départ (${start.x.toFixed(1)}, ${start.t.toFixed(1)})`, 
+                        transformX(start.x) + 10, transformY(start.t) - 10);
+            ctx.fillText(`Arrivée (${end.x.toFixed(1)}, ${end.t.toFixed(1)})`, 
+                        transformX(end.x) + 10, transformY(end.t) + 20);
+        }
+
+        function drawLegend(scale, transformX, transformY, showLightCones) {
+            const legendX = transformX(-scale + 2);
+            const legendY = transformY(scale - 2);
+            
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'left';
+            
+            // Légende trajectoire
+            ctx.strokeStyle = '#667eea';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(legendX, legendY);
+            ctx.lineTo(legendX + 30, legendY);
+            ctx.stroke();
+            ctx.fillStyle = '#333';
+            ctx.fillText('Trajectoire du vaisseau', legendX + 35, legendY + 4);
+            
+            // Légende cônes de lumière (si activés)
+            if (showLightCones) {
+                // Légende cône futur
+                ctx.strokeStyle = 'rgba(255, 193, 7, 0.6)';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(legendX, legendY + 20);
+                ctx.lineTo(legendX + 30, legendY + 20);
+                ctx.stroke();
+                ctx.fillStyle = '#333';
+                ctx.fillText('Cône de lumière futur', legendX + 35, legendY + 24);
+                
+                // Légende cône passé
+                ctx.strokeStyle = 'rgba(108, 117, 125, 0.6)';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(legendX, legendY + 40);
+                ctx.lineTo(legendX + 30, legendY + 40);
+                ctx.stroke();
+                ctx.fillStyle = '#333';
+                ctx.fillText('Cône de lumière passé', legendX + 35, legendY + 44);
+                
+                // Note sur les points
+                ctx.fillStyle = '#666';
+                ctx.font = '10px Arial';
+                ctx.fillText('(aux points de départ et d\'arrivée)', legendX + 35, legendY + 58);
+            }
+        }
+
+        function updateInfo(rendezvous, trajectory, validation) {
+            // Informations du rendez-vous
+            document.getElementById('alpha-value').textContent = `${rendezvous.alpha.toFixed(4)} c/an`;
+            document.getElementById('tau-value').textContent = `${rendezvous.tau_f.toFixed(2)} ans`;
+            document.getElementById('vf-value').textContent = `${rendezvous.v_f.toFixed(3)} c`;
+            document.getElementById('energy-value').textContent = 
+                `${rendezvous.energyConsumed.toFixed(4)} m₀c² (${(rendezvous.energyConsumed * 25).toFixed(1)} GWh/tonne)`;
+
+            // Informations de validation
+            document.getElementById('points-count').textContent = trajectory.length;
+            
+            const maxVelocity = Math.max(...trajectory.map(p => Math.abs(p.v)));
+            document.getElementById('max-velocity').textContent = `${maxVelocity.toFixed(3)} c`;
+            
+            const maxGamma = Math.max(...trajectory.map(p => p.gamma));
+            document.getElementById('max-gamma').textContent = maxGamma.toFixed(3);
+            
+            // Validation de causalité
+            const isCausal = validateCausality(trajectory);
+            const validationStatus = validation.valid && isCausal ? '✅ Valide' : '❌ Erreurs';
+            document.getElementById('validation-status').textContent = validationStatus;
+        }
+
+        function validateCausality(trajectory) {
+            if (trajectory.length < 2) return true;
+            
+            // Vérifier que chaque segment de la trajectoire respecte la causalité
+            for (let i = 1; i < trajectory.length; i++) {
+                const prev = trajectory[i-1];
+                const curr = trajectory[i];
+                
+                const deltaX = curr.x - prev.x;
+                const deltaT = curr.t - prev.t;
+                
+                // La pente doit être ≤ 1 (vitesse ≤ c)
+                if (Math.abs(deltaX) > Math.abs(deltaT)) {
+                    return false;
+                }
+            }
+            
+            return true;
+        }
+    </script>
+</body>
+</html> 

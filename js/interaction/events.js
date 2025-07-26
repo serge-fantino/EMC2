@@ -5,7 +5,8 @@
 
 import { getCanvas, getCtx, screenToSpacetime } from '../renderer/canvas.js';
 import { getConeAtPosition, getCartoucheAtPosition, checkIsochroneHover } from '../renderer/drawing.js';
-import { getContainingCone } from '../physics/trajectory.js';
+// Import depuis le bridge module (nouveau système)
+import { getContainingCone } from '../physics/index.js';
 import { isReachableFromSource } from '../physics/relativity.js';
 import { addConeAndDocument } from './controls.js';
 
@@ -64,12 +65,12 @@ function getCanvasRelativeCoordinates(event) {
     const relativeX = event.clientX - rect.left;
     const relativeY = event.clientY - rect.top;
     
-    // Debug pour Chrome vs Safari
-    console.log(`🖱️ Mouse Debug:
-        Client: (${event.clientX}, ${event.clientY})
-        Canvas rect: left=${rect.left}, top=${rect.top}, width=${rect.width}, height=${rect.height}
-        Relative: (${relativeX}, ${relativeY})
-        Browser: ${navigator.userAgent.includes('Chrome') ? 'Chrome' : 'Safari/Other'}`);
+    // Debug pour Chrome vs Safari (désactivé)
+    // console.log(`🖱️ Mouse Debug:
+    //     Client: (${event.clientX}, ${event.clientY})
+    //     Canvas rect: left=${rect.left}, top=${rect.top}, width=${rect.width}, height=${rect.height}
+    //     Relative: (${relativeX}, ${relativeY})
+    //     Browser: ${navigator.userAgent.includes('Chrome') ? 'Chrome' : 'Safari/Other'}`);
     
     return {
         x: relativeX,
@@ -126,7 +127,7 @@ export function handleMouseDown(event) {
     const spacetime = screenToSpacetime(mouseX, mouseY);
     const sourceConeIndex = getContainingCone(spacetime.x, spacetime.t, coneOrigins);
     if (sourceConeIndex !== -1) {
-        console.log('🚀 Creating new cone from source cone:', sourceConeIndex);
+        // console.log('🚀 Creating new cone from source cone:', sourceConeIndex);
         
         // Créer un nouveau cône immédiatement à la position du clic
         const spacetime = screenToSpacetime(mouseX, mouseY);
@@ -144,7 +145,7 @@ export function handleMouseDown(event) {
             
             coneOrigins.push(newCone);
             const newConeIndex = coneOrigins.length - 1;
-            console.log('✅ Created new cone at:', spacetime.x.toFixed(2), spacetime.t.toFixed(2));
+            // console.log('✅ Created new cone at:', spacetime.x.toFixed(2), spacetime.t.toFixed(2));
             // Documentation automatique (hors mode démo)
             if (!window.isDemoMode) {
                 addConeAndDocument(spacetime.x, spacetime.t);
@@ -162,10 +163,10 @@ export function handleMouseDown(event) {
             
             canvas.style.cursor = 'grabbing';
         } else {
-            console.log('❌ Position not reachable from source cone');
+            // console.log('❌ Position not reachable from source cone');
         }
     } else {
-        console.log('❌ Click outside all light cones');
+        // console.log('❌ Click outside all light cones');
     }
 }
 

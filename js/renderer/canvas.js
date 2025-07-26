@@ -46,7 +46,7 @@ export function initCanvas(canvasElement) {
     // Mettre à jour les variables exportées
     canvas = canvasElement;
     ctx = canvas.getContext('2d');
-    console.log('Canvas renderer initialized');
+    // console.log('Canvas renderer initialized');
     return { canvas: canvasElement, ctx: canvasElement.getContext('2d') };
 }
 
@@ -75,8 +75,8 @@ export function resizeCanvas() {
     const newWidth = Math.floor(containerRect.width);
     const newHeight = Math.floor(containerRect.height);
     
-    console.log(`🔄 Resizing canvas: ${canvasRef.width}x${canvasRef.height} → ${newWidth}x${newHeight}`);
-    console.log(`🔍 Container computed style:`, window.getComputedStyle(container).width, 'x', window.getComputedStyle(container).height);
+    // console.log(`🔄 Resizing canvas: ${canvasRef.width}x${canvasRef.height} → ${newWidth}x${newHeight}`);
+    // console.log(`🔍 Container computed style:`, window.getComputedStyle(container).width, 'x', window.getComputedStyle(container).height);
     
     // Vérifier que les nouvelles dimensions sont valides
     if (newWidth > 0 && newHeight > 0) {
@@ -89,16 +89,16 @@ export function resizeCanvas() {
         // Forcer un redraw en déclenchant un événement personnalisé
         canvasRef.dispatchEvent(new Event('canvasResized'));
         
-        console.log(`✅ Canvas successfully resized to ${newWidth}x${newHeight}`);
+        // console.log(`✅ Canvas successfully resized to ${newWidth}x${newHeight}`);
         
         // Si les dimensions ont vraiment changé, forcer un recalcul des transformations
         if (oldWidth !== newWidth || oldHeight !== newHeight) {
-            console.log('🔄 Dimensions changed, forcing coordinate recalculation...');
+            // console.log('🔄 Dimensions changed, forcing coordinate recalculation...');
             
             // Invalider le cache des transformations en forçant un recalcul
             // La prochaine frame d'animation utilisera les nouvelles dimensions
             setTimeout(() => {
-                console.log('🎨 Forcing immediate redraw with new dimensions...');
+                // console.log('🎨 Forcing immediate redraw with new dimensions...');
                 // Cette technique force le navigateur à redessiner immédiatement
                 canvasRef.style.display = 'none';
                 canvasRef.offsetHeight; // Force reflow

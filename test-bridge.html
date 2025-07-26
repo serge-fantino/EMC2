@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Bridge Module</title>
+</head>
+<body>
+    <h1>🧪 Test du Bridge Module</h1>
+    <div id="results"></div>
+
+    <script type="module">
+        import { 
+            calculateAccelerationTrajectory,
+            getRendezvousInfo 
+        } from './js/physics/bridge.js';
+
+        const results = document.getElementById('results');
+
+        // Test 1: Vérifier que le bridge utilise le nouveau système
+        results.innerHTML = '<h2>Test 1: Vérification du nouveau système</h2>';
+
+        try {
+            const fromCone = { x: 0, t: 0 };
+            const toCone = { x: 10, t: 12 };
+            
+            const trajectory = calculateAccelerationTrajectory(fromCone, toCone, 0);
+            
+            results.innerHTML += `
+                <p>✅ Trajectoire générée avec ${trajectory.length} points</p>
+                <p>Point final: (${trajectory[trajectory.length-1].x.toFixed(2)}, ${trajectory[trajectory.length-1].t.toFixed(2)})</p>
+            `;
+
+            // Vérifier si les nouvelles données sont présentes
+            const hasNewData = trajectory[0] && trajectory[0].rendezvous;
+            results.innerHTML += `
+                <p>${hasNewData ? '✅' : '❌'} Nouvelles données de rendez-vous: ${hasNewData ? 'PRÉSENTES' : 'ABSENTES'}</p>
+            `;
+
+            if (hasNewData) {
+                const rendezvous = trajectory[0].rendezvous;
+                results.innerHTML += `
+                    <p>📊 Données du rendez-vous:</p>
+                    <ul>
+                        <li>Accélération α: ${rendezvous.alpha.toFixed(4)} c/an</li>
+                        <li>Temps propre τ_f: ${rendezvous.tau_f.toFixed(2)} ans</li>
+                        <li>Vitesse finale v_f: ${rendezvous.v_f.toFixed(3)} c</li>
+                        <li>Énergie consommée: ${rendezvous.energyConsumed.toFixed(4)} m₀c²</li>
+                    </ul>
+                `;
+            }
+
+        } catch (error) {
+            results.innerHTML += `<p>❌ Erreur: ${error.message}</p>`;
+        }
+
+        // Test 2: Vérifier la validation de causalité
+        results.innerHTML += '<h2>Test 2: Validation de causalité</h2>';
+
+        try {
+            const fromCone = { x: 0, t: 0 };
+            const toCone = { x: 15, t: 10 }; // Violation de causalité
+            
+            const trajectory = calculateAccelerationTrajectory(fromCone, toCone, 0);
+            
+            results.innerHTML += `
+                <p>${trajectory.length > 0 ? '❌' : '✅'} Trajectoire impossible: ${trajectory.length === 0 ? 'CORRECTEMENT REJETÉE' : 'INCORRECTEMENT ACCEPTÉE'}</p>
+            `;
+
+        } catch (error) {
+            results.innerHTML += `<p>✅ Erreur correctement détectée: ${error.message}</p>`;
+        }
+
+        // Test 3: Vérifier le cas de décélération
+        results.innerHTML += '<h2>Test 3: Cas de décélération</h2>';
+
+        try {
+            const fromCone = { x: 0, t: 0 };
+            const toCone = { x: -5, t: 10 }; // Décélération
+            
+            const trajectory = calculateAccelerationTrajectory(fromCone, toCone, 0.5);
+            
+            if (trajectory.length > 0 && trajectory[0].rendezvous) {
+                const rendezvous = trajectory[0].rendezvous;
+                results.innerHTML += `
+                    <p>✅ Décélération gérée:</p>
+                    <ul>
+                        <li>Accélération α: ${rendezvous.alpha.toFixed(4)} c/an ${rendezvous.alpha < 0 ? '(négative ✅)' : '(positive ❌)'}</li>
+                        <li>Vitesse finale v_f: ${rendezvous.v_f.toFixed(3)} c ${rendezvous.v_f < 0 ? '(négative ✅)' : '(positive ❌)'}</li>
+                    </ul>
+                `;
+            }
+
+        } catch (error) {
+            results.innerHTML += `<p>❌ Erreur: ${error.message}</p>`;
+        }
+
+    </script>
+</body>
+</html> 

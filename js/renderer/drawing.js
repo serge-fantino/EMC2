@@ -9,7 +9,8 @@ import {
     calculateVelocityRatio, 
     calculateCumulativePhysics, 
     calculateIsochronePoints, 
-    limitVelocity 
+    limitVelocity,
+    calculateAccelerationTrajectory
 } from '../physics/index.js';
 
 // Variables globales pour le rendu
@@ -239,17 +240,8 @@ export function drawAccelerationPath(fromCone, toCone, newConeIndex, coneOrigins
     const fromScreen = spacetimeToScreen(fromCone.x, fromCone.t);
     const toScreen = spacetimeToScreen(toCone.x, toCone.t);
     
-    // Calculer trajectoire pour accélération constante depuis repos
-    const X = toCone.x - fromCone.x;  // déplacement spatial
-    const T = toCone.t - fromCone.t;  // déplacement temporel
-    
     // S'assurer qu'on va vers le futur
-    if (T <= 0) return;
-    
-    const c = 1; // c = 1 dans nos unités (cône 45°)
-    
-    // Obtenir physique pour ce cône et le cône source
-    const physics = calculateCumulativePhysics(newConeIndex, coneOrigins);
+    if (toCone.t <= fromCone.t) return;
     
     // Obtenir vitesse initiale du cône de départ (fromCone)
     let fromConeIndex = -1;
@@ -261,97 +253,68 @@ export function drawAccelerationPath(fromCone, toCone, newConeIndex, coneOrigins
     }
     const fromPhysics = calculateCumulativePhysics(fromConeIndex, coneOrigins);
     
-    let properAccel = physics.segmentAcceleration;
-    let isValidTrajectory = !(Math.abs(X) >= T * c * (1 - 0.02)); // Même marge de sécurité
-    
-    if (!isValidTrajectory) return; // Ne pas dessiner trajectoires invalides
-    
     // Obtenir vitesse initiale du cône de départ
     const v0 = limitVelocity(fromPhysics.cumulativeVelocity); // Appliquer limite de vitesse
     
-    // Vérifier si ce chemin fait partie de la trajectoire du référentiel sélectionné
-    const isPartOfSelectedTrajectory_result = isPathInSelectedTrajectory(newConeIndex, selectedReferenceFrame, coneOrigins);
-    
-    // Définir style de ligne selon sélection
-    if (isPartOfSelectedTrajectory_result) {
-        _ctx.strokeStyle = UI_COLORS.PATH_SELECTED; // Blanc brillant pour sélectionné
-        _ctx.lineWidth = 4; // Ligne épaisse
-        _ctx.setLineDash([8, 4]); // Tirets plus longs
-    } else {
-        _ctx.strokeStyle = UI_COLORS.PATH_NORMAL;
-        _ctx.lineWidth = 2;
-        _ctx.setLineDash([5, 5]);
-    }
-    
-    _ctx.beginPath();
-    _ctx.moveTo(fromScreen.screenX, fromScreen.screenY);
-    
-    // Dessiner la trajectoire d'accélération relativiste avec vitesse initiale
-    const steps = 50;
-    for (let i = 1; i <= steps; i++) {
-        const t = (i / steps) * T; // coordonnée de temps
+    // UTILISER LE NOUVEAU BRIDGE MODULE
+    try {
+        // Calculer la trajectoire avec le nouveau système
+        const trajectory = calculateAccelerationTrajectory(fromCone, toCone, v0);
         
-        let x;
-        
-        if (Math.abs(v0) < 0.001) {
-            // Partir du repos (ou presque repos) - utiliser formule simple
-            const at_over_c = properAccel * t / c;
-            const x_rel = (c * c / properAccel) * (Math.sqrt(1 + at_over_c * at_over_c) - 1);
-            x = fromCone.x + Math.sign(X) * x_rel;
-        } else {
-            // Partir avec vitesse initiale v0 - CALCUL ORIGINAL RESTAURÉ
-            const deltaX = toCone.x - fromCone.x;
-            const deltaT = T;
-            
-            // Composante inertielle (mouvement à vitesse constante v0)
-            const x_inertial = fromCone.x + v0 * t;
-            
-            // Correction d'accélération nécessaire pour atteindre la cible
-            const x_target_correction = deltaX - v0 * deltaT;
-            
-            // Facteur de Lorentz initial
-            const gamma0 = 1 / Math.sqrt(1 - v0 * v0 / (c * c));
-            
-            // Calcul relativiste avec accélération constante
-            if (Math.abs(properAccel) > 0.001) {
-                const aT_over_c = properAccel * t / c;
-                const accel_component = (c * c / properAccel) * (Math.sqrt(1 + aT_over_c * aT_over_c) - 1);
-                
-                // Facteur d'échelle pour atteindre exactement la cible
-                const target_accel_displacement = (c * c / properAccel) * (Math.sqrt(1 + (properAccel * deltaT / c) * (properAccel * deltaT / c)) - 1);
-                const scale_factor = target_accel_displacement > 0 ? x_target_correction / target_accel_displacement : 0;
-                
-                x = x_inertial + scale_factor * accel_component;
-            } else {
-                // Pas d'accélération significative, mouvement principalement inertiel
-                const t_norm = t / deltaT;
-                x = x_inertial + x_target_correction * t_norm;
-            }
+        // Si la trajectoire est vide, c'est que le rendez-vous est impossible
+        if (trajectory.length === 0) {
+            console.log('🚫 Trajectoire impossible détectée par le bridge');
+            return;
         }
         
-        const screen = spacetimeToScreen(x, fromCone.t + t);
-        _ctx.lineTo(screen.screenX, screen.screenY);
+        // Vérifier si ce chemin fait partie de la trajectoire du référentiel sélectionné
+        const isPartOfSelectedTrajectory_result = isPathInSelectedTrajectory(newConeIndex, selectedReferenceFrame, coneOrigins);
+        
+        // Définir style de ligne selon sélection
+        if (isPartOfSelectedTrajectory_result) {
+            _ctx.strokeStyle = UI_COLORS.PATH_SELECTED; // Blanc brillant pour sélectionné
+            _ctx.lineWidth = 4; // Ligne épaisse
+            _ctx.setLineDash([8, 4]); // Tirets plus longs
+        } else {
+            _ctx.strokeStyle = UI_COLORS.PATH_NORMAL;
+            _ctx.lineWidth = 2;
+            _ctx.setLineDash([5, 5]);
+        }
+        
+        _ctx.beginPath();
+        _ctx.moveTo(fromScreen.screenX, fromScreen.screenY);
+        
+        // Dessiner la trajectoire calculée par le bridge
+        for (const point of trajectory) {
+            const screenPoint = spacetimeToScreen(point.x, point.t);
+            _ctx.lineTo(screenPoint.screenX, screenPoint.screenY);
+        }
+        
+        _ctx.stroke();
+        _ctx.setLineDash([]); // Reset dash pattern
+        
+        // Dessiner une flèche au bout de la trajectoire
+        const arrowLength = isPartOfSelectedTrajectory_result ? 15 : 10;
+        const angle = Math.atan2(toScreen.screenY - fromScreen.screenY, toScreen.screenX - fromScreen.screenX);
+        
+        _ctx.beginPath();
+        _ctx.moveTo(toScreen.screenX, toScreen.screenY);
+        _ctx.lineTo(
+            toScreen.screenX - arrowLength * Math.cos(angle - Math.PI / 6),
+            toScreen.screenY - arrowLength * Math.sin(angle - Math.PI / 6)
+        );
+        _ctx.moveTo(toScreen.screenX, toScreen.screenY);
+        _ctx.lineTo(
+            toScreen.screenX - arrowLength * Math.cos(angle + Math.PI / 6),
+            toScreen.screenY - arrowLength * Math.sin(angle + Math.PI / 6)
+        );
+        _ctx.stroke();
+        
+    } catch (error) {
+        console.warn('Erreur dans drawAccelerationPath avec le bridge:', error);
+        // Fallback vers l'ancien système si nécessaire
+        return;
     }
-    
-    _ctx.stroke();
-    _ctx.setLineDash([]);
-    
-    // Dessiner une flèche au bout de la trajectoire
-    const arrowLength = isPartOfSelectedTrajectory_result ? 15 : 10;
-    const angle = Math.atan2(toScreen.screenY - fromScreen.screenY, toScreen.screenX - fromScreen.screenX);
-    
-    _ctx.beginPath();
-    _ctx.moveTo(toScreen.screenX, toScreen.screenY);
-    _ctx.lineTo(
-        toScreen.screenX - arrowLength * Math.cos(angle - Math.PI / 6),
-        toScreen.screenY - arrowLength * Math.sin(angle - Math.PI / 6)
-    );
-    _ctx.moveTo(toScreen.screenX, toScreen.screenY);
-    _ctx.lineTo(
-        toScreen.screenX - arrowLength * Math.cos(angle + Math.PI / 6),
-        toScreen.screenY - arrowLength * Math.sin(angle + Math.PI / 6)
-    );
-    _ctx.stroke();
 }
 
 /**
