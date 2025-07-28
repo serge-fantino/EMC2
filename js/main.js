@@ -131,7 +131,7 @@ function setSelectedReferenceFrame(newIndex) {
 }
 
 // Update calculations display
-function updateCalculationsDisplay() {
+async function updateCalculationsDisplay() {
     // Chercher dans le nouveau panneau latéral d'abord
     let calculationsDiv = document.querySelector('.accordion-section[data-section="calculations"] .accordion-content');
     
@@ -189,8 +189,9 @@ function updateCalculationsDisplay() {
         content += `
             <p><strong>Référentiel d'origine (repos)</strong></p>
             <div class="formula">v = 0 c</div>
-            <div class="formula">a = 0 c²/t</div>
-            <div class="formula">t_propre = t_coordonnée = 0</div>
+            <div class="formula">φ = 0</div>
+            <div class="formula">τ = t = 0</div>
+            <div class="formula">E_kin = 0</div>
             <p>Ce référentiel sert de base pour tous les calculs.</p>
         `;
     } else {
@@ -199,43 +200,97 @@ function updateCalculationsDisplay() {
         const T = cone.t - sourceCone.t;
         const c = 1;
         
+        // Récupérer la physique du cône source pour calculer Vdépart
+        const { calculateCumulativePhysics } = await import('./physics/index.js');
+        const sourcePhysics = calculateCumulativePhysics(cone.sourceIndex, coneOrigins);
+        
+        // Récupérer les données du nouveau système via le bridge
+        let rendezvousData = null;
+        try {
+            const { getRendezvousInfo } = await import('./physics/index.js');
+            // Simuler l'appel pour obtenir les données de rendez-vous
+            // (en réalité, ces données sont déjà calculées dans drawAccelerationPath)
+            rendezvousData = {
+                alpha: physics.segmentAcceleration,
+                tau_f: physics.segmentProperTime,
+                v_f: Math.abs(physics.segmentVelocity),
+                deltaPhi: Math.abs(physics.segmentVelocity) > 0.001 ? Math.atanh(Math.abs(physics.segmentVelocity)) : 0,
+                energyConsumed: Math.abs(physics.segmentVelocity) > 0.001 ? Math.atanh(Math.abs(physics.segmentVelocity)) : 0
+            };
+        } catch (error) {
+            console.warn('Impossible de récupérer les données de rendez-vous:', error);
+        }
+        
+        // Calculer les vitesses de départ et d'arrivée
+        const vDepart = cone.sourceIndex === 0 ? 0 : Math.abs(sourcePhysics.cumulativeVelocity);
+        const vArrivee = Math.abs(physics.cumulativeVelocity);
+        
         content += `
-            <p><strong>Segment depuis Réf ${cone.sourceIndex}</strong></p>
-            
+            <p><strong>🚀 Résolution du problème de rendez-vous</strong></p>
             <div class="formula">
-                Déplacement spatial: <span class="variable">ΔX</span> = <span class="result">${X.toFixed(3)}</span>
-            </div>
-            <div class="formula">
-                Temps coordonnée: <span class="variable">ΔT</span> = <span class="result">${T.toFixed(3)} t</span>
-            </div>
-            
-            <p><strong>Accélération propre :</strong></p>
-            <div class="formula">
-                a = 2|ΔX|c² / (ΔT² - ΔX²)<br>
-                a = <span class="result">${physics.segmentAcceleration.toFixed(4)} c²/t</span>
+                <strong>Paramètres d'entrée :</strong><br>
+                <strong>Départ (Réf ${cone.sourceIndex}) :</strong><br>
+                x(${cone.sourceIndex}) = ${sourceCone.x.toFixed(3)}, t(${cone.sourceIndex}) = ${sourceCone.t.toFixed(3)}<br>
+                v(${cone.sourceIndex}) = ${(vDepart * 100).toFixed(1)}% c<br>
+                <strong>Arrivée (Réf ${selectedReferenceFrame}) :</strong><br>
+                x(${selectedReferenceFrame}) = ${cone.x.toFixed(3)}, t(${selectedReferenceFrame}) = ${cone.t.toFixed(3)}<br>
+                v(${selectedReferenceFrame}) = ${(vArrivee * 100).toFixed(1)}% c
             </div>
             
-            <p><strong>Vitesse finale du segment :</strong></p>
             <div class="formula">
-                v = (aΔT) / √(1 + (aΔT/c)²)<br>
-                v = <span class="result">${(Math.abs(physics.segmentVelocity) * 100).toFixed(1)}% c</span>
+                <strong>Calculs intermédiaires :</strong><br>
+                Δx = ${X.toFixed(3)} années-lumière<br>
+                Δt = ${T.toFixed(3)} ans<br>
+                β = Δx/Δt = ${(X/T).toFixed(3)}c
             </div>
             
-            <p><strong>Temps propre du segment :</strong></p>
+            ${rendezvousData ? `
             <div class="formula">
-                Δτ = (c/a) × asinh(aΔT/c)<br>
-                Δτ = <span class="result">${physics.segmentProperTime.toFixed(3)} t</span>
+                <strong>Solution du rendez-vous :</strong><br>
+                α = ${rendezvousData.alpha.toFixed(4)} c/an<br>
+                τ_f = ${rendezvousData.tau_f.toFixed(3)} ans<br>
+                v_f = ${(rendezvousData.v_f * 100).toFixed(1)}% c<br>
+                Δφ = ${rendezvousData.deltaPhi.toFixed(3)}
+            </div>
+            ` : ''}
+            
+            <p><strong>⏱️ Comparaison des temps</strong></p>
+            <div class="formula">
+                <strong>Temps coordonnée :</strong> Δt = ${T.toFixed(3)} ans<br>
+                <strong>Temps propre :</strong> Δτ = ${physics.segmentProperTime.toFixed(3)} ans<br>
+                <strong>Dilatation temporelle :</strong> Δt/Δτ = ${(T/physics.segmentProperTime).toFixed(3)}
             </div>
             
-            <p><strong>Totaux cumulés :</strong></p>
+            <p><strong>⚡ Estimation énergétique</strong></p>
             <div class="formula">
-                Vitesse cumulée = <span class="result">${(Math.abs(physics.cumulativeVelocity) * 100).toFixed(1)}% c</span>
+                <strong>Énergie cinétique finale :</strong><br>
+                E_kin = m₀c²(γ - 1) = ${(Math.cosh(Math.atanh(Math.abs(physics.segmentVelocity))) - 1).toFixed(3)} m₀c² = ${((Math.cosh(Math.atanh(Math.abs(physics.segmentVelocity))) - 1) * 25000).toFixed(0)} GWh/tonne
             </div>
+            ${rendezvousData ? `
             <div class="formula">
-                Temps propre total = <span class="result">${physics.cumulativeProperTime.toFixed(3)} t</span>
+                <strong>Énergie de propulsion :</strong><br>
+                E_propulsion = m₀c²Δφ = ${(rendezvousData.energyConsumed * 25000).toFixed(0)} GWh/tonne
             </div>
+            ` : ''}
+            
+            <p><strong>📊 Calculs cumulatifs depuis R₀</strong></p>
             <div class="formula">
-                Temps coordonnée total = <span class="result">${physics.totalCoordinateTime.toFixed(3)} t</span>
+                <strong>Trajectoire complète :</strong><br>
+                Nombre de segments : ${selectedReferenceFrame}<br>
+                Vitesse finale : ${(Math.abs(physics.cumulativeVelocity) * 100).toFixed(1)}% c
+            </div>
+            
+            <div class="formula">
+                <strong>Comparaison temporelle globale :</strong><br>
+                Temps coordonnée total : ${physics.totalCoordinateTime.toFixed(3)} ans<br>
+                Temps propre total : ${physics.cumulativeProperTime.toFixed(3)} ans<br>
+                <strong>Dilatation temporelle globale :</strong> ${(physics.totalCoordinateTime/physics.cumulativeProperTime).toFixed(3)}
+            </div>
+            
+            <div class="formula">
+                <strong>Énergie transformée (par unité de masse) :</strong><br>
+                Énergie cinétique finale : ${(Math.cosh(Math.atanh(Math.abs(physics.cumulativeVelocity))) - 1).toFixed(3)} m₀c² = ${((Math.cosh(Math.atanh(Math.abs(physics.cumulativeVelocity))) - 1) * 25000).toFixed(0)} GWh/tonne<br>
+                Énergie de propulsion totale : ${(Math.atanh(Math.abs(physics.cumulativeVelocity)) * 25000).toFixed(0)} GWh/tonne
             </div>
         `;
     }

@@ -263,7 +263,7 @@ export function drawAccelerationPath(fromCone, toCone, newConeIndex, coneOrigins
         
         // Si la trajectoire est vide, c'est que le rendez-vous est impossible
         if (trajectory.length === 0) {
-            console.log('🚫 Trajectoire impossible détectée par le bridge');
+    
             return;
         }
         
@@ -600,6 +600,9 @@ export function drawReferenceInfoBox(boxX, boxY, boxWidth, boxHeight, coneIndex,
     const finalVelocityPercent = (Math.abs(physics.segmentVelocity) / 1 * 100).toFixed(1);
     const cumulativeVelocityPercent = (Math.abs(physics.cumulativeVelocity) / 1 * 100).toFixed(1);
     
+    // Calcul de l'énergie cinétique pour le cartouche
+    const energyKinetic = (Math.cosh(Math.atanh(Math.abs(physics.cumulativeVelocity))) - 1) * 25000; // GWh/tonne
+    
     _ctx.fillStyle = UI_COLORS.BOX_BACKGROUND;
     _ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
     
@@ -618,12 +621,10 @@ export function drawReferenceInfoBox(boxX, boxY, boxWidth, boxHeight, coneIndex,
     
     _ctx.font = '10px Arial';
     _ctx.fillText(`v = ${cumulativeVelocityPercent}% c`, boxX + 5, boxY + 25);
-    _ctx.fillText(`a = ${physics.segmentAcceleration.toFixed(3)} c²/t`, boxX + 5, boxY + 37);
-    _ctx.fillText(`t = ${physics.cumulativeProperTime.toFixed(2)} t`, boxX + 5, boxY + 49);
-    _ctx.fillText(`Δt = ${physics.segmentCoordinateTime.toFixed(2)} t`, boxX + 5, boxY + 61);
-    _ctx.fillText(`X = ${cone.x.toFixed(1)}, T = ${cone.t.toFixed(1)}`, boxX + 5, boxY + 73);
-    _ctx.fillText(`v_seg = ${finalVelocityPercent}% c`, boxX + 5, boxY + 85);
-    _ctx.fillText(`Source: Réf ${cone.sourceIndex}`, boxX + 5, boxY + 97);
+    _ctx.fillText(`t = ${cone.t.toFixed(1)}`, boxX + 5, boxY + 37);
+    _ctx.fillText(`τ = ${physics.cumulativeProperTime.toFixed(1)}`, boxX + 5, boxY + 49);
+    _ctx.fillText(`Δφ = ${(Math.atanh(Math.abs(physics.cumulativeVelocity))).toFixed(2)}`, boxX + 5, boxY + 61);
+    _ctx.fillText(`E = ${energyKinetic.toFixed(1)} GWh/t`, boxX + 5, boxY + 73);
 }
 
 /**

@@ -25,9 +25,6 @@ import {
  */
 export function calculateAccelerationTrajectory(fromCone, toCone, initialVelocity = 0) {
     try {
-        console.log('🚀🚀🚀 BRIDGE ACTIVÉ ! 🚀🚀🚀');
-        console.log('🔧 BRIDGE: Utilisation du nouveau module physics_relativistic');
-        console.log('🔧 BRIDGE: Paramètres:', { fromCone, toCone, initialVelocity });
         
         // Résolution du problème de rendez-vous avec le nouveau système
         const rendezvous = solveRendezvousProblem(
