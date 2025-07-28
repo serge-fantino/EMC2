@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug - Propagation</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #1a1a1a;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            border: 2px solid #444;
+            background: #000;
+            cursor: crosshair;
+        }
+        .controls {
+            margin: 20px 0;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .info {
+            background: #2a2a2a;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        input[type="range"] {
+            width: 200px;
+            margin: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🌊 Debug - Propagation</h1>
+    
+    <div class="info">
+        <h3>Test de propagation :</h3>
+        <p>• Cliquez pour ajouter des sources de propagation</p>
+        <p>• Observez les cercles qui grandissent</p>
+        <p>• Ajustez la vitesse de propagation</p>
+    </div>
+    
+    <div class="controls">
+        <button onclick="addTestSource()">Ajouter source test</button>
+        <button onclick="clearAll()">Effacer tout</button>
+        <button onclick="toggleAnimation()">Play/Pause</button>
+        <br>
+        <label>Vitesse: <span id="speedValue">1.0</span> × c</label>
+        <input type="range" id="speedSlider" min="0.1" max="5" step="0.1" value="1">
+    </div>
+    
+    <canvas id="debugCanvas" width="600" height="400"></canvas>
+    
+    <div class="info">
+        <h3>Debug Info:</h3>
+        <div id="debugInfo">Chargement...</div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('debugCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        let sources = [];
+        let animationRunning = true;
+        let speed = 1;
+        let startTime = Date.now();
+        
+        function addTestSource() {
+            const x = Math.random() * canvas.width;
+            const y = Math.random() * canvas.height;
+            sources.push({ x, y, startTime: Date.now() });
+            console.log('Source ajoutée:', x, y);
+        }
+        
+        function clearAll() {
+            sources = [];
+        }
+        
+        function toggleAnimation() {
+            animationRunning = !animationRunning;
+            if (animationRunning) {
+                requestAnimationFrame(animate);
+            }
+        }
+        
+        function drawSources() {
+            sources.forEach(source => {
+                // Dessiner la source
+                ctx.fillStyle = '#ff4444';
+                ctx.beginPath();
+                ctx.arc(source.x, source.y, 8, 0, 2 * Math.PI);
+                ctx.fill();
+                
+                // Halo
+                ctx.strokeStyle = '#ffaaaa';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(source.x, source.y, 12, 0, 2 * Math.PI);
+                ctx.stroke();
+            });
+        }
+        
+        function drawPropagation() {
+            const currentTime = Date.now();
+            
+            sources.forEach(source => {
+                const timeDiff = (currentTime - source.startTime) / 1000; // secondes
+                const radius = timeDiff * speed * 50; // 50 pixels/seconde par défaut
+                
+                if (radius > 0 && radius < Math.max(canvas.width, canvas.height)) {
+                    // Cercle de propagation
+                    ctx.strokeStyle = '#44ff44';
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([5, 5]);
+                    ctx.beginPath();
+                    ctx.arc(source.x, source.y, radius, 0, 2 * Math.PI);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    
+                    // Texte avec le rayon
+                    ctx.fillStyle = '#44ff44';
+                    ctx.font = '12px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(`${radius.toFixed(0)}px`, source.x, source.y - radius - 10);
+                }
+            });
+        }
+        
+        function drawGrid() {
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 1;
+            
+            const spacing = 50;
+            
+            // Lignes verticales
+            for (let x = 0; x <= canvas.width; x += spacing) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+            
+            // Lignes horizontales
+            for (let y = 0; y <= canvas.height; y += spacing) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+        }
+        
+        function animate() {
+            if (!animationRunning) return;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            drawGrid();
+            drawPropagation();
+            drawSources();
+            
+            // Debug info
+            const currentTime = Date.now();
+            document.getElementById('debugInfo').innerHTML = `
+                Sources: ${sources.length}<br>
+                Temps écoulé: ${((currentTime - startTime) / 1000).toFixed(1)}s<br>
+                Vitesse: ${speed} × c<br>
+                Animation: ${animationRunning ? 'ON' : 'OFF'}
+            `;
+            
+            requestAnimationFrame(animate);
+        }
+        
+        // Gestion des clics
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            sources.push({ x, y, startTime: Date.now() });
+            console.log('Source ajoutée par clic:', x, y);
+        });
+        
+        // Contrôle de vitesse
+        document.getElementById('speedSlider').addEventListener('input', (e) => {
+            speed = parseFloat(e.target.value);
+            document.getElementById('speedValue').textContent = speed.toFixed(1);
+        });
+        
+        // Initialisation
+        startTime = Date.now();
+        animate();
+        console.log('Debug propagation page chargée');
+    </script>
+</body>
+</html> 

@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug - Comparaison</title>
+    <link rel="stylesheet" href="css/gravity-viz.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Canvas principal -->
+        <div class="canvas-container">
+            <canvas id="gravityCanvas" width="800" height="600"></canvas>
+            <div class="status-bar">
+                <span id="statusText">Prêt</span>
+                <span id="fpsCounter">60 FPS</span>
+            </div>
+        </div>
+
+        <!-- Panneau de contrôle -->
+        <div class="control-panel">
+            <header class="panel-header">
+                <h2>🌌 Debug - Comparaison</h2>
+                <p class="subtitle">Test avec code simplifié</p>
+            </header>
+
+            <section class="control-section">
+                <h3>Test</h3>
+                <div class="control-group">
+                    <button onclick="addTestMass()" class="btn btn-primary">Ajouter masse test</button>
+                    <button onclick="clearAll()" class="btn btn-secondary">Effacer tout</button>
+                </div>
+            </section>
+
+            <section class="debug-section">
+                <h3>Debug Info</h3>
+                <div class="debug-info">
+                    <div>Masses: <span id="massCount">0</span></div>
+                    <div>Fronts: <span id="frontCount">0</span></div>
+                    <div>Animation: <span id="animationStatus">ON</span></div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script>
+        // Code JavaScript simplifié qui fonctionne (copié de debug-main.html)
+        const canvas = document.getElementById('gravityCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        let masses = [];
+        let propagationFronts = [];
+        let animationRunning = true;
+        let spacing = 32; // 800/25
+        
+        function addTestMass() {
+            const x = Math.random() * canvas.width;
+            const y = Math.random() * canvas.height;
+            masses.push({ x, y, mass: 50 });
+            propagationFronts.push({ x, y, startTime: Date.now(), spacing });
+            console.log('Masse test ajoutée:', x, y);
+            updateDebugInfo();
+        }
+        
+        function clearAll() {
+            masses = [];
+            propagationFronts = [];
+            updateDebugInfo();
+        }
+        
+        function updateDebugInfo() {
+            document.getElementById('massCount').textContent = masses.length;
+            document.getElementById('frontCount').textContent = propagationFronts.length;
+            document.getElementById('animationStatus').textContent = animationRunning ? 'ON' : 'OFF';
+        }
+        
+        function drawGrid() {
+            ctx.fillStyle = '#666';
+            for (let x = 0; x <= canvas.width; x += spacing) {
+                for (let y = 0; y <= canvas.height; y += spacing) {
+                    ctx.beginPath();
+                    ctx.arc(x, y, 2, 0, 2 * Math.PI);
+                    ctx.fill();
+                }
+            }
+        }
+        
+        function drawMasses() {
+            masses.forEach(mass => {
+                const radius = 8 + Math.sqrt(mass.mass) * 0.3;
+                
+                ctx.fillStyle = '#ff4444';
+                ctx.beginPath();
+                ctx.arc(mass.x, mass.y, radius, 0, 2 * Math.PI);
+                ctx.fill();
+                
+                ctx.strokeStyle = '#ffaaaa';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(mass.x, mass.y, radius + 4, 0, 2 * Math.PI);
+                ctx.stroke();
+                
+                ctx.fillStyle = 'white';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(Math.round(mass.mass), mass.x, mass.y - radius - 8);
+            });
+        }
+        
+        function drawPropagation() {
+            const currentTime = Date.now();
+            
+            propagationFronts.forEach(front => {
+                const timeDiff = (currentTime - front.startTime) / 1000;
+                const radius = timeDiff * 10; // 10 unités/seconde
+                const radiusInPixels = radius * front.spacing;
+                
+                if (radius > 0 && radiusInPixels < Math.max(canvas.width, canvas.height)) {
+                    ctx.strokeStyle = '#44ff44';
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([5, 5]);
+                    ctx.beginPath();
+                    ctx.arc(front.x, front.y, radiusInPixels, 0, 2 * Math.PI);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+            });
+        }
+        
+        function drawVectors() {
+            if (masses.length === 0) return;
+            
+            ctx.strokeStyle = '#4499ff';
+            ctx.lineWidth = 2;
+            
+            const step = spacing;
+            for (let x = 0; x <= canvas.width; x += step) {
+                for (let y = 0; y <= canvas.height; y += step) {
+                    let totalForceX = 0;
+                    let totalForceY = 0;
+                    
+                    masses.forEach(mass => {
+                        const dx = mass.x - x;
+                        const dy = mass.y - y;
+                        const distSq = dx * dx + dy * dy;
+                        
+                        if (distSq > 0) {
+                            const force = 1000 * mass.mass / distSq;
+                            const dist = Math.sqrt(distSq);
+                            totalForceX += force * dx / dist;
+                            totalForceY += force * dy / dist;
+                        }
+                    });
+                    
+                    const magnitude = Math.sqrt(totalForceX * totalForceX + totalForceY * totalForceY);
+                    
+                    if (magnitude > 1) {
+                        const scale = Math.min(20, magnitude * 0.1);
+                        const normalizedX = totalForceX / magnitude;
+                        const normalizedY = totalForceY / magnitude;
+                        
+                        const endX = x + normalizedX * scale;
+                        const endY = y + normalizedY * scale;
+                        
+                        ctx.beginPath();
+                        ctx.moveTo(x, y);
+                        ctx.lineTo(endX, endY);
+                        ctx.stroke();
+                        
+                        const angle = Math.atan2(normalizedY, normalizedX);
+                        ctx.beginPath();
+                        ctx.moveTo(endX, endY);
+                        ctx.lineTo(
+                            endX - 8 * Math.cos(angle - 0.3),
+                            endY - 8 * Math.sin(angle - 0.3)
+                        );
+                        ctx.moveTo(endX, endY);
+                        ctx.lineTo(
+                            endX - 8 * Math.cos(angle + 0.3),
+                            endY - 8 * Math.sin(angle + 0.3)
+                        );
+                        ctx.stroke();
+                    }
+                }
+            }
+        }
+        
+        function animate() {
+            if (!animationRunning) return;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            drawGrid();
+            drawVectors();
+            drawPropagation();
+            drawMasses();
+            
+            requestAnimationFrame(animate);
+        }
+        
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            masses.push({ x, y, mass: 50 });
+            propagationFronts.push({ x, y, startTime: Date.now(), spacing });
+            console.log('Clic ajouté:', x, y);
+            updateDebugInfo();
+        });
+        
+        // Initialisation
+        updateDebugInfo();
+        animate();
+        console.log('Debug comparison page chargée');
+    </script>
+</body>
+</html> 

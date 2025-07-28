@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug - Grille et Vecteurs</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #1a1a1a;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            border: 2px solid #444;
+            background: #000;
+            cursor: crosshair;
+        }
+        .controls {
+            margin: 20px 0;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .info {
+            background: #2a2a2a;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Debug - Grille et Vecteurs</h1>
+    
+    <div class="info">
+        <h3>Test simple :</h3>
+        <p>• Cliquez pour ajouter des masses</p>
+        <p>• Vérifiez que la grille s'affiche</p>
+        <p>• Vérifiez que les vecteurs apparaissent</p>
+    </div>
+    
+    <div class="controls">
+        <button onclick="addTestMass()">Ajouter masse test</button>
+        <button onclick="clearAll()">Effacer tout</button>
+        <button onclick="toggleGrid()">Toggle Grille</button>
+        <button onclick="toggleVectors()">Toggle Vecteurs</button>
+    </div>
+    
+    <canvas id="debugCanvas" width="600" height="400"></canvas>
+    
+    <div class="info">
+        <h3>Debug Info:</h3>
+        <div id="debugInfo">Chargement...</div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('debugCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        let masses = [];
+        let showGrid = true;
+        let showVectors = true;
+        let spacing = 40;
+        
+        function addTestMass() {
+            const x = Math.random() * canvas.width;
+            const y = Math.random() * canvas.height;
+            masses.push({ x, y, mass: 50 });
+            console.log('Masse ajoutée:', x, y);
+            draw();
+        }
+        
+        function clearAll() {
+            masses = [];
+            draw();
+        }
+        
+        function toggleGrid() {
+            showGrid = !showGrid;
+            draw();
+        }
+        
+        function toggleVectors() {
+            showVectors = !showVectors;
+            draw();
+        }
+        
+        function drawGrid() {
+            if (!showGrid) return;
+            
+            ctx.strokeStyle = '#666';
+            ctx.lineWidth = 1;
+            
+            // Lignes verticales
+            for (let x = 0; x <= canvas.width; x += spacing) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+            
+            // Lignes horizontales
+            for (let y = 0; y <= canvas.height; y += spacing) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+            
+            // Points de grille
+            ctx.fillStyle = '#888';
+            for (let x = 0; x <= canvas.width; x += spacing) {
+                for (let y = 0; y <= canvas.height; y += spacing) {
+                    ctx.beginPath();
+                    ctx.arc(x, y, 3, 0, 2 * Math.PI);
+                    ctx.fill();
+                }
+            }
+        }
+        
+        function drawVectors() {
+            if (!showVectors || masses.length === 0) return;
+            
+            ctx.strokeStyle = '#4499ff';
+            ctx.lineWidth = 2;
+            
+            const step = spacing;
+            for (let x = 0; x <= canvas.width; x += step) {
+                for (let y = 0; y <= canvas.height; y += step) {
+                    let totalForceX = 0;
+                    let totalForceY = 0;
+                    
+                    // Calculer la force gravitationnelle
+                    masses.forEach(mass => {
+                        const dx = mass.x - x;
+                        const dy = mass.y - y;
+                        const distSq = dx * dx + dy * dy;
+                        
+                        if (distSq > 0) {
+                            const force = 1000 * mass.mass / distSq;
+                            const dist = Math.sqrt(distSq);
+                            totalForceX += force * dx / dist;
+                            totalForceY += force * dy / dist;
+                        }
+                    });
+                    
+                    const magnitude = Math.sqrt(totalForceX * totalForceX + totalForceY * totalForceY);
+                    
+                    if (magnitude > 1) {
+                        // Normaliser et dessiner
+                        const scale = Math.min(20, magnitude * 0.1);
+                        const normalizedX = totalForceX / magnitude;
+                        const normalizedY = totalForceY / magnitude;
+                        
+                        const endX = x + normalizedX * scale;
+                        const endY = y + normalizedY * scale;
+                        
+                        ctx.beginPath();
+                        ctx.moveTo(x, y);
+                        ctx.lineTo(endX, endY);
+                        ctx.stroke();
+                        
+                        // Flèche
+                        const angle = Math.atan2(normalizedY, normalizedX);
+                        ctx.beginPath();
+                        ctx.moveTo(endX, endY);
+                        ctx.lineTo(
+                            endX - 8 * Math.cos(angle - 0.3),
+                            endY - 8 * Math.sin(angle - 0.3)
+                        );
+                        ctx.moveTo(endX, endY);
+                        ctx.lineTo(
+                            endX - 8 * Math.cos(angle + 0.3),
+                            endY - 8 * Math.sin(angle + 0.3)
+                        );
+                        ctx.stroke();
+                    }
+                }
+            }
+        }
+        
+        function drawMasses() {
+            masses.forEach(mass => {
+                const radius = 8 + Math.sqrt(mass.mass) * 0.3;
+                
+                // Cercle principal
+                ctx.fillStyle = '#ff4444';
+                ctx.beginPath();
+                ctx.arc(mass.x, mass.y, radius, 0, 2 * Math.PI);
+                ctx.fill();
+                
+                // Halo
+                ctx.strokeStyle = '#ffaaaa';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(mass.x, mass.y, radius + 4, 0, 2 * Math.PI);
+                ctx.stroke();
+                
+                // Texte
+                ctx.fillStyle = 'white';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(Math.round(mass.mass), mass.x, mass.y + 4);
+            });
+        }
+        
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            drawGrid();
+            drawVectors();
+            drawMasses();
+            
+            // Debug info
+            document.getElementById('debugInfo').innerHTML = `
+                Masses: ${masses.length}<br>
+                Grille: ${showGrid ? 'ON' : 'OFF'}<br>
+                Vecteurs: ${showVectors ? 'ON' : 'OFF'}<br>
+                Spacing: ${spacing}px
+            `;
+        }
+        
+        // Gestion des clics
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            masses.push({ x, y, mass: 50 });
+            console.log('Clic ajouté:', x, y);
+            draw();
+        });
+        
+        // Initialisation
+        draw();
+        console.log('Debug page chargée');
+    </script>
+</body>
+</html> 

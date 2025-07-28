@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualiseur de Propagation Gravitationnelle</title>
+    <link rel="stylesheet" href="css/gravity-viz.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Canvas principal -->
+        <div class="canvas-container">
+            <canvas id="gravityCanvas" width="800" height="600"></canvas>
+            <div class="status-bar">
+                <span id="statusText">Prêt</span>
+                <span id="fpsCounter">60 FPS</span>
+            </div>
+        </div>
+
+        <!-- Panneau de contrôle -->
+        <div class="control-panel">
+            <header class="panel-header">
+                <h2>🌌 Propagation Gravitationnelle</h2>
+                <p class="subtitle">Newton → Einstein</p>
+            </header>
+
+            <!-- Palette d'outils -->
+            <section class="control-section">
+                <h3>🛠️ Outils</h3>
+                <div class="tool-palette">
+                    <div class="tool-option">
+                        <input type="radio" id="tool-mass" name="tool" value="mass" checked>
+                        <label for="tool-mass" class="tool-label">
+                            <span class="tool-icon">⚫</span>
+                            <span class="tool-name">Masse</span>
+                        </label>
+                    </div>
+                    <div class="tool-option">
+                        <input type="radio" id="tool-spacecraft" name="tool" value="spacecraft">
+                        <label for="tool-spacecraft" class="tool-label">
+                            <span class="tool-icon">🚀</span>
+                            <span class="tool-name">Vaisseau</span>
+                        </label>
+                    </div>
+                    <div class="tool-option">
+                        <input type="radio" id="tool-blackhole" name="tool" value="blackhole">
+                        <label for="tool-blackhole" class="tool-label">
+                            <span class="tool-icon">🕳️</span>
+                            <span class="tool-name">Trou Noir</span>
+                        </label>
+                    </div>
+                    <div class="tool-option">
+                        <input type="radio" id="tool-laser" name="tool" value="laser">
+                        <label for="tool-laser" class="tool-label">
+                            <span class="tool-icon">🔦</span>
+                            <span class="tool-name">Laser</span>
+                        </label>
+                    </div>
+                    <div class="tool-option">
+                        <input type="radio" id="tool-geodesic" name="tool" value="geodesic">
+                        <label for="tool-geodesic" class="tool-label">
+                            <span class="tool-icon">🌌</span>
+                            <span class="tool-name">Géodésique</span>
+                        </label>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Contrôles de simulation -->
+            <section class="control-section">
+                <h3>Simulation</h3>
+                <div class="control-group">
+                    <label for="playPauseBtn">État</label>
+                    <button id="playPauseBtn" class="btn btn-primary">⏸️ Pause</button>
+                    <button id="resetBtn" class="btn btn-secondary">🔄 Reset</button>
+                </div>
+                
+                <div class="control-group">
+                    <label for="speedSlider">Vitesse de Propagation</label>
+                    <input type="range" id="speedSlider" min="0.1" max="5" step="0.1" value="1">
+                    <div class="value-display" id="speedValue">1.0 × c</div>
+                </div>
+
+                <div class="control-group">
+                    <label for="forceScaleSlider">Intensité des Vecteurs</label>
+                    <input type="range" id="forceScaleSlider" min="0.1" max="3" step="0.1" value="1">
+                    <div class="value-display" id="forceScaleValue">1.0</div>
+                </div>
+            </section>
+
+            <!-- Contrôles de visualisation -->
+            <section class="control-section">
+                <h3>Visualisation</h3>
+                <div class="control-group">
+                    <label for="gridResolutionSlider">Résolution de la Grille</label>
+                    <input type="range" id="gridResolutionSlider" min="15" max="40" step="5" value="25">
+                    <div class="value-display" id="gridResolutionValue">25 × 25</div>
+                </div>
+
+                <div class="control-group">
+                    <label>
+                        <input type="checkbox" id="showGridToggle" checked>
+                        Afficher la grille
+                    </label>
+                </div>
+
+                <div class="control-group">
+                    <label>
+                        <input type="checkbox" id="showVectorsToggle" checked>
+                        Afficher les vecteurs
+                    </label>
+                </div>
+
+                <div class="control-group">
+                    <label>
+                        <input type="checkbox" id="showPropagationToggle" checked>
+                        Afficher la propagation
+                    </label>
+                </div>
+            </section>
+
+            <!-- Informations -->
+            <section class="info-section">
+                <h3>Instructions</h3>
+                <div class="instructions">
+                    <p><strong>🛠️ Outil Masse :</strong></p>
+                    <p>• Clic gauche : Placer/augmenter une masse</p>
+                    <p>• Clic droit : Diminuer une masse</p>
+                    <p><strong>🚀 Outil Vaisseau :</strong></p>
+                    <p>• Premier clic : Position du vaisseau</p>
+                    <p>• Déplacer souris : Ajuster vitesse/direction</p>
+                    <p>• Deuxième clic : Confirmer et lancer</p>
+                    <p>• ESC ou clic droit : Annuler</p>
+                    <p><strong>🕳️ Outil Trou Noir :</strong></p>
+                    <p>• Clic : Créer un trou noir massif (100k unités)</p>
+                    <p>• Effet gravitationnel intense + capture de vaisseaux</p>
+                    <p><strong>🔦 Outil Laser :</strong></p>
+                    <p>• Premier clic : Position du laser</p>
+                    <p>• Déplacer souris : Ajuster direction</p>
+                    <p>• Deuxième clic : Confirmer et tirer</p>
+                    <p>• ESC ou clic droit : Annuler</p>
+                    <p><strong>📊 Visualisation :</strong></p>
+                    <p>• Vecteurs bleus : Force gravitationnelle</p>
+                    <p>• Cercles verts : Propagation à vitesse finie</p>
+                    <p>• Trajectoire jaune : Mouvement du vaisseau</p>
+                    <p>• Trou noir noir : Masse énorme avec bordure rouge</p>
+                    <p>• Capture : Vaisseaux trop proches disparaissent</p>
+                    <p>• Rayon laser vert : Déviation gravitationnelle + redshift</p>
+                    <p>• Redshift : Laser rouge (s'éloigne), bleu (se rapproche)</p>
+                    <p>• Géodésique violette : Trajectoire dans l'espace courbé (Einstein)</p>
+                    <p>• Comparaison : Vaisseau (Newton) vs Géodésique (Einstein)</p>
+                </div>
+            </section>
+
+            <!-- Légende -->
+            <section class="legend-section">
+                <h3>Légende</h3>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color grid-color"></div>
+                        <span>Points de grille</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color mass-color"></div>
+                        <span>Masses gravitationnelles</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color vector-color"></div>
+                        <span>Vecteurs de force</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color propagation-color"></div>
+                        <span>Front de propagation</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color spacecraft-color"></div>
+                        <span>Vaisseau spatial</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color blackhole-color"></div>
+                        <span>Trou noir</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color laser-color"></div>
+                        <span>Rayon laser</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color geodesic-color"></div>
+                        <span>Géodésique Einsteinienne</span>
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- Debug info -->
+            <section class="debug-section">
+                <h3>Debug</h3>
+                <div class="debug-info">
+                    <div>Masses: <span id="massCount">0</span></div>
+                    <div>Fronts: <span id="frontCount">0</span></div>
+                    <div>Vaisseaux: <span id="spacecraftCount">0</span></div>
+                    <div>Lasers: <span id="laserCount">0</span></div>
+                    <div>Géodésiques: <span id="geodesicCount">0</span></div>
+                    <div>Redshift: <span id="redshiftInfo">--</span></div>
+                    <div>Temps: <span id="currentTime">0</span>ms</div>
+                    <div>Versions: <span id="versionInfo">0/50</span></div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/main.js"></script>
+</body>
+</html> 
