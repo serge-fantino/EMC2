@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Propagation Gravitationnelle - Démo</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #1a1a1a;
+            color: white;
+            display: flex;
+            gap: 20px;
+            padding: 20px;
+        }
+        #canvas {
+            border: 2px solid #444;
+            background: #000;
+            cursor: crosshair;
+        }
+        .controls {
+            width: 300px;
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 10px;
+            height: fit-content;
+        }
+        .control-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="range"] {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button.clear {
+            background: #f44336;
+        }
+        button.clear:hover {
+            background: #da190b;
+        }
+        .info {
+            background: #3a3a3a;
+            padding: 15px;
+            border-radius: 5px;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        .legend {
+            margin-top: 15px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            margin-right: 10px;
+            border-radius: 2px;
+        }
+        .value-display {
+            background: #444;
+            padding: 5px 10px;
+            border-radius: 3px;
+            margin-top: 5px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas" width="800" height="600"></canvas>
+    
+    <div class="controls">
+        <h2>🌌 Propagation Gravitationnelle</h2>
+        
+        <div class="control-group">
+            <label>Vitesse de Propagation</label>
+            <input type="range" id="speedSlider" min="0.1" max="5" step="0.1" value="1">
+            <div class="value-display" id="speedValue">1.0 × c</div>
+        </div>
+
+        <div class="control-group">
+            <label>Intensité des Vecteurs</label>
+            <input type="range" id="forceScale" min="0.1" max="3" step="0.1" value="1">
+            <div class="value-display" id="forceValue">1.0</div>
+        </div>
+
+        <div class="control-group">
+            <label>Résolution de la Grille</label>
+            <input type="range" id="gridResolution" min="15" max="40" step="5" value="25">
+            <div class="value-display" id="gridValue">25 × 25</div>
+        </div>
+
+        <div class="control-group">
+            <button onclick="clearAll()">🗑️ Effacer Tout</button>
+            <button onclick="toggleAnimation()">⏸️ Pause</button>
+        </div>
+
+        <div class="info">
+            <strong>Instructions :</strong><br>
+            • <strong>Clic gauche</strong> : Placer une nouvelle masse ou augmenter une masse existante<br>
+            • <strong>Clic droit</strong> : Diminuer une masse existante<br>
+            • Les vecteurs bleus montrent la force gravitationnelle<br>
+            • Les cercles verts montrent la propagation à vitesse finie<br>
+            • La taille et le nombre indiquent la masse
+        </div>
+
+        <div class="legend">
+            <h3>Légende :</h3>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #666;"></div>
+                Points de grille
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #ff4444;"></div>
+                Masses gravitationnelles
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #4499ff;"></div>
+                Vecteurs de force
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #44ff44;"></div>
+                Front de propagation
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        let gridResolution = 25;
+        let spacing = canvas.width / gridResolution;
+        let masses = [];
+        let propagationFronts = [];
+        let animationRunning = true;
+        let lastTime = 0;
+        
+        // Paramètres physiques
+        const G = 5000; // Constante gravitationnelle (artificielle pour la démo)
+        let propagationSpeed = 1; // Vitesse de propagation (pixels/frame)
+        let forceScale = 1;
+        
+        class Mass {
+            constructor(x, y, mass = 50) {
+                this.x = x;
+                this.y = y;
+                this.mass = mass;
+                this.creationTime = Date.now();
+            }
+            
+            increaseMass(amount = 25) {
+                this.mass += amount;
+            }
+            
+            decreaseMass(amount = 25) {
+                this.mass = Math.max(10, this.mass - amount);
+            }
+        }
+        
+        class PropagationFront {
+            constructor(x, y, startTime) {
+                this.x = x;
+                this.y = y;
+                this.startTime = startTime;
+                this.currentRadius = 0;
+            }
+            
+            update(currentTime, speed) {
+                this.currentRadius = (currentTime - this.startTime) * speed * 0.1;
+            }
+            
+            hasReached(pointX, pointY) {
+                const dist = Math.sqrt((pointX - this.x) ** 2 + (pointY - this.y) ** 2);
+                return dist <= this.currentRadius;
+            }
+        }
+        
+        function updateGrid() {
+            spacing = canvas.width / gridResolution;
+        }
+        
+        function getGridPoint(x, y) {
+            const gridX = Math.round(x / spacing) * spacing;
+            const gridY = Math.round(y / spacing) * spacing;
+            return {
+                x: Math.max(0, Math.min(canvas.width, gridX)),
+                y: Math.max(0, Math.min(canvas.height, gridY))
+            };
+        }
+        
+        function calculateForceAt(x, y, currentTime) {
+            let totalForceX = 0;
+            let totalForceY = 0;
+            
+            masses.forEach(mass => {
+                // Vérifier si l'effet de cette masse a atteint ce point
+                const front = propagationFronts.find(f => f.x === mass.x && f.y === mass.y);
+                if (front && front.hasReached(x, y)) {
+                    const dx = mass.x - x;
+                    const dy = mass.y - y;
+                    const distSq = dx * dx + dy * dy;
+                    
+                    if (distSq > 0) {
+                        const force = G * mass.mass / distSq;
+                        const dist = Math.sqrt(distSq);
+                        totalForceX += force * dx / dist;
+                        totalForceY += force * dy / dist;
+                    }
+                }
+            });
+            
+            return { x: totalForceX, y: totalForceY };
+        }
+        
+        function drawGrid() {
+            ctx.fillStyle = '#666';
+            for (let x = 0; x <= canvas.width; x += spacing) {
+                for (let y = 0; y <= canvas.height; y += spacing) {
+                    ctx.beginPath();
+                    ctx.arc(x, y, 2, 0, 2 * Math.PI);
+                    ctx.fill();
+                }
+            }
+        }
+        
+        function drawForceVectors(currentTime) {
+            ctx.strokeStyle = '#4499ff';
+            ctx.lineWidth = 2;
+            
+            const step = spacing;
+            for (let x = 0; x <= canvas.width; x += step) {
+                for (let y = 0; y <= canvas.height; y += step) {
+                    const force = calculateForceAt(x, y, currentTime);
+                    const magnitude = Math.sqrt(force.x * force.x + force.y * force.y);
+                    
+                    if (magnitude > 0.01) {
+                        // Normaliser et appliquer l'échelle
+                        const scale = forceScale * Math.min(spacing * 0.8, magnitude * 0.01);
+                        const normalizedX = force.x / magnitude;
+                        const normalizedY = force.y / magnitude;
+                        
+                        const endX = x + normalizedX * scale;
+                        const endY = y + normalizedY * scale;
+                        
+                        // Couleur basée sur l'intensité
+                        const intensity = Math.min(1, magnitude / 1000);
+                        ctx.strokeStyle = `rgb(${Math.floor(68 + intensity * 187)}, ${Math.floor(153 + intensity * 102)}, 255)`;
+                        
+                        // Dessiner le vecteur
+                        ctx.beginPath();
+                        ctx.moveTo(x, y);
+                        ctx.lineTo(endX, endY);
+                        ctx.stroke();
+                        
+                        // Dessiner la pointe de flèche
+                        const angle = Math.atan2(normalizedY, normalizedX);
+                        const arrowLength = 8;
+                        ctx.beginPath();
+                        ctx.moveTo(endX, endY);
+                        ctx.lineTo(
+                            endX - arrowLength * Math.cos(angle - 0.3),
+                            endY - arrowLength * Math.sin(angle - 0.3)
+                        );
+                        ctx.moveTo(endX, endY);
+                        ctx.lineTo(
+                            endX - arrowLength * Math.cos(angle + 0.3),
+                            endY - arrowLength * Math.sin(angle + 0.3)
+                        );
+                        ctx.stroke();
+                    }
+                }
+            }
+        }
+        
+        function drawMasses() {
+            masses.forEach(mass => {
+                // Taille proportionnelle à la masse
+                const radius = 8 + Math.sqrt(mass.mass) * 0.3;
+                
+                ctx.fillStyle = '#ff4444';
+                ctx.beginPath();
+                ctx.arc(mass.x, mass.y, radius, 0, 2 * Math.PI);
+                ctx.fill();
+                
+                // Halo
+                ctx.strokeStyle = '#ffaaaa';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(mass.x, mass.y, radius + 4, 0, 2 * Math.PI);
+                ctx.stroke();
+                
+                // Afficher la masse
+                ctx.fillStyle = 'white';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(Math.round(mass.mass), mass.x, mass.y - radius - 8);
+            });
+        }
+        
+        function drawPropagationFronts(currentTime) {
+            propagationFronts.forEach(front => {
+                front.update(currentTime, propagationSpeed);
+                
+                if (front.currentRadius > 0 && front.currentRadius < Math.max(canvas.width, canvas.height)) {
+                    ctx.strokeStyle = '#44ff44';
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([5, 5]);
+                    ctx.beginPath();
+                    ctx.arc(front.x, front.y, front.currentRadius, 0, 2 * Math.PI);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+            });
+        }
+        
+        function animate(currentTime) {
+            if (!animationRunning) return;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            drawGrid();
+            drawForceVectors(currentTime);
+            drawPropagationFronts(currentTime);
+            drawMasses();
+            
+            requestAnimationFrame(animate);
+        }
+        
+        function addMass(x, y, isRightClick = false) {
+            const gridPoint = getGridPoint(x, y);
+            
+            // Chercher une masse existante à cet endroit
+            const existing = masses.find(m => 
+                Math.abs(m.x - gridPoint.x) < spacing/2 && 
+                Math.abs(m.y - gridPoint.y) < spacing/2
+            );
+            
+            if (existing) {
+                // Modifier masse existante
+                if (isRightClick) {
+                    existing.decreaseMass();
+                } else {
+                    existing.increaseMass();
+                }
+            } else if (!isRightClick) {
+                // Créer nouvelle masse (seulement avec clic gauche)
+                masses.push(new Mass(gridPoint.x, gridPoint.y));
+                propagationFronts.push(new PropagationFront(gridPoint.x, gridPoint.y, Date.now()));
+            }
+        }
+        
+        function clearAll() {
+            masses = [];
+            propagationFronts = [];
+        }
+        
+        function toggleAnimation() {
+            animationRunning = !animationRunning;
+            const button = document.querySelector('button[onclick="toggleAnimation()"]');
+            if (animationRunning) {
+                button.textContent = '⏸️ Pause';
+                requestAnimationFrame(animate);
+            } else {
+                button.textContent = '▶️ Play';
+            }
+        }
+        
+        // Event listeners
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            addMass(x, y, false);
+        });
+        
+        canvas.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            addMass(x, y, true);
+        });
+        
+        // Contrôles
+        document.getElementById('speedSlider').addEventListener('input', (e) => {
+            propagationSpeed = parseFloat(e.target.value);
+            document.getElementById('speedValue').textContent = propagationSpeed.toFixed(1) + ' × c';
+        });
+        
+        document.getElementById('forceScale').addEventListener('input', (e) => {
+            forceScale = parseFloat(e.target.value);
+            document.getElementById('forceValue').textContent = forceScale.toFixed(1);
+        });
+        
+        document.getElementById('gridResolution').addEventListener('input', (e) => {
+            gridResolution = parseInt(e.target.value);
+            updateGrid();
+            document.getElementById('gridValue').textContent = gridResolution + ' × ' + gridResolution;
+        });
+        
+        // Initialisation
+        updateGrid();
+        requestAnimationFrame(animate);
+    </script>
+</body>
+</html>
