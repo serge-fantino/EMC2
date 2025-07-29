@@ -12,8 +12,33 @@
         <div class="canvas-container">
             <canvas id="gravityCanvas" width="800" height="600"></canvas>
             <div class="status-bar">
-                <span id="statusText">Prêt</span>
-                <span id="fpsCounter">60 FPS</span>
+                <div class="status-item">
+                    <span>FPS: <span id="fps">0</span></span>
+                </div>
+                <div class="status-item">
+                    <span>Temps Référence: <span id="referenceTime">0.00</span> s</span>
+                </div>
+                <div class="status-item">
+                    <span>Masses: <span id="massCount">0</span></span>
+                </div>
+                <div class="status-item">
+                    <span>Versions: <span id="versionInfo">0</span></span>
+                </div>
+                <div class="status-item">
+                    <span>Vaisseaux: <span id="spacecraftCount">0</span></span>
+                </div>
+                <div class="status-item">
+                    <span>Lasers: <span id="laserCount">0</span></span>
+                </div>
+                <div class="status-item">
+                    <span>Redshift: <span id="redshiftInfo">0.000</span></span>
+                </div>
+                <div class="status-item">
+                    <span>Géodésiques: <span id="geodesicCount">0</span></span>
+                </div>
+                <div class="status-item">
+                    <span>Horloges: <span id="clockCount">0</span></span>
+                </div>
             </div>
         </div>
 
@@ -61,6 +86,13 @@
                         <label for="tool-geodesic" class="tool-label">
                             <span class="tool-icon">🌌</span>
                             <span class="tool-name">Géodésiques</span>
+                        </label>
+                    </div>
+                    <div class="tool-option">
+                        <input type="radio" id="tool-clock" name="tool" value="clock">
+                        <label for="tool-clock" class="tool-label">
+                            <span class="tool-icon">⏰</span>
+                            <span class="tool-name">Horloge</span>
                         </label>
                     </div>
                 </div>

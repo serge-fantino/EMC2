@@ -624,11 +624,16 @@ function getGridPoint(x, y) {
 }
 
 function updateDebugInfo() {
+    // Mettre à jour les informations de debug
     document.getElementById('massCount').textContent = masses.length;
-    document.getElementById('versionInfo').textContent = massHistory.length;
+    document.getElementById('versionInfo').textContent = currentVersion;
     document.getElementById('spacecraftCount').textContent = spacecrafts.length;
     document.getElementById('laserCount').textContent = window.lasers ? window.lasers.length : 0;
     document.getElementById('geodesicCount').textContent = geodesics.length;
+    document.getElementById('clockCount').textContent = clocks.length;
+    
+    // Mettre à jour le temps de référence
+    document.getElementById('referenceTime').textContent = referenceClockTime.toFixed(2);
     
     // Afficher des informations sur les géodésiques
     if (geodesics.length > 0) {
@@ -674,12 +679,15 @@ function reset() {
     spacecrafts = [];
     window.lasers = [];
     geodesics = [];
+    clocks = [];
+    referenceClockTime = 0;
     currentVersion = 0;
     massHistory = [];
     initializeGridVersions();
     cancelSpacecraftPlacement();
     cancelLaserPlacement();
     cancelGeodesicPlacement();
+    cancelClockPlacement();
     console.log('Simulation réinitialisée');
 }
 
@@ -1251,13 +1259,21 @@ function animate() {
     
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
+    // Mettre à jour les géodésiques
+    updateGeodesics(deltaTime);
+    
+    // Mettre à jour les horloges
+    updateClocks(deltaTime);
+    
+    // Dessiner tout
     drawGrid();
-    drawVectors();
-    drawPropagation();
     drawMasses();
     drawSpacecrafts();
-    drawLasers(); // Dessiner les lasers
-    drawGeodesics(); // Dessiner les géodésiques
+    drawLasers();
+    drawPropagation();
+    drawVectors();
+    drawGeodesics();
+    drawClocks();
     
     requestAnimationFrame(animate);
 }
@@ -1276,6 +1292,13 @@ let geodesics = [];
 let isPlacingGeodesic = false;
 let geodesicStartPoint = null;
 let showGeodesicDebug = true; // Nouvelle variable pour afficher/masquer les infos de debug
+
+// Variables globales pour les horloges
+let referenceClockTime = 0; // Temps de l'horloge de référence (non affectée par la gravité)
+let clocks = []; // Array des horloges placées sur la grille
+let isPlacingClock = false;
+let isMovingClock = false;
+let selectedClock = null;
 
 // Paramètres réglables pour les géodésiques
 let geodesicSettings = {
@@ -1486,6 +1509,26 @@ function updateGeodesics(deltaTime) {
     // Elles sont recalculées seulement quand les masses changent
 }
 
+// Fonction pour calculer la dilatation temporelle gravitationnelle
+function calculateGravitationalTimeDilation(x, y, masses) {
+    // Calculer le potentiel gravitationnel Φ = -GM/r
+    let potential = 0;
+    masses.forEach(mass => {
+        const dx = mass.x - x;
+        const dy = mass.y - y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        if (distance > 0) {
+            potential -= G * mass.mass / distance;
+        }
+    });
+    
+    // Dilatation temporelle : dt = dt₀ * √(1 + 2Φ/c²)
+    // Pour de faibles potentiels : dt ≈ dt₀ * (1 + Φ/c²)
+    const timeDilationFactor = 1 + potential / (c * c);
+    
+    return Math.max(0.1, timeDilationFactor); // Éviter les valeurs négatives
+}
+
 // Gestion des événements
 canvas.addEventListener('click', (e) => {
     const rect = canvas.getBoundingClientRect();
@@ -1555,6 +1598,26 @@ canvas.addEventListener('click', (e) => {
     } else if (currentTool === 'geodesic') {
         // Un seul clic pour placer une géodésique
         addGeodesic(x, y);
+    } else if (currentTool === 'clock') {
+        // Vérifier si on clique sur une horloge existante pour la déplacer
+        const clickedClock = clocks.find(clock => {
+            const dx = x - clock.x;
+            const dy = y - clock.y;
+            return Math.sqrt(dx * dx + dy * dy) < 15; // Zone de clic
+        });
+        
+        if (clickedClock) {
+            // Commencer le déplacement d'une horloge existante
+            isMovingClock = true;
+            selectedClock = clickedClock;
+            selectedClock.isSelected = true;
+            canvas.style.cursor = 'move';
+            console.log('Déplacement d\'horloge commencé');
+        } else {
+            // Placer une nouvelle horloge
+            addClock(x, y);
+        }
+        return;
     }
 });
 
@@ -1575,6 +1638,9 @@ canvas.addEventListener('contextmenu', (e) => {
     } else if (currentTool === 'geodesic' && isPlacingGeodesic) {
         // Annuler le placement de géodésique
         cancelGeodesicPlacement();
+    } else if (currentTool === 'clock' && isMovingClock) {
+        // Annuler le déplacement d'horloge
+        cancelClockPlacement();
     }
 });
 
@@ -1593,6 +1659,8 @@ document.addEventListener('keydown', (e) => {
         cancelLaserPlacement();
     } else if (e.key === 'Escape' && isPlacingGeodesic) {
         cancelGeodesicPlacement();
+    } else if (e.key === 'Escape' && isMovingClock) {
+        cancelClockPlacement();
     }
 });
 
@@ -1629,6 +1697,9 @@ document.querySelectorAll('input[name="tool"]').forEach(radio => {
         if (currentTool !== 'geodesic') {
             cancelGeodesicPlacement();
         }
+        if (currentTool !== 'clock') {
+            cancelClockPlacement();
+        }
         
         // Mettre à jour le curseur
         if (currentTool === 'spacecraft') {
@@ -1636,6 +1707,8 @@ document.querySelectorAll('input[name="tool"]').forEach(radio => {
         } else if (currentTool === 'laser') {
             canvas.style.cursor = 'crosshair';
         } else if (currentTool === 'geodesic') {
+            canvas.style.cursor = 'crosshair';
+        } else if (currentTool === 'clock') {
             canvas.style.cursor = 'crosshair';
         } else {
             canvas.style.cursor = 'default';
@@ -1744,3 +1817,136 @@ document.addEventListener('DOMContentLoaded', () => {
 initializeGridVersions();
 updateDebugInfo();
 animate(); 
+
+// Fonction pour ajouter une horloge
+function addClock(x, y) {
+    const clock = {
+        x: x,
+        y: y,
+        referenceTime: referenceClockTime, // Temps de référence au moment de la création
+        localTime: referenceClockTime, // Temps local (sera mis à jour)
+        isSelected: false
+    };
+    
+    clocks.push(clock);
+    console.log(`Horloge ajoutée à (${x}, ${y}), temps de référence: ${referenceClockTime.toFixed(2)}s`);
+}
+
+// Fonction pour mettre à jour les horloges
+function updateClocks(deltaTime) {
+    // Mettre à jour le temps de référence
+    referenceClockTime += deltaTime;
+    
+    // Mettre à jour chaque horloge
+    clocks.forEach(clock => {
+        // Obtenir les masses à la position de l'horloge (avec propagation causale)
+        const { gridX, gridY } = getGridVersionIndex(clock.x, clock.y);
+        const pointVersion = gridVersions[gridX] && gridVersions[gridX][gridY] !== undefined 
+            ? gridVersions[gridX][gridY] : 0;
+        const versionMasses = getMassesForVersion(pointVersion);
+        
+        // Calculer la dilatation temporelle
+        const timeDilationFactor = calculateGravitationalTimeDilation(clock.x, clock.y, versionMasses);
+        
+        // Mettre à jour le temps local
+        clock.localTime += deltaTime * timeDilationFactor;
+    });
+}
+
+// Fonction pour dessiner les horloges
+function drawClocks() {
+    clocks.forEach(clock => {
+        // Couleur de base pour les horloges
+        let clockColor = '#FFD700'; // Or
+        
+        // Si l'horloge est sélectionnée, changer la couleur
+        if (clock.isSelected) {
+            clockColor = '#FF6B6B'; // Rouge pour l'horloge sélectionnée
+        }
+        
+        // Dessiner le cercle de l'horloge
+        ctx.fillStyle = clockColor;
+        ctx.beginPath();
+        ctx.arc(clock.x, clock.y, 12, 0, 2 * Math.PI);
+        ctx.fill();
+        
+        // Bordure
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        // Dessiner les aiguilles de l'horloge (simplifiées)
+        const centerX = clock.x;
+        const centerY = clock.y;
+        
+        // Aiguille des heures (plus courte)
+        const hourAngle = (clock.localTime % 12) * Math.PI / 6; // 12 heures = 2π
+        const hourLength = 6;
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        ctx.lineTo(
+            centerX + hourLength * Math.sin(hourAngle),
+            centerY - hourLength * Math.cos(hourAngle)
+        );
+        ctx.stroke();
+        
+        // Aiguille des minutes (plus longue)
+        const minuteAngle = (clock.localTime % 1) * 2 * Math.PI; // 1 minute = 2π
+        const minuteLength = 8;
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        ctx.lineTo(
+            centerX + minuteLength * Math.sin(minuteAngle),
+            centerY - minuteLength * Math.cos(minuteAngle)
+        );
+        ctx.stroke();
+        
+        // Afficher le temps local
+        ctx.fillStyle = '#000000';
+        ctx.font = '10px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${clock.localTime.toFixed(1)}s`, clock.x, clock.y + 25);
+        
+        // Afficher le facteur de dilatation temporelle
+        const { gridX, gridY } = getGridVersionIndex(clock.x, clock.y);
+        const pointVersion = gridVersions[gridX] && gridVersions[gridX][gridY] !== undefined 
+            ? gridVersions[gridX][gridY] : 0;
+        const versionMasses = getMassesForVersion(pointVersion);
+        const timeDilationFactor = calculateGravitationalTimeDilation(clock.x, clock.y, versionMasses);
+        
+        ctx.fillStyle = '#666666';
+        ctx.font = '8px Arial';
+        ctx.fillText(`×${timeDilationFactor.toFixed(3)}`, clock.x, clock.y + 35);
+    });
+}
+
+// Gestion du déplacement d'horloge
+if (isMovingClock && selectedClock) {
+    selectedClock.x = mousePosition.x;
+    selectedClock.y = mousePosition.y;
+    return;
+}
+
+// Fin du déplacement d'horloge
+if (isMovingClock && selectedClock) {
+    isMovingClock = false;
+    selectedClock.isSelected = false;
+    selectedClock = null;
+    canvas.style.cursor = 'default';
+    console.log('Déplacement d\'horloge terminé');
+    return;
+}
+
+function cancelClockPlacement() {
+    isPlacingClock = false;
+    isMovingClock = false;
+    if (selectedClock) {
+        selectedClock.isSelected = false;
+        selectedClock = null;
+    }
+    canvas.style.cursor = 'default';
+}
