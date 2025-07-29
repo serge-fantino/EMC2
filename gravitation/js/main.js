@@ -114,11 +114,15 @@ function addMass(x, y, isRightClick = false) {
         // Créer un nouveau front de propagation si la masse a changé
         if (existing.mass !== oldMass) {
             createNewVersion('modification', gridPoint.x, gridPoint.y, existing.mass - oldMass);
+            // Recalculer toutes les géodésiques quand une masse change
+            recalculateAllGeodesics();
         }
     } else if (!isRightClick) {
         // Créer nouvelle masse (seulement avec clic gauche)
         masses.push({ x: gridPoint.x, y: gridPoint.y, mass: 50 });
         createNewVersion('creation', gridPoint.x, gridPoint.y, 0);
+        // Recalculer toutes les géodésiques quand une nouvelle masse est ajoutée
+        recalculateAllGeodesics();
     }
     
     updateDebugInfo();
@@ -133,6 +137,8 @@ function removeMass(mass) {
         if (frontIndex > -1) {
             propagationFronts.splice(frontIndex, 1);
         }
+        // Recalculer toutes les géodésiques quand une masse est supprimée
+        recalculateAllGeodesics();
     }
 }
 
@@ -183,6 +189,9 @@ function addBlackHole(x, y) {
     
     // Créer un front de propagation pour le trou noir
     createNewVersion('blackhole_creation', gridPoint.x, gridPoint.y, 0);
+    
+    // Recalculer toutes les géodésiques quand un trou noir est ajouté
+    recalculateAllGeodesics();
     
     updateDebugInfo();
 }
@@ -460,135 +469,148 @@ function addGeodesic(x, y, directionX, directionY) {
 
 // Fonction pour mettre à jour les géodésiques selon l'équation des géodésiques
 function updateGeodesics(deltaTime) {
-    geodesics.forEach(geodesic => {
-        // Obtenir la version des masses à la position actuelle
-        const { gridX, gridY } = getGridVersionIndex(geodesic.x, geodesic.y);
-        const pointVersion = gridVersions[gridX] && gridVersions[gridX][gridY] !== undefined 
-            ? gridVersions[gridX][gridY] : 0;
-        const versionMasses = getMassesForVersion(pointVersion);
-        
-        // Calculer les symboles de Christoffel
-        const christoffel = calculateChristoffelSymbols(geodesic.x, geodesic.y, versionMasses);
-        
-        // Équation des géodésiques : d²x^μ/dτ² + Γ^μ_αβ (dx^α/dτ)(dx^β/dτ) = 0
-        // En 2D, on simplifie en considérant seulement les composantes spatiales
-        
-        // Accélération due à la courbure
-        const ax = -(christoffel.xxx * geodesic.vx * geodesic.vx + 
-                    2 * christoffel.xxy * geodesic.vx * geodesic.vy + 
-                    christoffel.xyy * geodesic.vy * geodesic.vy);
-        
-        const ay = -(christoffel.yxx * geodesic.vx * geodesic.vx + 
-                    2 * christoffel.yxy * geodesic.vx * geodesic.vy + 
-                    christoffel.yyy * geodesic.vy * geodesic.vy);
-        
-        // Mettre à jour la vitesse
-        geodesic.vx += ax * deltaTime;
-        geodesic.vy += ay * deltaTime;
-        
-        // Limiter la vitesse
-        const speed = Math.sqrt(geodesic.vx * geodesic.vx + geodesic.vy * geodesic.vy);
-        if (speed > maxSpeed) {
-            geodesic.vx = (geodesic.vx / speed) * maxSpeed;
-            geodesic.vy = (geodesic.vy / speed) * maxSpeed;
-        }
-        
-        // Mettre à jour la position
-        geodesic.x += geodesic.vx * deltaTime;
-        geodesic.y += geodesic.vy * deltaTime;
-        
-        // Ajouter à la trajectoire
-        geodesic.trail.push({ x: geodesic.x, y: geodesic.y });
-        if (geodesic.trail.length > geodesic.maxTrailLength) {
-            geodesic.trail.shift();
-        }
-        
-        // Supprimer si hors du canvas
-        if (geodesic.x < 0 || geodesic.x > canvas.width || 
-            geodesic.y < 0 || geodesic.y > canvas.height) {
-            const index = geodesics.indexOf(geodesic);
-            if (index > -1) {
-                geodesics.splice(index, 1);
-            }
-        }
-    });
+    // Les géodésiques sont statiques, pas besoin de mise à jour
 }
 
 // Fonction pour dessiner les géodésiques
 function drawGeodesics() {
-    // Dessiner les géodésiques existantes
-    if (geodesics && geodesics.length > 0) {
-        geodesics.forEach(geodesic => {
-            // Dessiner la trajectoire avec couleur violette pour les géodésiques
-            if (geodesic.trail.length > 1) {
-                ctx.strokeStyle = '#8A2BE2'; // Violet pour les géodésiques
-                ctx.lineWidth = 2;
-                ctx.setLineDash([5, 5]); // Ligne pointillée
-                ctx.beginPath();
-                ctx.moveTo(geodesic.trail[0].x, geodesic.trail[0].y);
+    if (!geodesics || geodesics.length === 0) return;
+    
+    ctx.strokeStyle = '#8A2BE2';
+    ctx.setLineDash([5, 5]);
+    
+    // Calculer les valeurs min/max d'intensité pour toutes les géodésiques
+    let minIntensity = Infinity;
+    let maxIntensity = -Infinity;
+    
+    geodesics.forEach(geodesic => {
+        geodesic.points.forEach((point, index) => {
+            if (index < geodesic.points.length - 1) {
+                const nextPoint = geodesic.points[index + 1];
+                const midX = (point.x + nextPoint.x) / 2;
+                const midY = (point.y + nextPoint.y) / 2;
                 
-                for (let i = 1; i < geodesic.trail.length; i++) {
-                    ctx.lineTo(geodesic.trail[i].x, geodesic.trail[i].y);
-                }
-                ctx.stroke();
-                ctx.setLineDash([]); // Réinitialiser
+                let totalIntensity = 0;
+                masses.forEach(mass => {
+                    const dx = mass.x - midX;
+                    const dy = mass.y - midY;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    if (distance > 0) {
+                        totalIntensity += mass.mass / (distance * distance);
+                    }
+                });
+                
+                // Appliquer une échelle logarithmique pour mieux gérer les variations d'ordre de grandeur
+                const logIntensity = Math.log(1 + totalIntensity);
+                minIntensity = Math.min(minIntensity, logIntensity);
+                maxIntensity = Math.max(maxIntensity, logIntensity);
             }
-            
-            // Dessiner le point de la géodésique
-            ctx.fillStyle = '#8A2BE2';
-            ctx.beginPath();
-            ctx.arc(geodesic.x, geodesic.y, 4, 0, 2 * Math.PI);
-            ctx.fill();
-            
-            // Ajouter un effet lumineux
-            ctx.shadowColor = '#8A2BE2';
-            ctx.shadowBlur = 8;
-            ctx.beginPath();
-            ctx.arc(geodesic.x, geodesic.y, 8, 0, 2 * Math.PI);
-            ctx.fill();
-            ctx.shadowBlur = 0;
         });
+    });
+    
+    // Éviter la division par zéro
+    const intensityRange = maxIntensity - minIntensity;
+    if (intensityRange === 0) {
+        minIntensity = 0;
+        maxIntensity = 1;
     }
+    
+    geodesics.forEach(geodesic => {
+        if (!geodesic.points || geodesic.points.length < 2) return;
+        
+        ctx.beginPath();
+        ctx.moveTo(geodesic.points[0].x, geodesic.points[0].y);
+        
+        // Dessiner chaque segment avec une épaisseur variable
+        for (let i = 0; i < geodesic.points.length - 1; i++) {
+            const point = geodesic.points[i];
+            const nextPoint = geodesic.points[i + 1];
+            
+            // Calculer l'intensité au milieu du segment
+            const midX = (point.x + nextPoint.x) / 2;
+            const midY = (point.y + nextPoint.y) / 2;
+            
+            let totalIntensity = 0;
+            masses.forEach(mass => {
+                const dx = mass.x - midX;
+                const dy = mass.y - midY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance > 0) {
+                    totalIntensity += mass.mass / (distance * distance);
+                }
+            });
+            
+            // Appliquer l'échelle logarithmique et normaliser
+            const logIntensity = Math.log(1 + totalIntensity);
+            const normalizedIntensity = (logIntensity - minIntensity) / (maxIntensity - minIntensity);
+            
+            // Calculer l'épaisseur avec amplification
+            const lineWidth = Math.max(2, Math.min(12, normalizedIntensity * 10 * geodesicSettings.thicknessAmplification));
+            ctx.lineWidth = lineWidth;
+            
+            ctx.lineTo(nextPoint.x, nextPoint.y);
+        }
+        
+        ctx.stroke();
+        
+        // Dessiner le point de départ (plus discret)
+        ctx.fillStyle = '#8A2BE2';
+        ctx.beginPath();
+        ctx.arc(geodesic.startX, geodesic.startY, 2, 0, 2 * Math.PI);
+        ctx.fill();
+        
+        // Effet lumineux plus subtil
+        ctx.shadowColor = '#8A2BE2';
+        ctx.shadowBlur = 4;
+        ctx.beginPath();
+        ctx.arc(geodesic.startX, geodesic.startY, 4, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        
+        // Afficher l'intensité du champ au point de départ (debug)
+        let startIntensity = 0;
+        masses.forEach(mass => {
+            const dx = mass.x - geodesic.startX;
+            const dy = mass.y - geodesic.startY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance > 0) {
+                startIntensity += mass.mass / (distance * distance);
+            }
+        });
+        
+        const logStartIntensity = Math.log(1 + startIntensity);
+        const normalizedStartIntensity = (logStartIntensity - minIntensity) / (maxIntensity - minIntensity);
+        
+        // Afficher les informations de debug seulement si activé
+        if (showGeodesicDebug) {
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(`I: ${startIntensity.toFixed(2)}`, geodesic.startX, geodesic.startY - 15);
+            ctx.fillText(`log: ${logStartIntensity.toFixed(3)}`, geodesic.startX, geodesic.startY - 3);
+            ctx.fillText(`norm: ${normalizedStartIntensity.toFixed(3)}`, geodesic.startX, geodesic.startY + 9);
+        }
+    });
+    
+    ctx.setLineDash([]);
     
     // Dessiner l'indicateur de placement de géodésique
     if (isPlacingGeodesic && geodesicStartPoint) {
         // Cercle de placement
         ctx.strokeStyle = '#8A2BE2';
         ctx.lineWidth = 2;
-        ctx.setLineDash([5, 5]);
+        ctx.setLineDash([8, 4]);
         ctx.beginPath();
         ctx.arc(geodesicStartPoint.x, geodesicStartPoint.y, 20, 0, 2 * Math.PI);
         ctx.stroke();
         ctx.setLineDash([]);
         
-        // Vecteur de direction
-        if (mousePosition) {
-            const dx = mousePosition.x - geodesicStartPoint.x;
-            const dy = mousePosition.y - geodesicStartPoint.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            
-            if (distance > 0) {
-                const normalizedDirX = dx / distance;
-                const normalizedDirY = dy / distance;
-                
-                ctx.strokeStyle = '#8A2BE2';
-                ctx.lineWidth = 3;
-                ctx.beginPath();
-                ctx.moveTo(geodesicStartPoint.x, geodesicStartPoint.y);
-                ctx.lineTo(
-                    geodesicStartPoint.x + normalizedDirX * 30,
-                    geodesicStartPoint.y + normalizedDirY * 30
-                );
-                ctx.stroke();
-                
-                // Texte explicatif
-                ctx.fillStyle = '#8A2BE2';
-                ctx.font = '14px Arial';
-                ctx.textAlign = 'left';
-                ctx.fillText('Géodésique Einsteinienne', geodesicStartPoint.x + 35, geodesicStartPoint.y - 10);
-                ctx.fillText('Clic pour confirmer', geodesicStartPoint.x + 35, geodesicStartPoint.y + 10);
-            }
-        }
+        // Texte explicatif
+        ctx.fillStyle = '#8A2BE2';
+        ctx.font = '14px Arial';
+        ctx.textAlign = 'left';
+        ctx.fillText('Géodésique (courbe de niveau)', geodesicStartPoint.x + 35, geodesicStartPoint.y - 10);
+        ctx.fillText('Clic pour confirmer', geodesicStartPoint.x + 35, geodesicStartPoint.y + 10);
     }
 }
 
@@ -607,6 +629,13 @@ function updateDebugInfo() {
     document.getElementById('spacecraftCount').textContent = spacecrafts.length;
     document.getElementById('laserCount').textContent = window.lasers ? window.lasers.length : 0;
     document.getElementById('geodesicCount').textContent = geodesics.length;
+    
+    // Afficher des informations sur les géodésiques
+    if (geodesics.length > 0) {
+        const closedCount = geodesics.filter(g => g.isClosed).length;
+        const avgAngle = geodesics.reduce((sum, g) => sum + (g.totalAngle || 0), 0) / geodesics.length;
+        console.log(`Géodésiques: ${geodesics.length} total, ${closedCount} fermées, angle moyen: ${avgAngle.toFixed(1)}°`);
+    }
     
     // Calculer le redshift moyen des lasers
     let totalRedshift = 0;
@@ -1242,11 +1271,220 @@ let mousePosition = { x: 0, y: 0 };
 let laserStartPoint = null;
 let isPlacingLaser = false;
 
-// Variables globales pour les géodésiques
+// Variables globales pour les géodésiques (courbes de niveau)
 let geodesics = [];
 let isPlacingGeodesic = false;
 let geodesicStartPoint = null;
-let geodesicDirection = null;
+let showGeodesicDebug = true; // Nouvelle variable pour afficher/masquer les infos de debug
+
+// Paramètres réglables pour les géodésiques
+let geodesicSettings = {
+    explorationStep: 0.5, // Réduit de 1.0 à 0.5 pour plus de précision
+    curveStep: 10.0, // Augmenté de 5.0 à 10.0 pour une meilleure convergence
+    maxSteps: 10000, // Augmenté à 10000 pour permettre les courbes complexes
+    minGradientThreshold: 0.001,
+    stopGradientThreshold: 0.001,
+    minPoints: 3,
+    minDistanceBetweenPoints: 2.0,
+    maxAngle: 400, // Augmenté de 360 à 400 pour les courbes complexes
+    boundingBoxMultiplier: 3,
+    thicknessAmplification: 1.0 // Nouveau paramètre pour amplifier l'épaisseur
+};
+
+// Fonction pour calculer le gradient du potentiel gravitationnel
+function calculateGravitationalGradient(x, y, masses) {
+    let gradientX = 0;
+    let gradientY = 0;
+    
+    masses.forEach(mass => {
+        const dx = mass.x - x;
+        const dy = mass.y - y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance > 0) {
+            // Gradient du potentiel gravitationnel ∇Φ = GM/r² * (r/r)
+            const gradientMagnitude = (G * mass.mass) / (distance * distance);
+            gradientX += (dx / distance) * gradientMagnitude;
+            gradientY += (dy / distance) * gradientMagnitude;
+        }
+    });
+    
+    return { x: gradientX, y: gradientY };
+}
+
+// Fonction pour normaliser un vecteur
+function normalizeVector(vx, vy) {
+    const magnitude = Math.sqrt(vx * vx + vy * vy);
+    if (magnitude === 0) return { x: 0, y: 0 };
+    return { x: vx / magnitude, y: vy / magnitude };
+}
+
+// Fonction pour ajouter une géodésique (courbe de niveau)
+function addGeodesic(startX, startY) {
+    // Vérifier d'abord si le champ gravitationnel est suffisamment fort
+    const gradient = calculateGravitationalGradient(startX, startY, masses);
+    const gradientMagnitude = Math.sqrt(gradient.x * gradient.x + gradient.y * gradient.y);
+    
+    if (gradientMagnitude < geodesicSettings.minGradientThreshold) {
+        console.log('Champ gravitationnel trop faible pour créer une géodésique');
+        return;
+    }
+    
+    const geodesic = {
+        startX: startX,
+        startY: startY,
+        points: [],
+        maxLength: geodesicSettings.maxSteps,
+        type: 'geodesic'
+    };
+    
+    // Calculer les points de la géodésique
+    calculateGeodesicPoints(geodesic);
+    
+    // Vérifier que la géodésique a une longueur suffisante
+    if (geodesic.points.length < geodesicSettings.minPoints) {
+        console.log('Géodésique trop courte, ignorée');
+        return;
+    }
+    
+    geodesics.push(geodesic);
+    console.log('Géodésique ajoutée:', geodesic);
+}
+
+// Fonction pour calculer les points d'une géodésique (perpendiculaire au gradient)
+function calculateGeodesicPoints(geodesic) {
+    geodesic.points = [];
+    
+    const explorationStep = geodesicSettings.explorationStep;
+    const curveStep = geodesicSettings.curveStep;
+    const maxSteps = geodesicSettings.maxSteps;
+    const maxAngle = geodesicSettings.maxAngle;
+    const boundingBoxMultiplier = geodesicSettings.boundingBoxMultiplier;
+    
+    let x = geodesic.startX;
+    let y = geodesic.startY;
+    let distanceTraveled = 0;
+    let lastCurvePoint = { x: x, y: y };
+    
+    // Calculer le centre de la bounding box étendue
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const maxDistance = Math.max(canvas.width, canvas.height) * boundingBoxMultiplier / 2;
+    
+    // Variables pour le suivi de l'angle
+    let totalAngle = 0;
+    let lastDirection = null;
+    
+    // Ajouter le point de départ
+    geodesic.points.push({ x: x, y: y });
+    
+    // Calculer dans une seule direction jusqu'à fermeture ou limite
+    for (let step = 0; step < maxSteps; step++) {
+        // Calculer le gradient à la position actuelle
+        const gradient = calculateGravitationalGradient(x, y, masses);
+        
+        // Si le gradient est trop faible, arrêter
+        const gradientMagnitude = Math.sqrt(gradient.x * gradient.x + gradient.y * gradient.y);
+        if (gradientMagnitude < geodesicSettings.stopGradientThreshold) {
+            break;
+        }
+        
+        // La géodésique est perpendiculaire au gradient
+        // Si gradient = (gx, gy), alors direction = (-gy, gx)
+        const geodesicDirX = -gradient.y;
+        const geodesicDirY = gradient.x;
+        
+        // Normaliser la direction
+        const directionVector = normalizeVector(geodesicDirX, geodesicDirY);
+        
+        // Calculer l'angle par rapport à la direction précédente
+        if (lastDirection) {
+            const dotProduct = lastDirection.x * directionVector.x + lastDirection.y * directionVector.y;
+            const crossProduct = lastDirection.x * directionVector.y - lastDirection.y * directionVector.x;
+            const angleChange = Math.atan2(crossProduct, dotProduct) * (180 / Math.PI);
+            totalAngle += angleChange; // Supprimer Math.abs() pour tenir compte du signe
+        }
+        lastDirection = { x: directionVector.x, y: directionVector.y };
+        
+        // Vérifier si on a fait un tour complet (en valeur absolue)
+        if (Math.abs(totalAngle) >= maxAngle) {
+            console.log(`Géodésique fermée après ${totalAngle.toFixed(1)}° (courbure ${totalAngle >= 0 ? 'positive' : 'négative'})`);
+            break;
+        }
+        
+        // Nouveau cas d'arrêt : si courbure > 360° et proche du point de départ
+        if (Math.abs(totalAngle) >= 360) {
+            const distanceToStart = Math.sqrt((x - geodesic.startX) * (x - geodesic.startX) + (y - geodesic.startY) * (y - geodesic.startY));
+            if (distanceToStart <= curveStep) {
+                console.log(`Géodésique fermée naturellement à ${totalAngle.toFixed(1)}° (distance au départ: ${distanceToStart.toFixed(1)})`);
+                break;
+            }
+        }
+        
+        // Avancer avec le pas d'exploration
+        x += directionVector.x * explorationStep;
+        y += directionVector.y * explorationStep;
+        
+        // Vérifier la bounding box étendue
+        const distanceFromCenter = Math.sqrt((x - centerX) * (x - centerX) + (y - centerY) * (y - centerY));
+        if (distanceFromCenter > maxDistance) {
+            console.log(`Géodésique arrêtée par bounding box (distance: ${distanceFromCenter.toFixed(1)})`);
+            break;
+        }
+        
+        // Calculer la distance parcourue depuis le dernier point de courbe
+        const dx = x - lastCurvePoint.x;
+        const dy = y - lastCurvePoint.y;
+        distanceTraveled += Math.sqrt(dx * dx + dy * dy);
+        
+        // Ajouter un point de courbe si on a parcouru assez de distance
+        if (distanceTraveled >= curveStep) {
+            geodesic.points.push({ x: x, y: y });
+            lastCurvePoint = { x: x, y: y };
+            distanceTraveled = 0;
+        }
+        
+        // Arrêter si trop proche d'une masse (singularité)
+        let tooClose = false;
+        masses.forEach(mass => {
+            const dx = mass.x - x;
+            const dy = mass.y - y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance < 15) {
+                tooClose = true;
+            }
+        });
+        if (tooClose) break;
+    }
+    
+    // Éviter les doublons et les points trop proches
+    geodesic.points = geodesic.points.filter((point, index) => {
+        if (index === 0) return true;
+        const prevPoint = geodesic.points[index - 1];
+        const dx = point.x - prevPoint.x;
+        const dy = point.y - prevPoint.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        return distance > geodesicSettings.minDistanceBetweenPoints;
+    });
+    
+    // Ajouter des informations sur la géodésique
+    geodesic.totalAngle = totalAngle;
+    geodesic.isClosed = Math.abs(totalAngle) >= maxAngle;
+    geodesic.steps = geodesic.points.length;
+}
+
+// Fonction pour recalculer toutes les géodésiques
+function recalculateAllGeodesics() {
+    geodesics.forEach(geodesic => {
+        calculateGeodesicPoints(geodesic);
+    });
+}
+
+// Fonction pour mettre à jour les géodésiques (maintenant statiques)
+function updateGeodesics(deltaTime) {
+    // Les géodésiques sont statiques, pas besoin de mise à jour continue
+    // Elles sont recalculées seulement quand les masses changent
+}
 
 // Gestion des événements
 canvas.addEventListener('click', (e) => {
@@ -1315,33 +1553,8 @@ canvas.addEventListener('click', (e) => {
             canvas.style.cursor = 'default';
         }
     } else if (currentTool === 'geodesic') {
-        if (!isPlacingGeodesic) {
-            // Premier clic : définir le point de départ
-            geodesicStartPoint = { x, y };
-            mousePosition = { x, y }; // Initialiser mousePosition avec la position du clic
-            isPlacingGeodesic = true;
-            canvas.style.cursor = 'crosshair';
-            
-            // Debug: forcer un redessinage immédiat
-            console.log('Premier clic géodésique:', { x, y, geodesicStartPoint, mousePosition });
-            
-            // Forcer un cycle d'animation complet pour afficher la prévisualisation
-            requestAnimationFrame(() => {
-                animate();
-            });
-            
-
-        } else {
-            // Deuxième clic : confirmer la direction
-            const directionX = mousePosition.x - geodesicStartPoint.x;
-            const directionY = mousePosition.y - geodesicStartPoint.y;
-            addGeodesic(geodesicStartPoint.x, geodesicStartPoint.y, directionX, directionY);
-            
-            // Réinitialiser
-            geodesicStartPoint = null;
-            isPlacingGeodesic = false;
-            canvas.style.cursor = 'default';
-        }
+        // Un seul clic pour placer une géodésique
+        addGeodesic(x, y);
     }
 });
 
@@ -1462,6 +1675,69 @@ document.getElementById('showVectorsToggle').addEventListener('change', (e) => {
 
 document.getElementById('showPropagationToggle').addEventListener('change', (e) => {
     showPropagation = e.target.checked;
+});
+
+// Gestion des réglages des géodésiques
+function initializeGeodesicSettings() {
+    // Mettre à jour les valeurs affichées
+    function updateDisplayValue(id, value) {
+        const element = document.getElementById(id + 'Value');
+        if (element) {
+            element.textContent = value;
+        }
+    }
+    
+    // Gestionnaires pour les sliders
+    const settings = [
+        'explorationStep', 'curveStep', 'maxSteps', 
+        'minGradientThreshold', 'stopGradientThreshold', 
+        'minPoints', 'minDistanceBetweenPoints', 'maxAngle', 
+        'boundingBoxMultiplier', 'thicknessAmplification'
+    ];
+    
+    settings.forEach(setting => {
+        const element = document.getElementById(setting);
+        if (element) {
+            // Initialiser l'affichage
+            updateDisplayValue(setting, geodesicSettings[setting]);
+            
+            element.addEventListener('input', (e) => {
+                geodesicSettings[setting] = parseFloat(e.target.value);
+                updateDisplayValue(setting, e.target.value);
+            });
+        }
+    });
+    
+    // Gestionnaire pour le toggle des infos de debug
+    const debugToggle = document.getElementById('showGeodesicDebugToggle');
+    if (debugToggle) {
+        debugToggle.addEventListener('change', (e) => {
+            showGeodesicDebug = e.target.checked;
+        });
+    }
+    
+    // Bouton de recalcul
+    const recalcButton = document.getElementById('recalculateGeodesics');
+    if (recalcButton) {
+        recalcButton.addEventListener('click', () => {
+            recalculateAllGeodesics();
+            console.log('Toutes les géodésiques recalculées avec les nouveaux paramètres');
+        });
+    }
+    
+    // Bouton d'effacement
+    const clearButton = document.getElementById('clearGeodesics');
+    if (clearButton) {
+        clearButton.addEventListener('click', () => {
+            geodesics = [];
+            console.log('Toutes les géodésiques effacées');
+        });
+    }
+}
+
+// Initialiser les réglages au chargement
+document.addEventListener('DOMContentLoaded', () => {
+    initializeGeodesicSettings();
 });
 
 // Initialisation

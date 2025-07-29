@@ -358,6 +358,65 @@ input[type="checkbox"] {
     font-weight: bold;
 }
 
+/* Panneau de réglages des géodésiques */
+.settings-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.setting-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+}
+
+.setting-item label {
+    min-width: 120px;
+    font-weight: 500;
+}
+
+.setting-item input[type="range"] {
+    flex: 1;
+    min-width: 100px;
+}
+
+.setting-item span {
+    min-width: 40px;
+    text-align: right;
+    font-family: monospace;
+    font-size: 12px;
+    color: #666;
+}
+
+.settings-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.settings-actions button {
+    flex: 1;
+    padding: 8px 12px;
+    background: #4a5568;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: background-color 0.2s;
+}
+
+.settings-actions button:hover {
+    background: #2d3748;
+}
+
+.settings-actions button:active {
+    background: #1a202c;
+}
+
 /* Responsive */
 @media (max-width: 1200px) {
     .app-container {

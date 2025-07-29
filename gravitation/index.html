@@ -60,7 +60,7 @@
                         <input type="radio" id="tool-geodesic" name="tool" value="geodesic">
                         <label for="tool-geodesic" class="tool-label">
                             <span class="tool-icon">🌌</span>
-                            <span class="tool-name">Géodésique</span>
+                            <span class="tool-name">Géodésiques</span>
                         </label>
                     </div>
                 </div>
@@ -147,8 +147,8 @@
                     <p>• Capture : Vaisseaux trop proches disparaissent</p>
                     <p>• Rayon laser vert : Déviation gravitationnelle + redshift</p>
                     <p>• Redshift : Laser rouge (s'éloigne), bleu (se rapproche)</p>
-                    <p>• Géodésique violette : Trajectoire dans l'espace courbé (Einstein)</p>
-                    <p>• Comparaison : Vaisseau (Newton) vs Géodésique (Einstein)</p>
+                    <p>• Géodésiques violettes : Courbes de niveau du potentiel gravitationnel</p>
+                    <p>• Comparaison : Vaisseau (Newton) vs Géodésiques (Einstein)</p>
                 </div>
             </section>
 
@@ -186,7 +186,7 @@
                     </div>
                     <div class="legend-item">
                         <div class="legend-color geodesic-color"></div>
-                        <span>Géodésique Einsteinienne</span>
+                        <span>Géodésiques (courbes de niveau)</span>
                     </div>
 
                 </div>
@@ -204,6 +204,70 @@
                     <div>Redshift: <span id="redshiftInfo">--</span></div>
                     <div>Temps: <span id="currentTime">0</span>ms</div>
                     <div>Versions: <span id="versionInfo">0/50</span></div>
+                </div>
+            </section>
+            <section class="control-section">
+                <h3>Réglages des Géodésiques</h3>
+                <div class="settings-grid">
+                    <div class="setting-item">
+                        <label for="explorationStep">Pas d'exploration:</label>
+                        <input type="range" id="explorationStep" min="0.1" max="5.0" step="0.1" value="0.5">
+                        <span id="explorationStepValue">0.5</span>
+                    </div>
+                    <div class="setting-item">
+                        <label for="curveStep">Pas de courbe:</label>
+                        <input type="range" id="curveStep" min="1.0" max="20.0" step="0.5" value="10.0">
+                        <span id="curveStepValue">10.0</span>
+                    </div>
+                    <div class="setting-item">
+                        <label for="maxSteps">Max itérations:</label>
+                        <input type="range" id="maxSteps" min="100" max="10000" step="100" value="10000">
+                        <span id="maxStepsValue">10000</span>
+                    </div>
+                    <div class="setting-item">
+                        <label for="minGradientThreshold">Seuil création:</label>
+                        <input type="range" id="minGradientThreshold" min="0.001" max="0.1" step="0.001" value="0.001">
+                        <span id="minGradientThresholdValue">0.001</span>
+                    </div>
+                    <div class="setting-item">
+                        <label for="stopGradientThreshold">Seuil arrêt:</label>
+                        <input type="range" id="stopGradientThreshold" min="0.001" max="0.1" step="0.001" value="0.001">
+                        <span id="stopGradientThresholdValue">0.001</span>
+                    </div>
+                    <div class="setting-item">
+                        <label for="minPoints">Points minimum:</label>
+                        <input type="range" id="minPoints" min="2" max="10" step="1" value="3">
+                        <span id="minPointsValue">3</span>
+                    </div>
+                    <div class="setting-item">
+                        <label for="minDistanceBetweenPoints">Distance min:</label>
+                        <input type="range" id="minDistanceBetweenPoints" min="0.5" max="5.0" step="0.1" value="2.0">
+                        <span id="minDistanceBetweenPointsValue">2.0</span>
+                    </div>
+                    <div class="setting-item">
+                        <label for="maxAngle">Angle max (°):</label>
+                        <input type="range" id="maxAngle" min="180" max="720" step="10" value="400">
+                        <span id="maxAngleValue">400</span>
+                    </div>
+                    <div class="setting-item">
+                        <label for="boundingBoxMultiplier">Bounding box (x):</label>
+                        <input type="range" id="boundingBoxMultiplier" min="1" max="5" step="0.5" value="3">
+                        <span id="boundingBoxMultiplierValue">3</span>
+                    </div>
+                    <div class="setting-item">
+                        <label for="showGeodesicDebugToggle">Afficher infos géodésiques:</label>
+                        <input type="checkbox" id="showGeodesicDebugToggle" checked>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <label for="thicknessAmplification">Amplification épaisseur:</label>
+                        <input type="range" id="thicknessAmplification" min="0.1" max="10.0" step="0.1" value="1.0">
+                        <span id="thicknessAmplificationValue">1.0</span>
+                    </div>
+                </div>
+                <div class="settings-actions">
+                    <button id="recalculateGeodesics">Recalculer toutes les géodésiques</button>
+                    <button id="clearGeodesics">Effacer toutes les géodésiques</button>
                 </div>
             </section>
         </div>
