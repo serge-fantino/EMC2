@@ -105,8 +105,8 @@ gravitation/js/
 **Risque :** Moyen
 **Statut :** ✅ Terminé
 
-### Étape 3 : Fonctions de rendu ⏳
-**Fichiers à créer :**
+### Étape 3 : Fonctions de rendu ✅
+**Fichiers créés :**
 - `js/rendering/GridRenderer.js`
 - `js/rendering/MassRenderer.js`
 - `js/rendering/SpacecraftRenderer.js`
@@ -116,13 +116,13 @@ gravitation/js/
 - `js/rendering/VectorRenderer.js`
 - `js/rendering/PropagationRenderer.js`
 
-**Fonctions à déplacer :**
+**Fonctions déplacées :**
 - `drawGrid`, `drawMasses`, `drawSpacecrafts`, `drawLasers`
 - `drawPropagation`, `drawVectors`, `drawGeodesics`, `drawClocks`
 
-**Dépendances :** Accès à `ctx`, variables globales d'état
+**Dépendances :** Accès à `ctx`, variables globales d'état, modules des étapes 1 et 2
 **Risque :** Moyen
-**Statut :** À faire
+**Statut :** ✅ Terminé
 
 ### Étape 4 : Gestion des objets ⏳
 **Fichiers à créer :**
@@ -211,6 +211,68 @@ gravitation/js/
 - ✅ Correction de `updateDebugInfo()`, `reset()`, `updateSpacecrafts()`, `updateLasers()`
 - ✅ Correction de `drawLasers()`, `drawVectors()`, `updateClocks()`, `drawClocks()`
 - ✅ Utilisation de `getCurrentVersion()`, `getGridVersions()` et autres fonctions du module
+
+### [Date] - Étape 3 terminée
+- ✅ Création de 8 modules de rendu dans `js/rendering/` :
+  - `GridRenderer.js` : Rendu de la grille
+  - `MassRenderer.js` : Rendu des masses gravitationnelles
+  - `SpacecraftRenderer.js` : Rendu des vaisseaux spatiaux
+  - `LaserRenderer.js` : Rendu des lasers avec redshift
+  - `VectorRenderer.js` : Rendu des vecteurs de force
+  - `PropagationRenderer.js` : Rendu de la propagation gravitationnelle
+  - `GeodesicRenderer.js` : Rendu des géodésiques
+  - `ClockRenderer.js` : Rendu des horloges
+- ✅ Modification de `main.js` pour importer tous les modules de rendu
+- ✅ Suppression de toutes les fonctions de rendu du `main.js`
+- ✅ Ajout de l'initialisation des modules dans `reset()` et au début du fichier
+- ✅ Modification de `animate()` pour mettre à jour les références et utiliser les modules
+- ✅ Architecture : Chaque module utilise l'injection de dépendances pour accéder aux variables globales
+
+### [Date] - Correction de bugs après Étape 3
+- ✅ Correction de l'erreur "ctx is null" en ajoutant des vérifications de sécurité dans tous les modules de rendu
+- ✅ Correction de l'erreur "lasers is not defined" en synchronisant correctement `window.lasers` avec la variable locale
+- ✅ Correction de l'ordre d'initialisation : déplacement de l'initialisation des modules de rendu avant `DOMContentLoaded`
+- ✅ Suppression de l'appel redondant à `updateGeodesics(deltaTime)` dans `animate()`
+- ✅ **IMPORTANT** : Correction du comportement non iso-fonctionnel en initialisant les modules de rendu immédiatement plutôt qu'après `DOMContentLoaded`
+
+### [Date] - Correction des problèmes d'iso-fonctionnalité critiques
+- ✅ **Correction de l'incrément des masses** : Retour de 25 à 50 (comme dans l'original)
+- ✅ **Correction de la propagation gravitationnelle** : 
+  - Retour à la vitesse originale : `timeDiff * 10` au lieu de `elapsedTime * 50 * propagationSpeed`
+  - Suppression de l'effet d'alpha et du remplissage qui n'existaient pas dans l'original
+  - Retour à la couleur originale `#44ff44` au lieu de `#00ff00`
+  - Suppression de la suppression automatique des fronts dans le module de rendu
+- ✅ **Correction du système de versions** :
+  - Ajout du paramètre `currentMasses` dans `createNewVersion()` et `getMassesForVersion()`
+  - Mise à jour de tous les appels pour passer les masses actuelles
+  - Ajout de références aux masses dans `LaserRenderer.js`, `VectorRenderer.js`, et `ClockRenderer.js`
+  - Mise à jour des fonctions d'initialisation et de mise à jour pour injecter les masses
+- ✅ **Architecture corrigée** : Tous les modules de rendu ont maintenant accès aux masses actuelles pour un calcul correct des versions
+
+### [Date] - Corrections supplémentaires d'iso-fonctionnalité
+- ✅ **Correction de la taille des masses** : Retour à la formule originale `8 + Math.sqrt(mass.mass) * 0.3` au lieu de `5 + Math.sqrt(mass.mass) * 0.2`
+- ✅ **Correction de la propagation instantanée pour la première masse** :
+  - Modification de `getMassesForVersion(0)` pour retourner un tableau vide (état initial sans masses)
+  - Mise à jour immédiate de la version du point de grille lors de la création/modification d'une masse
+  - Utilisation de `updateGridPointVersion()` pour que la masse soit visible immédiatement à sa position
+- ✅ **Logique de propagation causale corrigée** : La première masse n'est plus propagée instantanément, elle suit maintenant la logique de propagation causale correcte
+
+### [Date] - Corrections de la représentation des trous noirs
+- ✅ **Correction de l'affichage de la masse** : Affichage en "K" pour les trous noirs (ex: "100K" au lieu de "100000")
+- ✅ **Ajout de l'horizon des événements** : Affichage de l'horizon des événements avec un cercle rouge en pointillés
+- ✅ **Correction de la propagation des trous noirs** : Ajout de `updateGridPointVersion()` pour la création des trous noirs
+- ✅ **Import de calculateEventHorizon** : Ajout de l'import dans `MassRenderer.js` pour calculer l'horizon des événements
+- ✅ **Correction de la couleur et taille des trous noirs** :
+  - Taille fixe de 20 pixels (au lieu de basée sur la masse)
+  - Effet lumineux noir au lieu de rouge
+  - Ombre plus prononcée (blur: 15, rayon +8)
+
+### [Date] - Améliorations de la gestion des trous noirs
+- ✅ **Suppression automatique** : Suppression du trou noir si sa masse devient < 50K
+- ✅ **Correction de l'horizon des événements** : Normalisation du calcul pour éviter un horizon trop grand
+  - Nouvelle formule : `Math.sqrt(mass) * 0.1` au lieu de `2GM/c²`
+  - Horizon proportionnel à la racine carrée de la masse (croissance plus lente)
+- ✅ **Gestion propre des clics** : `addBlackHole()` gère maintenant les trous noirs existants et nouveaux
 
 ## ⚠️ Points d'attention
 

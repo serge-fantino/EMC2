@@ -20,12 +20,16 @@ let maxVersions = 50; // Limite pour le round-robin
  * @param {number} x - Coordonnée x de la modification
  * @param {number} y - Coordonnée y de la modification
  * @param {number} massChange - Changement de masse (positif pour ajout, négatif pour suppression)
+ * @param {Array} currentMasses - État actuel des masses (optionnel, utilise la référence interne si non fourni)
  */
-export function createNewVersion(type, x, y, massChange) {
+export function createNewVersion(type, x, y, massChange, currentMasses = null) {
     currentVersion++;
     
+    // Utiliser les masses fournies ou la référence interne
+    const massesToUse = currentMasses || masses;
+    
     // Créer un snapshot de l'état actuel des masses
-    const massSnapshot = masses.map(mass => ({
+    const massSnapshot = massesToUse.map(mass => ({
         x: mass.x,
         y: mass.y,
         mass: mass.mass
@@ -140,9 +144,15 @@ export function updateGridPointVersion(x, y, version) {
 /**
  * Récupère les masses visibles pour une version donnée
  * @param {number} version - Version demandée
+ * @param {Array} currentMasses - État actuel des masses (optionnel, utilise la référence interne si non fourni)
  * @returns {Array} Configuration des masses pour cette version
  */
-export function getMassesForVersion(version) {
+export function getMassesForVersion(version, currentMasses = null) {
+    // Si la version est 0, retourner un tableau vide (état initial sans masses)
+    if (version === 0) {
+        return [];
+    }
+    
     // Trouver la version la plus proche dans l'historique
     let targetVersion = 0;
     let targetMasses = [];
@@ -157,7 +167,8 @@ export function getMassesForVersion(version) {
     
     // Si aucune version trouvée, utiliser les masses actuelles
     if (targetMasses.length === 0) {
-        targetMasses = masses.map(mass => ({
+        const massesToUse = currentMasses || masses;
+        targetMasses = massesToUse.map(mass => ({
             x: mass.x,
             y: mass.y,
             mass: mass.mass

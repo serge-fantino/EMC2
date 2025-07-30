@@ -28,6 +28,55 @@ import {
     getMaxVersions
 } from './core/VersionManager.js';
 
+// Import des modules de rendu
+import {
+    initializeGridRenderer,
+    setShowGrid,
+    drawGrid
+} from './rendering/GridRenderer.js';
+
+import {
+    initializeMassRenderer,
+    updateMasses,
+    drawMasses
+} from './rendering/MassRenderer.js';
+
+import {
+    initializeSpacecraftRenderer,
+    updateReferences as updateSpacecraftReferences,
+    drawSpacecrafts
+} from './rendering/SpacecraftRenderer.js';
+
+import {
+    initializeLaserRenderer,
+    updateReferences as updateLaserReferences,
+    drawLasers
+} from './rendering/LaserRenderer.js';
+
+import {
+    initializeVectorRenderer,
+    updateParameters as updateVectorParameters,
+    drawVectors
+} from './rendering/VectorRenderer.js';
+
+import {
+    initializePropagationRenderer,
+    updateParameters as updatePropagationParameters,
+    drawPropagation
+} from './rendering/PropagationRenderer.js';
+
+import {
+    initializeGeodesicRenderer,
+    updateReferences as updateGeodesicReferences,
+    drawGeodesics
+} from './rendering/GeodesicRenderer.js';
+
+import {
+    initializeClockRenderer,
+    updateClocks as updateClockReferences,
+    drawClocks
+} from './rendering/ClockRenderer.js';
+
 // Variables globales
 const canvas = document.getElementById('gravityCanvas');
 const ctx = canvas.getContext('2d');
@@ -51,6 +100,8 @@ let forceScale = 1.0;
 let gridResolution = 25;
 
 
+
+
     
 // Fonctions de base
 function addMass(x, y, isRightClick = false) {
@@ -64,19 +115,37 @@ function addMass(x, y, isRightClick = false) {
     
     if (existing) {
         // Modifier masse existante
+        console.log('Masse existante trouvée:', existing.type, 'masse:', existing.mass);
         const oldMass = existing.mass;
         if (isRightClick) {
-            existing.mass = Math.max(0, existing.mass - 25);
-            if (existing.mass <= 0) {
-                removeMass(existing);
+            if (existing.type === 'blackhole') {
+                // Pour les trous noirs : division par 2 avec minimum
+                existing.mass = Math.max(1000, existing.mass / 2);
+            } else {
+                // Pour les autres masses : décrément de 1000
+                existing.mass = Math.max(0, existing.mass - 1000);
+                if (existing.mass <= 0) {
+                    removeMass(existing);
+                }
             }
         } else {
-            existing.mass += 25;
+            if (existing.type === 'blackhole') {
+                // Pour les trous noirs : multiplication par 2
+                existing.mass *= 2;
+                console.log('Trou noir agrandi:', existing.mass);
+            } else {
+                // Pour les autres masses : incrément de 1000
+                existing.mass += 1000;
+            }
         }
         
         // Créer un nouveau front de propagation si la masse a changé
         if (existing.mass !== oldMass) {
-            const versionInfo = createNewVersion('modification', gridPoint.x, gridPoint.y, existing.mass - oldMass);
+            const versionInfo = createNewVersion('modification', gridPoint.x, gridPoint.y, existing.mass - oldMass, masses);
+            
+            // Mettre à jour immédiatement la version du point où la masse est modifiée
+            updateGridPointVersion(gridPoint.x, gridPoint.y, versionInfo.version);
+            
             // Créer le front de propagation
             propagationFronts.push({
                 x: versionInfo.x,
@@ -92,8 +161,12 @@ function addMass(x, y, isRightClick = false) {
         }
     } else if (!isRightClick) {
         // Créer nouvelle masse (seulement avec clic gauche)
-        masses.push({ x: gridPoint.x, y: gridPoint.y, mass: 50 });
-        const versionInfo = createNewVersion('creation', gridPoint.x, gridPoint.y, 0);
+        masses.push({ x: gridPoint.x, y: gridPoint.y, mass: 1000 });
+        const versionInfo = createNewVersion('creation', gridPoint.x, gridPoint.y, 0, masses);
+        
+        // Mettre à jour immédiatement la version du point où la masse est créée
+        updateGridPointVersion(gridPoint.x, gridPoint.y, versionInfo.version);
+        
         // Créer le front de propagation
         propagationFronts.push({
             x: versionInfo.x,
@@ -156,35 +229,93 @@ function addSpacecraft(x, y, directionX, directionY) {
     updateDebugInfo();
 }
 
-function addBlackHole(x, y) {
+function addBlackHole(x, y, isRightClick = false) {
     const gridPoint = getGridPoint(x, y);
     
-    // Créer le trou noir central (masse énorme)
-    const blackHole = {
-        x: gridPoint.x,
-        y: gridPoint.y,
-        mass: 100000, // Masse énorme !
-        type: 'blackhole',
-        creationTime: Date.now()
-    };
+    // Chercher un trou noir existant à cet endroit
+    const existing = masses.find(m => 
+        m.type === 'blackhole' &&
+        Math.abs(m.x - gridPoint.x) < spacing/2 && 
+        Math.abs(m.y - gridPoint.y) < spacing/2
+    );
     
-    masses.push(blackHole);
-    
-    // Créer un front de propagation pour le trou noir
-    const versionInfo = createNewVersion('blackhole_creation', gridPoint.x, gridPoint.y, 0);
-    // Créer le front de propagation
-    propagationFronts.push({
-        x: versionInfo.x,
-        y: versionInfo.y,
-        startTime: Date.now(),
-        spacing: spacing,
-        version: versionInfo.version,
-        type: versionInfo.type,
-        massChange: versionInfo.massChange
-    });
-    
-    // Recalculer toutes les géodésiques quand un trou noir est ajouté
-    recalculateAllGeodesics();
+    if (existing) {
+        // Modifier trou noir existant
+        const oldMass = existing.mass;
+        
+        // Utiliser le paramètre isRightClick passé à la fonction
+        
+        if (isRightClick) {
+            // Division par 2
+            existing.mass = existing.mass / 2;
+            console.log('Trou noir réduit:', existing.mass);
+            
+            // Supprimer si la masse devient trop petite
+            if (existing.mass < 50000) {
+                removeMass(existing);
+                console.log('Trou noir supprimé (masse trop faible)');
+                updateDebugInfo();
+                return;
+            }
+        } else {
+            // Multiplication par 2
+            existing.mass *= 2;
+            console.log('Trou noir agrandi:', existing.mass);
+        }
+        
+        // Créer un nouveau front de propagation si la masse a changé
+        if (existing.mass !== oldMass) {
+            const versionInfo = createNewVersion('blackhole_modification', gridPoint.x, gridPoint.y, existing.mass - oldMass, masses);
+            
+            // Mettre à jour immédiatement la version du point où le trou noir est modifié
+            updateGridPointVersion(gridPoint.x, gridPoint.y, versionInfo.version);
+            
+            // Créer le front de propagation
+            propagationFronts.push({
+                x: versionInfo.x,
+                y: versionInfo.y,
+                startTime: Date.now(),
+                spacing: spacing,
+                version: versionInfo.version,
+                type: versionInfo.type,
+                massChange: versionInfo.massChange
+            });
+            
+            // Recalculer toutes les géodésiques quand un trou noir change
+            recalculateAllGeodesics();
+        }
+    } else {
+        // Créer un nouveau trou noir
+        const blackHole = {
+            x: gridPoint.x,
+            y: gridPoint.y,
+            mass: 100000, // Masse énorme !
+            type: 'blackhole',
+            creationTime: Date.now()
+        };
+        
+        masses.push(blackHole);
+        
+        // Créer un front de propagation pour le trou noir
+        const versionInfo = createNewVersion('blackhole_creation', gridPoint.x, gridPoint.y, 0, masses);
+        
+        // Mettre à jour immédiatement la version du point où le trou noir est créé
+        updateGridPointVersion(gridPoint.x, gridPoint.y, versionInfo.version);
+        
+        // Créer le front de propagation
+        propagationFronts.push({
+            x: versionInfo.x,
+            y: versionInfo.y,
+            startTime: Date.now(),
+            spacing: spacing,
+            version: versionInfo.version,
+            type: versionInfo.type,
+            massChange: versionInfo.massChange
+        });
+        
+        // Recalculer toutes les géodésiques quand un trou noir est ajouté
+        recalculateAllGeodesics();
+    }
     
     updateDebugInfo();
 }
@@ -231,7 +362,7 @@ function updateSpacecrafts(deltaTime) {
         const gridVersions = getGridVersions();
         const pointVersion = gridVersions[gridX] && gridVersions[gridX][gridY] !== undefined 
             ? gridVersions[gridX][gridY] : 0;
-        const versionMasses = getMassesForVersion(pointVersion);
+        const versionMasses = getMassesForVersion(pointVersion, masses);
         
         versionMasses.forEach(mass => {
             const dx = mass.x - spacecraft.x;
@@ -323,7 +454,7 @@ function updateLasers(deltaTime) {
         const gridVersions = getGridVersions();
         const pointVersion = gridVersions[gridX] && gridVersions[gridX][gridY] !== undefined 
             ? gridVersions[gridX][gridY] : 0;
-        const versionMasses = getMassesForVersion(pointVersion);
+        const versionMasses = getMassesForVersion(pointVersion, masses);
         
         versionMasses.forEach(mass => {
             const dx = mass.x - laser.x;
@@ -444,147 +575,7 @@ function calculateChristoffelSymbols(x, y, masses) {
 
 
 
-// Fonction pour dessiner les géodésiques
-function drawGeodesics() {
-    if (!geodesics || geodesics.length === 0) return;
-    
-    ctx.strokeStyle = '#8A2BE2';
-    ctx.setLineDash([5, 5]);
-    
-    // Calculer les valeurs min/max d'intensité pour toutes les géodésiques
-    let minIntensity = Infinity;
-    let maxIntensity = -Infinity;
-    
-    geodesics.forEach(geodesic => {
-        geodesic.points.forEach((point, index) => {
-            if (index < geodesic.points.length - 1) {
-                const nextPoint = geodesic.points[index + 1];
-                const midX = (point.x + nextPoint.x) / 2;
-                const midY = (point.y + nextPoint.y) / 2;
-                
-                let totalIntensity = 0;
-                masses.forEach(mass => {
-                    const dx = mass.x - midX;
-                    const dy = mass.y - midY;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-                    if (distance > 0) {
-                        totalIntensity += mass.mass / (distance * distance);
-                    }
-                });
-                
-                // Appliquer une échelle logarithmique pour mieux gérer les variations d'ordre de grandeur
-                const logIntensity = Math.log(1 + totalIntensity);
-                minIntensity = Math.min(minIntensity, logIntensity);
-                maxIntensity = Math.max(maxIntensity, logIntensity);
-            }
-        });
-    });
-    
-    // Éviter la division par zéro
-    const intensityRange = maxIntensity - minIntensity;
-    if (intensityRange === 0) {
-        minIntensity = 0;
-        maxIntensity = 1;
-    }
-    
-    geodesics.forEach(geodesic => {
-        if (!geodesic.points || geodesic.points.length < 2) return;
-        
-        ctx.beginPath();
-        ctx.moveTo(geodesic.points[0].x, geodesic.points[0].y);
-        
-        // Dessiner chaque segment avec une épaisseur variable
-        for (let i = 0; i < geodesic.points.length - 1; i++) {
-            const point = geodesic.points[i];
-            const nextPoint = geodesic.points[i + 1];
-            
-            // Calculer l'intensité au milieu du segment
-            const midX = (point.x + nextPoint.x) / 2;
-            const midY = (point.y + nextPoint.y) / 2;
-            
-            let totalIntensity = 0;
-            masses.forEach(mass => {
-                const dx = mass.x - midX;
-                const dy = mass.y - midY;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                if (distance > 0) {
-                    totalIntensity += mass.mass / (distance * distance);
-                }
-            });
-            
-            // Appliquer l'échelle logarithmique et normaliser
-            const logIntensity = Math.log(1 + totalIntensity);
-            const normalizedIntensity = (logIntensity - minIntensity) / (maxIntensity - minIntensity);
-            
-            // Calculer l'épaisseur avec amplification
-            const lineWidth = Math.max(2, Math.min(12, normalizedIntensity * 10 * geodesicSettings.thicknessAmplification));
-            ctx.lineWidth = lineWidth;
-            
-            ctx.lineTo(nextPoint.x, nextPoint.y);
-        }
-        
-        ctx.stroke();
-        
-        // Dessiner le point de départ (plus discret)
-        ctx.fillStyle = '#8A2BE2';
-        ctx.beginPath();
-        ctx.arc(geodesic.startX, geodesic.startY, 2, 0, 2 * Math.PI);
-        ctx.fill();
-        
-        // Effet lumineux plus subtil
-        ctx.shadowColor = '#8A2BE2';
-        ctx.shadowBlur = 4;
-        ctx.beginPath();
-        ctx.arc(geodesic.startX, geodesic.startY, 4, 0, 2 * Math.PI);
-        ctx.fill();
-        ctx.shadowBlur = 0;
-        
-        // Afficher l'intensité du champ au point de départ (debug)
-        let startIntensity = 0;
-        masses.forEach(mass => {
-            const dx = mass.x - geodesic.startX;
-            const dy = mass.y - geodesic.startY;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            if (distance > 0) {
-                startIntensity += mass.mass / (distance * distance);
-            }
-        });
-        
-        const logStartIntensity = Math.log(1 + startIntensity);
-        const normalizedStartIntensity = (logStartIntensity - minIntensity) / (maxIntensity - minIntensity);
-        
-        // Afficher les informations de debug seulement si activé
-        if (showGeodesicDebug) {
-            ctx.fillStyle = '#ffffff';
-            ctx.font = '12px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText(`I: ${startIntensity.toFixed(2)}`, geodesic.startX, geodesic.startY - 15);
-            ctx.fillText(`log: ${logStartIntensity.toFixed(3)}`, geodesic.startX, geodesic.startY - 3);
-            ctx.fillText(`norm: ${normalizedStartIntensity.toFixed(3)}`, geodesic.startX, geodesic.startY + 9);
-        }
-    });
-    
-    ctx.setLineDash([]);
-    
-    // Dessiner l'indicateur de placement de géodésique
-    if (isPlacingGeodesic && geodesicStartPoint) {
-        // Cercle de placement
-        ctx.strokeStyle = '#8A2BE2';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([8, 4]);
-        ctx.beginPath();
-        ctx.arc(geodesicStartPoint.x, geodesicStartPoint.y, 20, 0, 2 * Math.PI);
-        ctx.stroke();
-        ctx.setLineDash([]);
-        
-        // Texte explicatif
-        ctx.fillStyle = '#8A2BE2';
-        ctx.font = '14px Arial';
-        ctx.textAlign = 'left';
-        ctx.fillText('Géodésique (courbe de niveau)', geodesicStartPoint.x + 35, geodesicStartPoint.y - 10);
-        ctx.fillText('Clic pour confirmer', geodesicStartPoint.x + 35, geodesicStartPoint.y + 10);
-    }
-}
+
 
 function getGridPoint(x, y) {
     const gridX = Math.round(x / spacing) * spacing;
@@ -623,7 +614,7 @@ function updateDebugInfo() {
             const gridVersions = getGridVersions();
             const pointVersion = gridVersions[gridX] && gridVersions[gridX][gridY] !== undefined 
                 ? gridVersions[gridX][gridY] : 0;
-            const versionMasses = getMassesForVersion(pointVersion);
+            const versionMasses = getMassesForVersion(pointVersion, masses);
             const redshift = calculateGravitationalRedshift(laser.x, laser.y, versionMasses);
             totalRedshift += redshift;
             laserCount++;
@@ -659,465 +650,25 @@ function reset() {
     cancelLaserPlacement();
     cancelGeodesicPlacement();
     cancelClockPlacement();
+    
     console.log('Simulation réinitialisée');
 }
 
 
     
-// Fonctions de dessin
-function drawGrid() {
-    if (!showGrid) return;
-    
-    ctx.fillStyle = '#666';
-    for (let x = 0; x <= canvas.width; x += spacing) {
-        for (let y = 0; y <= canvas.height; y += spacing) {
-            ctx.beginPath();
-            ctx.arc(x, y, 2, 0, 2 * Math.PI);
-            ctx.fill();
-        }
-    }
-}
-
-function drawMasses() {
-    masses.forEach(mass => {
-        let radius, fillColor, strokeColor, textColor;
-        
-        if (mass.type === 'blackhole') {
-            // Trou noir : très grand, noir avec bordure rouge
-            radius = Math.max(15, Math.sqrt(mass.mass) * 0.1);
-            fillColor = '#000000';
-            strokeColor = '#ff0000';
-            textColor = '#ff0000';
-        } else if (mass.type === 'planet') {
-            // Planète : taille normale, couleur bleue
-            radius = 8 + Math.sqrt(mass.mass) * 0.3;
-            fillColor = '#4444ff';
-            strokeColor = '#aaaaff';
-            textColor = '#ffffff';
-        } else {
-            // Masse normale : rouge
-            radius = 8 + Math.sqrt(mass.mass) * 0.3;
-            fillColor = '#ff4444';
-            strokeColor = '#ffaaaa';
-            textColor = '#ffffff';
-        }
-        
-        // Dessiner le corps principal
-        ctx.fillStyle = fillColor;
-        ctx.beginPath();
-        ctx.arc(mass.x, mass.y, radius, 0, 2 * Math.PI);
-        ctx.fill();
-        
-        // Bordure
-        ctx.strokeStyle = strokeColor;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(mass.x, mass.y, radius + 4, 0, 2 * Math.PI);
-        ctx.stroke();
-        
-        // Texte de la masse
-        ctx.fillStyle = textColor;
-        ctx.font = '12px Arial';
-        ctx.textAlign = 'center';
-        
-        if (mass.type === 'blackhole') {
-            // Pour les trous noirs, afficher "BH" au lieu du nombre
-            ctx.fillText('BH', mass.x, mass.y - radius - 8);
-        } else {
-            ctx.fillText(Math.round(mass.mass), mass.x, mass.y - radius - 8);
-        }
-        
-        // Effet spécial pour les trous noirs : cercle d'horizon
-        if (mass.type === 'blackhole') {
-            const eventHorizonRadius = calculateEventHorizon(mass.mass);
-            ctx.strokeStyle = '#ff0000';
-            ctx.lineWidth = 2;
-            ctx.setLineDash([5, 5]);
-            ctx.beginPath();
-            ctx.arc(mass.x, mass.y, eventHorizonRadius, 0, 2 * Math.PI);
-            ctx.stroke();
-            ctx.setLineDash([]);
-            
-            // Afficher le rayon de l'horizon
-            ctx.fillStyle = '#ff0000';
-            ctx.font = '10px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText(`R=${Math.round(eventHorizonRadius)}`, mass.x, mass.y + radius + 20);
-        }
-    });
-}
-
-function drawSpacecrafts() {
-    if (!showSpacecrafts) return;
-    
-    spacecrafts.forEach(spacecraft => {
-        // Dessiner la trajectoire
-        if (spacecraft.trail.length > 1) {
-            ctx.strokeStyle = '#ffff00';
-            ctx.lineWidth = 1;
-            ctx.setLineDash([]);
-            ctx.beginPath();
-            ctx.moveTo(spacecraft.trail[0].x, spacecraft.trail[0].y);
-            
-            for (let i = 1; i < spacecraft.trail.length; i++) {
-                ctx.lineTo(spacecraft.trail[i].x, spacecraft.trail[i].y);
-            }
-            ctx.stroke();
-        }
-        
-        // Dessiner le vaisseau
-        ctx.fillStyle = '#ffff00';
-        ctx.beginPath();
-        ctx.arc(spacecraft.x, spacecraft.y, 4, 0, 2 * Math.PI);
-        ctx.fill();
-        
-        // Dessiner la direction du vaisseau
-        const speed = Math.sqrt(spacecraft.vx * spacecraft.vx + spacecraft.vy * spacecraft.vy);
-        if (speed > 0) {
-            const dirX = spacecraft.vx / speed;
-            const dirY = spacecraft.vy / speed;
-            
-            ctx.strokeStyle = '#ffff00';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(spacecraft.x, spacecraft.y);
-            ctx.lineTo(spacecraft.x + dirX * 15, spacecraft.y + dirY * 15);
-            ctx.stroke();
-            
-            // Afficher la vitesse actuelle du vaisseau
-            const speedPercentage = Math.round((speed / maxSpeed) * 100);
-            ctx.fillStyle = '#ffff00';
-            ctx.font = '10px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText(`${speedPercentage}%`, spacecraft.x + dirX * 25, spacecraft.y + dirY * 25);
-        }
-    });
-    
-    // Dessiner l'indicateur de placement de vaisseau
-    if (isPlacingSpacecraft && spacecraftStartPoint) {
-        console.log('Dessin placement vaisseau:', { isPlacingSpacecraft, spacecraftStartPoint, mousePosition });
-        // Dessiner le point de départ
-        ctx.strokeStyle = '#ffff00';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([5, 5]);
-        ctx.beginPath();
-        ctx.arc(spacecraftStartPoint.x, spacecraftStartPoint.y, 8, 0, 2 * Math.PI);
-        ctx.stroke();
-        ctx.setLineDash([]);
-        
-        // Calculer le vecteur vitesse prévisualisé
-        const directionX = mousePosition.x - spacecraftStartPoint.x;
-        const directionY = mousePosition.y - spacecraftStartPoint.y;
-        const distance = Math.sqrt(directionX * directionX + directionY * directionY);
-        
-
-        
-        // Toujours afficher quelque chose, même si distance = 0
-        let previewSpeed = 0;
-        let velocityX = 0;
-        let velocityY = 0;
-        
-        console.log('Calcul prévisualisation:', { distance, directionX, directionY });
-        
-        if (distance > 0) {
-            // Normaliser la direction
-            const normalizedDirX = directionX / distance;
-            const normalizedDirY = directionY / distance;
-            
-            // La vitesse est proportionnelle à la distance, avec limite à c
-            previewSpeed = Math.min(distance * 0.5, maxSpeed); // 0.5 pour un contrôle plus sensible
-            
-            velocityX = normalizedDirX * previewSpeed;
-            velocityY = normalizedDirY * previewSpeed;
-        } else {
-            // Si distance = 0, afficher un petit vecteur par défaut
-            previewSpeed = 5; // Vitesse minimale
-            velocityX = 5;
-            velocityY = 0;
-        }
-        
-        // Dessiner le vecteur vitesse prévisualisé (toujours)
-        ctx.strokeStyle = '#ffff00';
-        ctx.lineWidth = 3;
-        ctx.setLineDash([]);
-        ctx.beginPath();
-        ctx.moveTo(spacecraftStartPoint.x, spacecraftStartPoint.y);
-        ctx.lineTo(spacecraftStartPoint.x + velocityX, spacecraftStartPoint.y + velocityY);
-        ctx.stroke();
-        
-        // Dessiner la flèche
-        const arrowLength = 15;
-        const arrowAngle = Math.atan2(velocityY, velocityX);
-        ctx.beginPath();
-        ctx.moveTo(spacecraftStartPoint.x + velocityX, spacecraftStartPoint.y + velocityY);
-        ctx.lineTo(
-            spacecraftStartPoint.x + velocityX - arrowLength * Math.cos(arrowAngle - 0.3),
-            spacecraftStartPoint.y + velocityY - arrowLength * Math.sin(arrowAngle - 0.3)
-        );
-        ctx.moveTo(spacecraftStartPoint.x + velocityX, spacecraftStartPoint.y + velocityY);
-        ctx.lineTo(
-            spacecraftStartPoint.x + velocityX - arrowLength * Math.cos(arrowAngle + 0.3),
-            spacecraftStartPoint.y + velocityY - arrowLength * Math.sin(arrowAngle + 0.3)
-        );
-        ctx.stroke();
-        
-        // Afficher la vitesse en pourcentage de c
-        const speedPercentage = Math.round((previewSpeed / maxSpeed) * 100);
-        ctx.fillStyle = '#ffff00';
-        ctx.font = '12px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText(`${speedPercentage}% de c`, spacecraftStartPoint.x + velocityX, spacecraftStartPoint.y + velocityY - 10);
-        
-        // Afficher les instructions
-        ctx.fillStyle = '#ffff00';
-        ctx.font = '14px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText('Déplacez la souris pour ajuster la vitesse', spacecraftStartPoint.x, spacecraftStartPoint.y - 30);
-        ctx.fillText('Clic pour confirmer, ESC pour annuler', spacecraftStartPoint.x, spacecraftStartPoint.y - 15);
-    }
-}
-
-function drawLasers() {
-    // Supprimer la condition pour permettre l'affichage de la prévisualisation
-    // if (!window.lasers || window.lasers.length === 0) return;
-    
-    // Dessiner les lasers existants
-    if (window.lasers && window.lasers.length > 0) {
-        window.lasers.forEach(laser => {
-            // Calculer le redshift gravitationnel à la position du laser
-            const { gridX, gridY } = getGridVersionIndex(laser.x, laser.y);
-            const gridVersions = getGridVersions();
-            const pointVersion = gridVersions[gridX] && gridVersions[gridX][gridY] !== undefined 
-                ? gridVersions[gridX][gridY] : 0;
-            const versionMasses = getMassesForVersion(pointVersion);
-            
-            const redshift = calculateGravitationalRedshift(laser.x, laser.y, versionMasses);
-            const laserColor = redshiftToColor(redshift);
-            
-            // Dessiner la trajectoire avec couleur variable
-            if (laser.trail.length > 1) {
-                ctx.lineWidth = 3; // Ligne plus épaisse
-                ctx.setLineDash([]);
-                
-                // Dessiner chaque segment avec sa propre couleur de redshift
-                for (let i = 1; i < laser.trail.length; i++) {
-                    const prevPoint = laser.trail[i - 1];
-                    const currentPoint = laser.trail[i];
-                    
-                    // Calculer le redshift au milieu du segment
-                    const midX = (prevPoint.x + currentPoint.x) / 2;
-                    const midY = (prevPoint.y + currentPoint.y) / 2;
-                    const { gridX, gridY } = getGridVersionIndex(midX, midY);
-                    const gridVersions = getGridVersions();
-                    const pointVersion = gridVersions[gridX] && gridVersions[gridX][gridY] !== undefined 
-                        ? gridVersions[gridX][gridY] : 0;
-                    const versionMasses = getMassesForVersion(pointVersion);
-                    const segmentRedshift = calculateGravitationalRedshift(midX, midY, versionMasses);
-                    const segmentColor = redshiftToColor(segmentRedshift);
-                    
-                    ctx.strokeStyle = segmentColor;
-                    ctx.beginPath();
-                    ctx.moveTo(prevPoint.x, prevPoint.y);
-                    ctx.lineTo(currentPoint.x, currentPoint.y);
-                    ctx.stroke();
-                }
-            }
-            
-            // Dessiner le laser (point lumineux) avec couleur variable
-            ctx.fillStyle = laserColor;
-            ctx.beginPath();
-            ctx.arc(laser.x, laser.y, 3, 0, 2 * Math.PI);
-            ctx.fill();
-            
-            // Ajouter un effet lumineux avec couleur variable et pulsation
-            ctx.shadowColor = laserColor;
-            const pulseIntensity = Math.abs(redshift) * 10; // Pulsation basée sur l'intensité du redshift
-            ctx.shadowBlur = 5 + pulseIntensity;
-            ctx.beginPath();
-            ctx.arc(laser.x, laser.y, 6 + pulseIntensity * 0.5, 0, 2 * Math.PI);
-            ctx.fill();
-            ctx.shadowBlur = 0;
-            
-            // Afficher l'indicateur de redshift
-            ctx.fillStyle = '#ffffff';
-            ctx.font = '12px Arial';
-            ctx.textAlign = 'left';
-            const redshiftText = `z: ${redshift.toFixed(3)}`;
-            ctx.fillText(redshiftText, laser.x + 10, laser.y - 5);
-        });
-    }
-    
-    // Dessiner l'indicateur de placement de laser
-    if (isPlacingLaser && laserStartPoint) {
-        // Dessiner le point de départ
-        ctx.strokeStyle = '#00ff00';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([5, 5]);
-        ctx.beginPath();
-        ctx.arc(laserStartPoint.x, laserStartPoint.y, 8, 0, 2 * Math.PI);
-        ctx.stroke();
-        ctx.setLineDash([]);
-        
-        // Calculer le vecteur direction prévisualisé
-        const directionX = mousePosition.x - laserStartPoint.x;
-        const directionY = mousePosition.y - laserStartPoint.y;
-        const distance = Math.sqrt(directionX * directionX + directionY * directionY);
-        
-        if (distance > 0) {
-            // Normaliser la direction
-            const normalizedDirX = directionX / distance;
-            const normalizedDirY = directionY / distance;
-            
-            // Dessiner le vecteur direction prévisualisé
-            ctx.strokeStyle = '#00ff00';
-            ctx.lineWidth = 3;
-            ctx.setLineDash([]);
-            ctx.beginPath();
-            ctx.moveTo(laserStartPoint.x, laserStartPoint.y);
-            ctx.lineTo(laserStartPoint.x + normalizedDirX * 30, laserStartPoint.y + normalizedDirY * 30);
-            ctx.stroke();
-            
-            // Dessiner la flèche
-            const arrowLength = 15;
-            const arrowAngle = Math.atan2(normalizedDirY, normalizedDirX);
-            ctx.beginPath();
-            ctx.moveTo(laserStartPoint.x + normalizedDirX * 30, laserStartPoint.y + normalizedDirY * 30);
-            ctx.lineTo(
-                laserStartPoint.x + normalizedDirX * 30 - arrowLength * Math.cos(arrowAngle - 0.3),
-                laserStartPoint.y + normalizedDirY * 30 - arrowLength * Math.sin(arrowAngle - 0.3)
-            );
-            ctx.moveTo(laserStartPoint.x + normalizedDirX * 30, laserStartPoint.y + normalizedDirY * 30);
-            ctx.lineTo(
-                laserStartPoint.x + normalizedDirX * 30 - arrowLength * Math.cos(arrowAngle + 0.3),
-                laserStartPoint.y + normalizedDirY * 30 - arrowLength * Math.sin(arrowAngle + 0.3)
-            );
-            ctx.stroke();
-            
-            // Afficher "vitesse c"
-            ctx.fillStyle = '#00ff00';
-            ctx.font = '12px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText('vitesse c', laserStartPoint.x + normalizedDirX * 30, laserStartPoint.y + normalizedDirY * 30 - 10);
-        }
-        
-        // Afficher les instructions
-        ctx.fillStyle = '#00ff00';
-        ctx.font = '14px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText('Déplacez la souris pour ajuster la direction', laserStartPoint.x, laserStartPoint.y - 30);
-        ctx.fillText('Clic pour confirmer, ESC pour annuler', laserStartPoint.x, laserStartPoint.y - 15);
-    }
-}
-
-function drawPropagation() {
-    if (!showPropagation) return;
-    
-    const currentTime = Date.now();
-    
-    propagationFronts.forEach(front => {
-        const timeDiff = (currentTime - front.startTime) / 1000;
-        const radius = timeDiff * propagationSpeed * 10; // Vitesse configurable
-        const radiusInPixels = radius * front.spacing;
-        
-        if (radius > 0 && radiusInPixels < Math.max(canvas.width, canvas.height)) {
-            // Trouver la masse correspondante
-            const mass = masses.find(m => m.x === front.x && m.y === front.y);
-            if (mass) {
-                // Calculer l'intensité gravitationnelle à cette distance (M/r²)
-                const intensity = mass.mass / (radius * radius);
-                const normalizedIntensity = Math.max(0.1, Math.min(5, intensity * 0.1));
-                
-                // Couleur uniforme pour tous les fronts d'onde
-                ctx.strokeStyle = '#44ff44'; // Vert pour tous les fronts
-                
-                // Épaisseur basée sur l'intensité gravitationnelle (décroît avec la distance)
-                ctx.lineWidth = Math.max(1, Math.min(8, normalizedIntensity * 4));
-                
-                // Pointillés plus denses pour les fronts intenses
-                const dashLength = Math.max(2, Math.min(8, 12 - normalizedIntensity * 2));
-                ctx.setLineDash([dashLength, dashLength]);
-                
-                ctx.beginPath();
-                ctx.arc(front.x, front.y, radiusInPixels, 0, 2 * Math.PI);
-                ctx.stroke();
-                ctx.setLineDash([]);
-                
-                // Mettre à jour les versions des points de grille atteints par le front
-                updateGridVersionsForFront(front, radius);
-            }
-        }
-    });
-}
 
 
 
-function drawVectors() {
-    if (!showVectors || masses.length === 0) return;
-    
-    ctx.strokeStyle = '#4499ff';
-    ctx.lineWidth = 2;
-    
-    const step = spacing;
-    
-    for (let x = 0; x <= canvas.width; x += step) {
-        for (let y = 0; y <= canvas.height; y += step) {
-            // Obtenir la version de ce point de grille
-            const { gridX, gridY } = getGridVersionIndex(x, y);
-            const gridVersions = getGridVersions();
-            const pointVersion = gridVersions[gridX] && gridVersions[gridX][gridY] !== undefined 
-                ? gridVersions[gridX][gridY] : 0;
-            
-            // Obtenir les masses pour cette version
-            const versionMasses = getMassesForVersion(pointVersion);
-            
-            let totalForceX = 0;
-            let totalForceY = 0;
-            
-            versionMasses.forEach(mass => {
-                const dx = mass.x - x;
-                const dy = mass.y - y;
-                const distSq = dx * dx + dy * dy;
-                
-                if (distSq > 0) {
-                    const force = 1000 * mass.mass / distSq;
-                    const dist = Math.sqrt(distSq);
-                    totalForceX += force * dx / dist;
-                    totalForceY += force * dy / dist;
-                }
-            });
-            
-            const magnitude = Math.sqrt(totalForceX * totalForceX + totalForceY * totalForceY);
-            
-            if (magnitude > 1) {
-                const scale = Math.min(20, magnitude * 0.1) * forceScale;
-                const normalizedX = totalForceX / magnitude;
-                const normalizedY = totalForceY / magnitude;
-                
-                const endX = x + normalizedX * scale;
-                const endY = y + normalizedY * scale;
-                
-                ctx.beginPath();
-                ctx.moveTo(x, y);
-                ctx.lineTo(endX, endY);
-                ctx.stroke();
-                
-                const angle = Math.atan2(normalizedY, normalizedX);
-                ctx.beginPath();
-                ctx.moveTo(endX, endY);
-                ctx.lineTo(
-                    endX - 8 * Math.cos(angle - 0.3),
-                    endY - 8 * Math.sin(angle - 0.3)
-                );
-                ctx.moveTo(endX, endY);
-                ctx.lineTo(
-                    endX - 8 * Math.cos(angle + 0.3),
-                    endY - 8 * Math.sin(angle + 0.3)
-                );
-                ctx.stroke();
-            }
-        }
-    }
-}
+
+
+
+
+
+
+
+
+
+
 
 function animate() {
     if (!animationRunning) return;
@@ -1129,7 +680,6 @@ function animate() {
     // Mettre à jour les vaisseaux
     updateSpacecrafts(deltaTime);
     updateLasers(deltaTime); // Mettre à jour les lasers
-    updateGeodesics(deltaTime); // Mettre à jour les géodésiques
     
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
@@ -1139,7 +689,18 @@ function animate() {
     // Mettre à jour les horloges
     updateClocks(deltaTime);
     
-    // Dessiner tout
+    // Mettre à jour les références des modules de rendu
+    updateMasses(masses);
+    updateSpacecraftReferences(spacecrafts, isPlacingSpacecraft, spacecraftStartPoint, mousePosition);
+    // Synchroniser lasers avec window.lasers
+    lasers = window.lasers || [];
+    updateLaserReferences(lasers, isPlacingLaser, laserStartPoint, mousePosition, masses);
+    updateVectorParameters(showVectors, forceScale, masses);
+    updatePropagationParameters(propagationFronts, showPropagation, propagationSpeed);
+    updateGeodesicReferences(geodesics, masses);
+    updateClockReferences(clocks, masses);
+    
+    // Dessiner tout avec les modules de rendu
     drawGrid();
     drawMasses();
     drawSpacecrafts();
@@ -1160,6 +721,7 @@ let mousePosition = { x: 0, y: 0 };
 // Variables pour le placement de laser
 let laserStartPoint = null;
 let isPlacingLaser = false;
+let lasers = []; // Référence locale vers window.lasers
 
 // Variables globales pour les géodésiques (courbes de niveau)
 let geodesics = [];
@@ -1435,7 +997,7 @@ canvas.addEventListener('click', (e) => {
             canvas.style.cursor = 'default';
         }
     } else if (currentTool === 'blackhole') {
-        addBlackHole(x, y);
+        addBlackHole(x, y, false); // Clic gauche
     } else if (currentTool === 'laser') {
         if (!isPlacingLaser) {
             // Premier clic : définir le point de départ
@@ -1498,6 +1060,8 @@ canvas.addEventListener('contextmenu', (e) => {
     
     if (currentTool === 'mass') {
         addMass(x, y, true);
+    } else if (currentTool === 'blackhole') {
+        addBlackHole(x, y, true); // Clic droit
     } else if (currentTool === 'spacecraft' && isPlacingSpacecraft) {
         // Annuler le placement de vaisseau
         cancelSpacecraftPlacement();
@@ -1701,9 +1265,24 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Initialisation
-    initializeVersionManager(masses, spacing, gridResolution);
-updateDebugInfo();
-animate(); 
+initializeVersionManager(masses, spacing, gridResolution);
+
+// Initialiser les modules de rendu immédiatement
+initializeGridRenderer(ctx, canvas, spacing, showGrid);
+initializeMassRenderer(ctx, masses);
+initializeSpacecraftRenderer(ctx, canvas, spacecrafts, isPlacingSpacecraft, spacecraftStartPoint, mousePosition);
+    initializeLaserRenderer(ctx, window.lasers || [], isPlacingLaser, laserStartPoint, mousePosition, getGridVersionIndex, getGridVersions, getMassesForVersion, calculateGravitationalRedshift, redshiftToColor, masses);
+initializeVectorRenderer(ctx, canvas, spacing, showVectors, forceScale, masses, getGridVersionIndex, getGridVersions, getMassesForVersion);
+initializePropagationRenderer(ctx, canvas, propagationFronts, showPropagation, propagationSpeed, updateGridVersionsForFront);
+initializeGeodesicRenderer(ctx, geodesics, masses);
+    initializeClockRenderer(ctx, clocks, getGridVersionIndex, getGridVersions, getMassesForVersion, calculateGravitationalTimeDilation, masses);
+
+// Initialiser les paramètres et démarrer l'animation
+document.addEventListener('DOMContentLoaded', () => {
+    initializeGeodesicSettings();
+    updateDebugInfo();
+    animate();
+}); 
 
 // Fonction pour ajouter une horloge
 function addClock(x, y) {
@@ -1731,7 +1310,7 @@ function updateClocks(deltaTime) {
         const gridVersions = getGridVersions();
         const pointVersion = gridVersions[gridX] && gridVersions[gridX][gridY] !== undefined 
             ? gridVersions[gridX][gridY] : 0;
-        const versionMasses = getMassesForVersion(pointVersion);
+        const versionMasses = getMassesForVersion(pointVersion, masses);
         
         // Calculer la dilatation temporelle
         const timeDilationFactor = calculateGravitationalTimeDilation(clock.x, clock.y, versionMasses);
@@ -1741,77 +1320,7 @@ function updateClocks(deltaTime) {
     });
 }
 
-// Fonction pour dessiner les horloges
-function drawClocks() {
-    clocks.forEach(clock => {
-        // Couleur de base pour les horloges
-        let clockColor = '#FFD700'; // Or
-        
-        // Si l'horloge est sélectionnée, changer la couleur
-        if (clock.isSelected) {
-            clockColor = '#FF6B6B'; // Rouge pour l'horloge sélectionnée
-        }
-        
-        // Dessiner le cercle de l'horloge
-        ctx.fillStyle = clockColor;
-        ctx.beginPath();
-        ctx.arc(clock.x, clock.y, 12, 0, 2 * Math.PI);
-        ctx.fill();
-        
-        // Bordure
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        
-        // Dessiner les aiguilles de l'horloge (simplifiées)
-        const centerX = clock.x;
-        const centerY = clock.y;
-        
-        // Aiguille des heures (plus courte)
-        const hourAngle = (clock.localTime % 12) * Math.PI / 6; // 12 heures = 2π
-        const hourLength = 6;
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(centerX, centerY);
-        ctx.lineTo(
-            centerX + hourLength * Math.sin(hourAngle),
-            centerY - hourLength * Math.cos(hourAngle)
-        );
-        ctx.stroke();
-        
-        // Aiguille des minutes (plus longue)
-        const minuteAngle = (clock.localTime % 1) * 2 * Math.PI; // 1 minute = 2π
-        const minuteLength = 8;
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(centerX, centerY);
-        ctx.lineTo(
-            centerX + minuteLength * Math.sin(minuteAngle),
-            centerY - minuteLength * Math.cos(minuteAngle)
-        );
-        ctx.stroke();
-        
-        // Afficher le temps local
-        ctx.fillStyle = '#000000';
-        ctx.font = '10px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText(`${clock.localTime.toFixed(1)}s`, clock.x, clock.y + 25);
-        
-        // Afficher le facteur de dilatation temporelle
-        const { gridX, gridY } = getGridVersionIndex(clock.x, clock.y);
-        const gridVersions = getGridVersions();
-        const pointVersion = gridVersions[gridX] && gridVersions[gridX][gridY] !== undefined 
-            ? gridVersions[gridX][gridY] : 0;
-        const versionMasses = getMassesForVersion(pointVersion);
-        const timeDilationFactor = calculateGravitationalTimeDilation(clock.x, clock.y, versionMasses);
-        
-        ctx.fillStyle = '#666666';
-        ctx.font = '8px Arial';
-        ctx.fillText(`×${timeDilationFactor.toFixed(3)}`, clock.x, clock.y + 35);
-    });
-}
+
 
 
 
@@ -1824,3 +1333,4 @@ function cancelClockPlacement() {
     }
     canvas.style.cursor = 'default';
 }
+

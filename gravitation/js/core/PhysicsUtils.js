@@ -8,11 +8,16 @@ import { G, c, REDSHIFT_MIN, REDSHIFT_MAX } from './PhysicsConstants.js';
 /**
  * Calcule l'horizon des événements d'un trou noir
  * @param {number} mass - Masse du trou noir
- * @returns {number} Rayon de Schwarzschild
+ * @returns {number} Rayon de Schwarzschild (normalisé pour la simulation)
  */
 export function calculateEventHorizon(mass) {
     // R = 2GM/c² (rayon de Schwarzschild)
-    return (2 * G * mass) / (c * c);
+    // Pour notre simulation, on normalise pour avoir un horizon visible mais pas trop grand
+    const schwarzschildRadius = (2 * G * mass) / (c * c);
+    
+    // Normalisation pour la simulation : horizon proportionnel à la racine carrée de la masse
+    // Cela donne un horizon qui grandit plus lentement avec la masse
+    return Math.sqrt(mass) * 0.1; // Facteur de normalisation
 }
 
 /**
