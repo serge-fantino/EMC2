@@ -12,6 +12,22 @@ import {
     normalizeVector 
 } from './core/PhysicsUtils.js';
 
+// Import du gestionnaire de versions
+import {
+    createNewVersion,
+    cleanupOldVersions,
+    initializeGridVersions,
+    getGridVersionIndex,
+    updateGridPointVersion,
+    getMassesForVersion,
+    updateGridVersionsForFront,
+    initializeVersionManager,
+    getCurrentVersion,
+    getMassHistory,
+    getGridVersions,
+    getMaxVersions
+} from './core/VersionManager.js';
+
 // Variables globales
 const canvas = document.getElementById('gravityCanvas');
 const ctx = canvas.getContext('2d');
@@ -34,11 +50,7 @@ let propagationSpeed = 1.0;
 let forceScale = 1.0;
 let gridResolution = 25;
 
-// Système de versions (nouveau)
-let currentVersion = 0;
-let massHistory = []; // Historique des configurations de masses
-let gridVersions = []; // Version de chaque point de grille
-let maxVersions = 50; // Limite pour le round-robin
+
     
 // Fonctions de base
 function addMass(x, y, isRightClick = false) {
@@ -64,14 +76,34 @@ function addMass(x, y, isRightClick = false) {
         
         // Créer un nouveau front de propagation si la masse a changé
         if (existing.mass !== oldMass) {
-            createNewVersion('modification', gridPoint.x, gridPoint.y, existing.mass - oldMass);
+            const versionInfo = createNewVersion('modification', gridPoint.x, gridPoint.y, existing.mass - oldMass);
+            // Créer le front de propagation
+            propagationFronts.push({
+                x: versionInfo.x,
+                y: versionInfo.y,
+                startTime: Date.now(),
+                spacing: spacing,
+                version: versionInfo.version,
+                type: versionInfo.type,
+                massChange: versionInfo.massChange
+            });
             // Recalculer toutes les géodésiques quand une masse change
             recalculateAllGeodesics();
         }
     } else if (!isRightClick) {
         // Créer nouvelle masse (seulement avec clic gauche)
         masses.push({ x: gridPoint.x, y: gridPoint.y, mass: 50 });
-        createNewVersion('creation', gridPoint.x, gridPoint.y, 0);
+        const versionInfo = createNewVersion('creation', gridPoint.x, gridPoint.y, 0);
+        // Créer le front de propagation
+        propagationFronts.push({
+            x: versionInfo.x,
+            y: versionInfo.y,
+            startTime: Date.now(),
+            spacing: spacing,
+            version: versionInfo.version,
+            type: versionInfo.type,
+            massChange: versionInfo.massChange
+        });
         // Recalculer toutes les géodésiques quand une nouvelle masse est ajoutée
         recalculateAllGeodesics();
     }
@@ -139,7 +171,17 @@ function addBlackHole(x, y) {
     masses.push(blackHole);
     
     // Créer un front de propagation pour le trou noir
-    createNewVersion('blackhole_creation', gridPoint.x, gridPoint.y, 0);
+    const versionInfo = createNewVersion('blackhole_creation', gridPoint.x, gridPoint.y, 0);
+    // Créer le front de propagation
+    propagationFronts.push({
+        x: versionInfo.x,
+        y: versionInfo.y,
+        startTime: Date.now(),
+        spacing: spacing,
+        version: versionInfo.version,
+        type: versionInfo.type,
+        massChange: versionInfo.massChange
+    });
     
     // Recalculer toutes les géodésiques quand un trou noir est ajouté
     recalculateAllGeodesics();
@@ -186,6 +228,7 @@ function updateSpacecrafts(deltaTime) {
         
         // Utiliser les masses de la version actuelle du point où se trouve le vaisseau
         const { gridX, gridY } = getGridVersionIndex(spacecraft.x, spacecraft.y);
+        const gridVersions = getGridVersions();
         const pointVersion = gridVersions[gridX] && gridVersions[gridX][gridY] !== undefined 
             ? gridVersions[gridX][gridY] : 0;
         const versionMasses = getMassesForVersion(pointVersion);
@@ -277,6 +320,7 @@ function updateLasers(deltaTime) {
         
         // Utiliser les masses de la version actuelle du point où se trouve le laser
         const { gridX, gridY } = getGridVersionIndex(laser.x, laser.y);
+        const gridVersions = getGridVersions();
         const pointVersion = gridVersions[gridX] && gridVersions[gridX][gridY] !== undefined 
             ? gridVersions[gridX][gridY] : 0;
         const versionMasses = getMassesForVersion(pointVersion);
@@ -554,7 +598,7 @@ function getGridPoint(x, y) {
 function updateDebugInfo() {
     // Mettre à jour les informations de debug
     document.getElementById('massCount').textContent = masses.length;
-    document.getElementById('versionInfo').textContent = currentVersion;
+    document.getElementById('versionInfo').textContent = getCurrentVersion();
     document.getElementById('spacecraftCount').textContent = spacecrafts.length;
     document.getElementById('laserCount').textContent = window.lasers ? window.lasers.length : 0;
     document.getElementById('geodesicCount').textContent = geodesics.length;
@@ -576,6 +620,7 @@ function updateDebugInfo() {
     if (window.lasers && window.lasers.length > 0) {
         window.lasers.forEach(laser => {
             const { gridX, gridY } = getGridVersionIndex(laser.x, laser.y);
+            const gridVersions = getGridVersions();
             const pointVersion = gridVersions[gridX] && gridVersions[gridX][gridY] !== undefined 
                 ? gridVersions[gridX][gridY] : 0;
             const versionMasses = getMassesForVersion(pointVersion);
@@ -609,9 +654,7 @@ function reset() {
     geodesics = [];
     clocks = [];
     referenceClockTime = 0;
-    currentVersion = 0;
-    massHistory = [];
-    initializeGridVersions();
+    initializeVersionManager(masses, spacing, gridResolution);
     cancelSpacecraftPlacement();
     cancelLaserPlacement();
     cancelGeodesicPlacement();
@@ -619,97 +662,7 @@ function reset() {
     console.log('Simulation réinitialisée');
 }
 
-// Nouvelles fonctions pour le système de versions
-function createNewVersion(type, x, y, massChange) {
-    currentVersion++;
-    
-    // Créer une copie de la configuration actuelle des masses
-    const newMassConfig = masses.map(mass => ({ x: mass.x, y: mass.y, mass: mass.mass }));
-    massHistory.push({
-        version: currentVersion,
-        masses: newMassConfig,
-        timestamp: Date.now()
-    });
-    
-    // Nettoyer les anciennes versions si nécessaire
-    cleanupOldVersions();
-    
-    // Créer le front de propagation
-    propagationFronts.push({
-        x: x,
-        y: y,
-        startTime: Date.now(),
-        spacing: spacing,
-        version: currentVersion,
-        type: type,
-        massChange: massChange
-    });
-}
 
-function cleanupOldVersions() {
-    if (massHistory.length > maxVersions) {
-        // Supprimer les versions les plus anciennes
-        const versionsToRemove = massHistory.length - maxVersions;
-        const removedVersions = massHistory.splice(0, versionsToRemove);
-        
-        // Mettre à jour les références dans la grille
-        const removedVersionNumbers = removedVersions.map(v => v.version);
-        updateGridVersionsAfterCleanup(removedVersionNumbers);
-        
-        // Supprimer les fronts de propagation correspondants
-        propagationFronts = propagationFronts.filter(front => 
-            !removedVersionNumbers.includes(front.version)
-        );
-    }
-}
-
-function updateGridVersionsAfterCleanup(removedVersions) {
-    const gridWidth = gridVersions.length;
-    const gridHeight = gridVersions[0] ? gridVersions[0].length : 0;
-    
-    for (let x = 0; x < gridWidth; x++) {
-        for (let y = 0; y < gridHeight; y++) {
-            if (gridVersions[x] && gridVersions[x][y] !== undefined) {
-                if (removedVersions.includes(gridVersions[x][y])) {
-                    // Remettre à la version 0 si la version a été supprimée
-                    gridVersions[x][y] = 0;
-                }
-            }
-        }
-    }
-}
-
-function initializeGridVersions() {
-    const gridWidth = Math.ceil(canvas.width / spacing);
-    const gridHeight = Math.ceil(canvas.height / spacing);
-    
-    gridVersions = [];
-    for (let x = 0; x < gridWidth; x++) {
-        gridVersions[x] = [];
-        for (let y = 0; y < gridHeight; y++) {
-            gridVersions[x][y] = 0; // Version initiale
-        }
-    }
-}
-
-function getGridVersionIndex(x, y) {
-    const gridX = Math.floor(x / spacing);
-    const gridY = Math.floor(y / spacing);
-    return { gridX, gridY };
-}
-
-function updateGridPointVersion(x, y, version) {
-    const { gridX, gridY } = getGridVersionIndex(x, y);
-    if (gridVersions[gridX] && gridVersions[gridX][gridY] !== undefined) {
-        gridVersions[gridX][gridY] = version;
-    }
-}
-
-function getMassesForVersion(version) {
-    if (version === 0) return [];
-    const versionData = massHistory.find(v => v.version === version);
-    return versionData ? versionData.masses : [];
-}
     
 // Fonctions de dessin
 function drawGrid() {
@@ -933,6 +886,7 @@ function drawLasers() {
         window.lasers.forEach(laser => {
             // Calculer le redshift gravitationnel à la position du laser
             const { gridX, gridY } = getGridVersionIndex(laser.x, laser.y);
+            const gridVersions = getGridVersions();
             const pointVersion = gridVersions[gridX] && gridVersions[gridX][gridY] !== undefined 
                 ? gridVersions[gridX][gridY] : 0;
             const versionMasses = getMassesForVersion(pointVersion);
@@ -954,6 +908,7 @@ function drawLasers() {
                     const midX = (prevPoint.x + currentPoint.x) / 2;
                     const midY = (prevPoint.y + currentPoint.y) / 2;
                     const { gridX, gridY } = getGridVersionIndex(midX, midY);
+                    const gridVersions = getGridVersions();
                     const pointVersion = gridVersions[gridX] && gridVersions[gridX][gridY] !== undefined 
                         ? gridVersions[gridX][gridY] : 0;
                     const versionMasses = getMassesForVersion(pointVersion);
@@ -1094,17 +1049,7 @@ function drawPropagation() {
     });
 }
 
-function updateGridVersionsForFront(front, radius) {
-    const step = spacing;
-    for (let x = 0; x <= canvas.width; x += step) {
-        for (let y = 0; y <= canvas.height; y += step) {
-            const dist = Math.sqrt((front.x - x) ** 2 + (front.y - y) ** 2) / front.spacing;
-            if (dist <= radius) {
-                updateGridPointVersion(x, y, front.version);
-            }
-        }
-    }
-}
+
 
 function drawVectors() {
     if (!showVectors || masses.length === 0) return;
@@ -1118,6 +1063,7 @@ function drawVectors() {
         for (let y = 0; y <= canvas.height; y += step) {
             // Obtenir la version de ce point de grille
             const { gridX, gridY } = getGridVersionIndex(x, y);
+            const gridVersions = getGridVersions();
             const pointVersion = gridVersions[gridX] && gridVersions[gridX][gridY] !== undefined 
                 ? gridVersions[gridX][gridY] : 0;
             
@@ -1755,7 +1701,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Initialisation
-initializeGridVersions();
+    initializeVersionManager(masses, spacing, gridResolution);
 updateDebugInfo();
 animate(); 
 
@@ -1782,6 +1728,7 @@ function updateClocks(deltaTime) {
     clocks.forEach(clock => {
         // Obtenir les masses à la position de l'horloge (avec propagation causale)
         const { gridX, gridY } = getGridVersionIndex(clock.x, clock.y);
+        const gridVersions = getGridVersions();
         const pointVersion = gridVersions[gridX] && gridVersions[gridX][gridY] !== undefined 
             ? gridVersions[gridX][gridY] : 0;
         const versionMasses = getMassesForVersion(pointVersion);
@@ -1854,6 +1801,7 @@ function drawClocks() {
         
         // Afficher le facteur de dilatation temporelle
         const { gridX, gridY } = getGridVersionIndex(clock.x, clock.y);
+        const gridVersions = getGridVersions();
         const pointVersion = gridVersions[gridX] && gridVersions[gridX][gridY] !== undefined 
             ? gridVersions[gridX][gridY] : 0;
         const versionMasses = getMassesForVersion(pointVersion);

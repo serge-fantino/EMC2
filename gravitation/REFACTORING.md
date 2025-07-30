@@ -91,18 +91,19 @@ gravitation/js/
 **Risque :** Faible
 **Statut :** ✅ Terminé
 
-### Étape 2 : Système de versions ⏳
-**Fichiers à créer :**
+### Étape 2 : Système de versions ✅
+**Fichiers créés :**
 - `js/core/VersionManager.js`
 
-**Fonctions à déplacer :**
+**Fonctions déplacées :**
 - `createNewVersion`, `cleanupOldVersions`, `initializeGridVersions`
 - `getGridVersionIndex`, `updateGridPointVersion`, `getMassesForVersion`
+- `updateGridVersionsForFront`
 - Variables : `currentVersion`, `massHistory`, `gridVersions`, `maxVersions`
 
 **Dépendances :** Accès aux variables globales `masses`
 **Risque :** Moyen
-**Statut :** À faire
+**Statut :** ✅ Terminé
 
 ### Étape 3 : Fonctions de rendu ⏳
 **Fichiers à créer :**
@@ -196,12 +197,71 @@ gravitation/js/
 - ✅ Conservation de la version moderne de `updateGeodesics` (ligne 1429)
 - ✅ Vérification qu'aucune autre duplication de fonction n'existe
 
+### [Date] - Étape 2 terminée
+- ✅ Création de `js/core/VersionManager.js` avec le système de versions complet
+- ✅ Documentation détaillée du système de propagation causale gravitationnelle
+- ✅ Modification de `main.js` pour importer le module VersionManager
+- ✅ Suppression du code extrait du `main.js`
+- ✅ Adaptation des appels pour créer les fronts de propagation
+- ✅ Initialisation du gestionnaire de versions avec les dépendances
+
+### [Date] - Correction de bug après Étape 2
+- ✅ Correction de l'erreur "currentVersion is not defined"
+- ✅ Remplacement de toutes les références aux variables supprimées par les fonctions du module
+- ✅ Correction de `updateDebugInfo()`, `reset()`, `updateSpacecrafts()`, `updateLasers()`
+- ✅ Correction de `drawLasers()`, `drawVectors()`, `updateClocks()`, `drawClocks()`
+- ✅ Utilisation de `getCurrentVersion()`, `getGridVersions()` et autres fonctions du module
+
 ## ⚠️ Points d'attention
 
 ### Dépendances critiques
 - Variables globales partagées entre modules
 - Accès au contexte Canvas (`ctx`)
 - État de l'application distribué
+
+## 🔬 Analyse du système de versions
+
+### Concept principal
+Le système de versions simule la **propagation causale de la gravitation** selon les principes de la relativité générale d'Einstein, où les effets gravitationnels ne se propagent pas instantanément mais à la vitesse de la lumière.
+
+### Grands principes
+
+#### 1. **Propagation causale**
+- Les modifications de masse créent des "ondes gravitationnelles" qui se propagent à la vitesse de la lumière
+- Chaque point de l'espace voit une version différente de l'univers selon sa distance aux sources gravitationnelles
+- Simulation de la causalité relativiste : les événements ne peuvent pas influencer le passé
+
+#### 2. **Versions temporelles**
+- Chaque modification de masse incrémente la version de l'univers
+- L'historique des configurations de masses est conservé
+- Système de round-robin pour limiter la mémoire utilisée
+
+#### 3. **Grille versionnée**
+- Chaque point de la grille a sa propre "version" qui détermine quelles masses il "voit"
+- Les fronts de propagation mettent à jour les versions de la grille
+- Les calculs physiques (gravitation, redshift, dilatation temporelle) utilisent les masses de la version locale
+
+#### 4. **Effets relativistes simulés**
+- **Vaisseaux spatiaux** : Voient des versions différentes selon leur position
+- **Horloges** : Battent à des rythmes différents selon le champ gravitationnel local
+- **Lasers** : Subissent un redshift gravitationnel selon le potentiel local
+- **Géodésiques** : Calculées selon la configuration gravitationnelle locale
+
+### Variables clés
+```javascript
+let currentVersion = 0;           // Version actuelle de l'univers
+let massHistory = [];             // Historique des configurations de masses
+let gridVersions = [];            // Version de chaque point de grille
+let maxVersions = 50;             // Limite pour le round-robin
+```
+
+### Fonctions principales
+- `createNewVersion()` - Crée une nouvelle version quand une masse change
+- `cleanupOldVersions()` - Nettoie les anciennes versions (round-robin)
+- `getMassesForVersion()` - Récupère les masses visibles pour une version donnée
+- `updateGridVersionsForFront()` - Met à jour les versions de la grille selon la propagation
+- `getGridVersionIndex()` - Convertit les coordonnées en indices de grille
+- `updateGridPointVersion()` - Met à jour la version d'un point de grille
 
 ### Stratégie de gestion des dépendances
 1. **Phase 1** : Extraire les modules indépendants
