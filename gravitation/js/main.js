@@ -1649,6 +1649,24 @@ canvas.addEventListener('mousemove', (e) => {
     const rect = canvas.getBoundingClientRect();
     mousePosition.x = e.clientX - rect.left;
     mousePosition.y = e.clientY - rect.top;
+    
+    // Gestion du déplacement d'horloge
+    if (isMovingClock && selectedClock) {
+        selectedClock.x = mousePosition.x;
+        selectedClock.y = mousePosition.y;
+        return;
+    }
+});
+
+// Gestion de la fin du déplacement d'horloge
+canvas.addEventListener('mouseup', (e) => {
+    if (isMovingClock && selectedClock) {
+        isMovingClock = false;
+        selectedClock.isSelected = false;
+        selectedClock = null;
+        canvas.style.cursor = 'default';
+        console.log('Déplacement d\'horloge terminé');
+    }
 });
 
 // Gestion de la touche ESC pour annuler le placement
@@ -1924,22 +1942,7 @@ function drawClocks() {
     });
 }
 
-// Gestion du déplacement d'horloge
-if (isMovingClock && selectedClock) {
-    selectedClock.x = mousePosition.x;
-    selectedClock.y = mousePosition.y;
-    return;
-}
 
-// Fin du déplacement d'horloge
-if (isMovingClock && selectedClock) {
-    isMovingClock = false;
-    selectedClock.isSelected = false;
-    selectedClock = null;
-    canvas.style.cursor = 'default';
-    console.log('Déplacement d\'horloge terminé');
-    return;
-}
 
 function cancelClockPlacement() {
     isPlacingClock = false;
