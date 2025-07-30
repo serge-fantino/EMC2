@@ -3,6 +3,15 @@
  * Version simplifiée qui fonctionne
  */
 
+// Import des modules physiques
+import { G, c, maxSpeed, spacecraftSpeed } from './core/PhysicsConstants.js';
+import { 
+    calculateEventHorizon, 
+    calculateGravitationalRedshift, 
+    redshiftToColor, 
+    normalizeVector 
+} from './core/PhysicsUtils.js';
+
 // Variables globales
 const canvas = document.getElementById('gravityCanvas');
 const ctx = canvas.getContext('2d');
@@ -24,64 +33,6 @@ let currentTool = 'mass'; // 'mass', 'spacecraft', 'blackhole', 'laser'
 let propagationSpeed = 1.0;
 let forceScale = 1.0;
 let gridResolution = 25;
-let spacecraftSpeed = 2.0; // Vitesse initiale des vaisseaux (en unités arbitraires)
-const maxSpeed = 50; // Vitesse maximale (équivalent à c = 100%)
-
-// Constantes physiques pour les trous noirs
-const G = 1.0; // Constante gravitationnelle (normalisée)
-const c = maxSpeed; // Vitesse de la lumière
-
-// Fonction pour calculer l'horizon des événements d'un trou noir
-function calculateEventHorizon(mass) {
-    // R = 2GM/c² (rayon de Schwarzschild)
-    return (2 * G * mass) / (c * c);
-}
-
-// Fonction pour calculer le redshift gravitationnel
-function calculateGravitationalRedshift(x, y, masses) {
-    let totalPotential = 0;
-    
-    masses.forEach(mass => {
-        const dx = mass.x - x;
-        const dy = mass.y - y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        
-        if (distance > 0) {
-            // Potentiel gravitationnel Φ = -GM/r
-            const potential = -(G * mass.mass) / distance;
-            totalPotential += potential;
-        }
-    });
-    
-    // Redshift z = ΔΦ/c²
-    // Amplification maximale pour visualisation spectaculaire
-    const redshift = totalPotential / (c * c * 1); // Réduit de 10 à 1 (10x plus sensible)
-    
-    return Math.max(-2.0, Math.min(2.0, redshift)); // Limiter entre -2.0 et 2.0
-}
-
-// Fonction pour convertir redshift en couleur
-function redshiftToColor(redshift) {
-    // redshift négatif = blueshift (plus bleu)
-    // redshift positif = redshift (plus rouge)
-    // redshift = 0 = vert (couleur de base)
-    
-    if (redshift < 0) {
-        // Blueshift : vert → bleu → violet
-        const intensity = Math.abs(redshift) / 2.0; // Normaliser à 0-1
-        const r = 0;
-        const g = Math.round(255 * (1 - intensity));
-        const b = Math.round(255 * (0.5 + intensity * 0.5)); // Bleu plus intense
-        return `rgb(${r}, ${g}, ${b})`;
-    } else {
-        // Redshift : vert → rouge → orange
-        const intensity = redshift / 2.0; // Normaliser à 0-1
-        const r = Math.round(255 * (0.5 + intensity * 0.5)); // Rouge plus intense
-        const g = Math.round(255 * (1 - intensity));
-        const b = 0;
-        return `rgb(${r}, ${g}, ${b})`;
-    }
-}
 
 // Système de versions (nouveau)
 let currentVersion = 0;
@@ -445,32 +396,9 @@ function calculateChristoffelSymbols(x, y, masses) {
     return christoffel;
 }
 
-// Fonction pour ajouter une géodésique
-function addGeodesic(x, y, directionX, directionY) {
-    const distance = Math.sqrt(directionX * directionX + directionY * directionY);
-    if (distance === 0) return;
-    
-    const normalizedDirX = directionX / distance;
-    const normalizedDirY = directionY / distance;
-    
-    const geodesic = {
-        x: x,
-        y: y,
-        vx: normalizedDirX * 2, // Vitesse initiale pour les géodésiques
-        vy: normalizedDirY * 2,
-        trail: [{ x: x, y: y }],
-        maxTrailLength: 400,
-        type: 'geodesic'
-    };
-    
-    geodesics.push(geodesic);
-    console.log('Géodésique ajoutée:', geodesic);
-}
 
-// Fonction pour mettre à jour les géodésiques selon l'équation des géodésiques
-function updateGeodesics(deltaTime) {
-    // Les géodésiques sont statiques, pas besoin de mise à jour
-}
+
+
 
 // Fonction pour dessiner les géodésiques
 function drawGeodesics() {
@@ -1335,12 +1263,7 @@ function calculateGravitationalGradient(x, y, masses) {
     return { x: gradientX, y: gradientY };
 }
 
-// Fonction pour normaliser un vecteur
-function normalizeVector(vx, vy) {
-    const magnitude = Math.sqrt(vx * vx + vy * vy);
-    if (magnitude === 0) return { x: 0, y: 0 };
-    return { x: vx / magnitude, y: vy / magnitude };
-}
+
 
 // Fonction pour ajouter une géodésique (courbe de niveau)
 function addGeodesic(startX, startY) {
