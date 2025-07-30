@@ -12,6 +12,9 @@ import {
     normalizeVector 
 } from './core/PhysicsUtils.js';
 
+// Import du contexte global de l'application
+import { AppContext, initializeAppContext, resetAppContext } from './core/AppContext.js';
+
 // Import du gestionnaire de versions
 import {
     createNewVersion,
@@ -27,6 +30,50 @@ import {
     getGridVersions,
     getMaxVersions
 } from './core/VersionManager.js';
+
+// Import du gestionnaire de masses
+import {
+    initializeMassManager,
+    updateReferences as updateMassReferences,
+    addMass,
+    removeMass,
+    getMasses,
+    getPropagationFronts
+} from './core/MassManager.js';
+
+// Import du gestionnaire de trous noirs
+import {
+    initializeBlackHoleManager,
+    updateReferences as updateBlackHoleReferences,
+    addBlackHole,
+    removeBlackHole,
+    getBlackHoles,
+    findBlackHoleAt
+} from './core/BlackHoleManager.js';
+
+// Import du gestionnaire de vaisseaux spatiaux
+import {
+    initializeSpacecraftManager,
+    updateReferences as updateSpacecraftManagerReferences,
+    addSpacecraft,
+    updateSpacecrafts,
+    removeSpacecraft,
+    getSpacecrafts,
+    clearSpacecrafts
+} from './core/SpacecraftManager.js';
+
+// Import du gestionnaire de lasers
+import {
+    initializeLaserManager,
+    updateReferences as updateLaserManagerReferences,
+    addLaser,
+    updateLasers,
+    removeLaser,
+    getLasers,
+    clearLasers,
+    calculateLaserRedshift,
+    getLaserColor
+} from './core/LaserManager.js';
 
 // Import des modules de rendu
 import {
@@ -104,405 +151,18 @@ let gridResolution = 25;
 
     
 // Fonctions de base
-function addMass(x, y, isRightClick = false) {
-    const gridPoint = getGridPoint(x, y);
-    
-    // Chercher une masse existante à cet endroit
-    const existing = masses.find(m => 
-        Math.abs(m.x - gridPoint.x) < spacing/2 && 
-        Math.abs(m.y - gridPoint.y) < spacing/2
-    );
-    
-    if (existing) {
-        // Modifier masse existante
-        console.log('Masse existante trouvée:', existing.type, 'masse:', existing.mass);
-        const oldMass = existing.mass;
-        if (isRightClick) {
-            if (existing.type === 'blackhole') {
-                // Pour les trous noirs : division par 2 avec minimum
-                existing.mass = Math.max(1000, existing.mass / 2);
-            } else {
-                // Pour les autres masses : décrément de 1000
-                existing.mass = Math.max(0, existing.mass - 1000);
-                if (existing.mass <= 0) {
-                    removeMass(existing);
-                }
-            }
-        } else {
-            if (existing.type === 'blackhole') {
-                // Pour les trous noirs : multiplication par 2
-                existing.mass *= 2;
-                console.log('Trou noir agrandi:', existing.mass);
-            } else {
-                // Pour les autres masses : incrément de 1000
-                existing.mass += 1000;
-            }
-        }
-        
-        // Créer un nouveau front de propagation si la masse a changé
-        if (existing.mass !== oldMass) {
-            const versionInfo = createNewVersion('modification', gridPoint.x, gridPoint.y, existing.mass - oldMass, masses);
-            
-            // Mettre à jour immédiatement la version du point où la masse est modifiée
-            updateGridPointVersion(gridPoint.x, gridPoint.y, versionInfo.version);
-            
-            // Créer le front de propagation
-            propagationFronts.push({
-                x: versionInfo.x,
-                y: versionInfo.y,
-                startTime: Date.now(),
-                spacing: spacing,
-                version: versionInfo.version,
-                type: versionInfo.type,
-                massChange: versionInfo.massChange
-            });
-            // Recalculer toutes les géodésiques quand une masse change
-            recalculateAllGeodesics();
-        }
-    } else if (!isRightClick) {
-        // Créer nouvelle masse (seulement avec clic gauche)
-        masses.push({ x: gridPoint.x, y: gridPoint.y, mass: 1000 });
-        const versionInfo = createNewVersion('creation', gridPoint.x, gridPoint.y, 0, masses);
-        
-        // Mettre à jour immédiatement la version du point où la masse est créée
-        updateGridPointVersion(gridPoint.x, gridPoint.y, versionInfo.version);
-        
-        // Créer le front de propagation
-        propagationFronts.push({
-            x: versionInfo.x,
-            y: versionInfo.y,
-            startTime: Date.now(),
-            spacing: spacing,
-            version: versionInfo.version,
-            type: versionInfo.type,
-            massChange: versionInfo.massChange
-        });
-        // Recalculer toutes les géodésiques quand une nouvelle masse est ajoutée
-        recalculateAllGeodesics();
-    }
-    
-    updateDebugInfo();
-}
-
-function removeMass(mass) {
-    const index = masses.indexOf(mass);
-    if (index > -1) {
-        masses.splice(index, 1);
-        // Supprimer aussi le front de propagation correspondant
-        const frontIndex = propagationFronts.findIndex(f => f.x === mass.x && f.y === mass.y);
-        if (frontIndex > -1) {
-            propagationFronts.splice(frontIndex, 1);
-        }
-        // Recalculer toutes les géodésiques quand une masse est supprimée
-        recalculateAllGeodesics();
-    }
-}
+// addMass et removeMass sont maintenant dans MassManager.js
 
 // Gestion des vaisseaux spatiaux
-function addSpacecraft(x, y, directionX, directionY) {
-    const gridPoint = getGridPoint(x, y);
-    
-    // Calculer la vitesse basée sur la distance (comme dans la prévisualisation)
-    const distance = Math.sqrt(directionX * directionX + directionY * directionY);
-    if (distance === 0) return;
-    
-    // Normaliser la direction
-    const normalizedDirX = directionX / distance;
-    const normalizedDirY = directionY / distance;
-    
-    // Calculer la vitesse initiale (même logique que la prévisualisation)
-    const initialSpeed = Math.min(distance * 0.5, maxSpeed);
-    
-    // Créer le vaisseau
-    const spacecraft = {
-        x: gridPoint.x,
-        y: gridPoint.y,
-        vx: normalizedDirX * initialSpeed,
-        vy: normalizedDirY * initialSpeed,
-        trail: [], // Historique des positions
-        maxTrailLength: 500, // Traces plus longues pour mieux voir les trajectoires
-        mass: 1.0, // Masse du vaisseau pour les calculs gravitationnels
-        creationTime: Date.now()
-    };
-    
-    spacecrafts.push(spacecraft);
-    updateDebugInfo();
-}
+// addSpacecraft est maintenant dans SpacecraftManager.js
 
-function addBlackHole(x, y, isRightClick = false) {
-    const gridPoint = getGridPoint(x, y);
-    
-    // Chercher un trou noir existant à cet endroit
-    const existing = masses.find(m => 
-        m.type === 'blackhole' &&
-        Math.abs(m.x - gridPoint.x) < spacing/2 && 
-        Math.abs(m.y - gridPoint.y) < spacing/2
-    );
-    
-    if (existing) {
-        // Modifier trou noir existant
-        const oldMass = existing.mass;
-        
-        // Utiliser le paramètre isRightClick passé à la fonction
-        
-        if (isRightClick) {
-            // Division par 2
-            existing.mass = existing.mass / 2;
-            console.log('Trou noir réduit:', existing.mass);
-            
-            // Supprimer si la masse devient trop petite
-            if (existing.mass < 50000) {
-                removeMass(existing);
-                console.log('Trou noir supprimé (masse trop faible)');
-                updateDebugInfo();
-                return;
-            }
-        } else {
-            // Multiplication par 2
-            existing.mass *= 2;
-            console.log('Trou noir agrandi:', existing.mass);
-        }
-        
-        // Créer un nouveau front de propagation si la masse a changé
-        if (existing.mass !== oldMass) {
-            const versionInfo = createNewVersion('blackhole_modification', gridPoint.x, gridPoint.y, existing.mass - oldMass, masses);
-            
-            // Mettre à jour immédiatement la version du point où le trou noir est modifié
-            updateGridPointVersion(gridPoint.x, gridPoint.y, versionInfo.version);
-            
-            // Créer le front de propagation
-            propagationFronts.push({
-                x: versionInfo.x,
-                y: versionInfo.y,
-                startTime: Date.now(),
-                spacing: spacing,
-                version: versionInfo.version,
-                type: versionInfo.type,
-                massChange: versionInfo.massChange
-            });
-            
-            // Recalculer toutes les géodésiques quand un trou noir change
-            recalculateAllGeodesics();
-        }
-    } else {
-        // Créer un nouveau trou noir
-        const blackHole = {
-            x: gridPoint.x,
-            y: gridPoint.y,
-            mass: 100000, // Masse énorme !
-            type: 'blackhole',
-            creationTime: Date.now()
-        };
-        
-        masses.push(blackHole);
-        
-        // Créer un front de propagation pour le trou noir
-        const versionInfo = createNewVersion('blackhole_creation', gridPoint.x, gridPoint.y, 0, masses);
-        
-        // Mettre à jour immédiatement la version du point où le trou noir est créé
-        updateGridPointVersion(gridPoint.x, gridPoint.y, versionInfo.version);
-        
-        // Créer le front de propagation
-        propagationFronts.push({
-            x: versionInfo.x,
-            y: versionInfo.y,
-            startTime: Date.now(),
-            spacing: spacing,
-            version: versionInfo.version,
-            type: versionInfo.type,
-            massChange: versionInfo.massChange
-        });
-        
-        // Recalculer toutes les géodésiques quand un trou noir est ajouté
-        recalculateAllGeodesics();
-    }
-    
-    updateDebugInfo();
-}
+// addBlackHole est maintenant dans BlackHoleManager.js
 
-function addLaser(x, y, directionX, directionY) {
-    const gridPoint = getGridPoint(x, y);
-    
-    // Normaliser la direction
-    const distance = Math.sqrt(directionX * directionX + directionY * directionY);
-    if (distance === 0) return;
-    
-    const normalizedDirX = directionX / distance;
-    const normalizedDirY = directionY / distance;
-    
-    // Créer le laser avec vitesse constante c
-    const laser = {
-        x: gridPoint.x,
-        y: gridPoint.y,
-        vx: normalizedDirX * c, // Vitesse constante c
-        vy: normalizedDirY * c,
-        trail: [], // Historique des positions
-        maxTrailLength: 300, // Traces plus courtes que les vaisseaux
-        creationTime: Date.now()
-    };
-    
-    // Ajouter le laser à la liste globale
-    if (!window.lasers) {
-        window.lasers = [];
-    }
-    window.lasers.push(laser);
-    updateDebugInfo();
-}
+// addLaser est maintenant dans LaserManager.js
 
-function updateSpacecrafts(deltaTime) {
-    spacecrafts.forEach(spacecraft => {
-        // Calculer la force gravitationnelle totale
-        let totalForceX = 0;
-        let totalForceY = 0;
-        let closestBlackHole = null;
-        let minDistance = Infinity;
-        
-        // Utiliser les masses de la version actuelle du point où se trouve le vaisseau
-        const { gridX, gridY } = getGridVersionIndex(spacecraft.x, spacecraft.y);
-        const gridVersions = getGridVersions();
-        const pointVersion = gridVersions[gridX] && gridVersions[gridX][gridY] !== undefined 
-            ? gridVersions[gridX][gridY] : 0;
-        const versionMasses = getMassesForVersion(pointVersion, masses);
-        
-        versionMasses.forEach(mass => {
-            const dx = mass.x - spacecraft.x;
-            const dy = mass.y - spacecraft.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            
-            if (distance > 0) {
-                const force = (mass.mass * spacecraft.mass) / (distance * distance);
-                const forceX = (dx / distance) * force;
-                const forceY = (dy / distance) * force;
-                
-                totalForceX += forceX;
-                totalForceY += forceY;
-                
-                // Vérifier si c'est un trou noir et le plus proche
-                if (mass.type === 'blackhole' && distance < minDistance) {
-                    closestBlackHole = mass;
-                    minDistance = distance;
-                }
-            }
-        });
-        
-        // Vérifier la capture par trou noir (horizon des événements)
-        if (closestBlackHole) {
-            const eventHorizonRadius = calculateEventHorizon(closestBlackHole.mass);
-            const currentSpeed = Math.sqrt(spacecraft.vx * spacecraft.vx + spacecraft.vy * spacecraft.vy);
-            
-            // Si le vaisseau traverse l'horizon des événements, il est capturé
-            if (minDistance <= eventHorizonRadius) {
-                console.log(`Vaisseau capturé par trou noir: distance=${minDistance.toFixed(1)}, horizon=${eventHorizonRadius.toFixed(1)}`);
-                // Le vaisseau est capturé par le trou noir
-                const index = spacecrafts.indexOf(spacecraft);
-                if (index > -1) {
-                    spacecrafts.splice(index, 1);
-                }
-                return; // Ne pas continuer la mise à jour
-            }
-        }
-        
-        // Appliquer la force (F = ma, donc a = F/m)
-        const accelerationX = totalForceX / spacecraft.mass;
-        const accelerationY = totalForceY / spacecraft.mass;
-        
-        // Mettre à jour la vitesse (v = v0 + at)
-        spacecraft.vx += accelerationX * deltaTime * 0.001; // Convertir en secondes
-        spacecraft.vy += accelerationY * deltaTime * 0.001;
-        
-        // Limiter la vitesse maximale (effet relativiste)
-        const currentSpeed = Math.sqrt(spacecraft.vx * spacecraft.vx + spacecraft.vy * spacecraft.vy);
-        
-        if (currentSpeed > maxSpeed) {
-            const scale = maxSpeed / currentSpeed;
-            spacecraft.vx *= scale;
-            spacecraft.vy *= scale;
-        }
-        
-        // Mettre à jour la position (x = x0 + vt)
-        spacecraft.x += spacecraft.vx * deltaTime * 0.001;
-        spacecraft.y += spacecraft.vy * deltaTime * 0.001;
-        
-        // Ajouter à la trajectoire
-        spacecraft.trail.push({ x: spacecraft.x, y: spacecraft.y });
-        if (spacecraft.trail.length > spacecraft.maxTrailLength) {
-            spacecraft.trail.shift();
-        }
-        
-        // Vérifier les limites du canvas
-        if (spacecraft.x < 0 || spacecraft.x > canvas.width || 
-            spacecraft.y < 0 || spacecraft.y > canvas.height) {
-            // Supprimer le vaisseau s'il sort du canvas
-            const index = spacecrafts.indexOf(spacecraft);
-            if (index > -1) {
-                spacecrafts.splice(index, 1);
-            }
-        }
-    });
-}
+// updateSpacecrafts est maintenant dans SpacecraftManager.js
 
-function updateLasers(deltaTime) {
-    if (!window.lasers) return;
-    
-    window.lasers.forEach((laser, index) => {
-        // Calculer la force gravitationnelle totale (seulement pour dévier la direction)
-        let totalForceX = 0;
-        let totalForceY = 0;
-        
-        // Utiliser les masses de la version actuelle du point où se trouve le laser
-        const { gridX, gridY } = getGridVersionIndex(laser.x, laser.y);
-        const gridVersions = getGridVersions();
-        const pointVersion = gridVersions[gridX] && gridVersions[gridX][gridY] !== undefined 
-            ? gridVersions[gridX][gridY] : 0;
-        const versionMasses = getMassesForVersion(pointVersion, masses);
-        
-        versionMasses.forEach(mass => {
-            const dx = mass.x - laser.x;
-            const dy = mass.y - laser.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            
-            if (distance > 0) {
-                // Force gravitationnelle (même effet que pour les vaisseaux)
-                const force = (mass.mass * 1.0) / (distance * distance); // Même effet que les vaisseaux
-                const forceX = (dx / distance) * force;
-                const forceY = (dy / distance) * force;
-                
-                totalForceX += forceX;
-                totalForceY += forceY;
-            }
-        });
-        
-        // Appliquer la force pour dévier la direction (mais garder la vitesse constante)
-        const currentSpeed = Math.sqrt(laser.vx * laser.vx + laser.vy * laser.vy);
-        
-        // Modifier la vitesse en ajoutant l'effet gravitationnel
-        laser.vx += totalForceX * deltaTime * 0.001;
-        laser.vy += totalForceY * deltaTime * 0.001;
-        
-        // Re-normaliser pour maintenir la vitesse constante c
-        const newSpeed = Math.sqrt(laser.vx * laser.vx + laser.vy * laser.vy);
-        if (newSpeed > 0) {
-            laser.vx = (laser.vx / newSpeed) * c;
-            laser.vy = (laser.vy / newSpeed) * c;
-        }
-        
-        // Mettre à jour la position
-        laser.x += laser.vx * deltaTime * 0.001;
-        laser.y += laser.vy * deltaTime * 0.001;
-        
-        // Ajouter à la trajectoire
-        laser.trail.push({ x: laser.x, y: laser.y });
-        if (laser.trail.length > laser.maxTrailLength) {
-            laser.trail.shift();
-        }
-        
-        // Supprimer le laser s'il sort du canvas
-        if (laser.x < 0 || laser.x > canvas.width || 
-            laser.y < 0 || laser.y > canvas.height) {
-            window.lasers.splice(index, 1);
-        }
-    });
-}
+// updateLasers est maintenant dans LaserManager.js
 
 // Fonction pour calculer la métrique de Schwarzschild en 2D
 function calculateSchwarzschildMetric(x, y, masses) {
@@ -638,14 +298,24 @@ function toggleAnimation() {
 }
 
 function reset() {
-    masses = [];
-    propagationFronts = [];
-    spacecrafts = [];
-    window.lasers = [];
-    geodesics = [];
-    clocks = [];
+    // Réinitialiser le contexte global
+    resetAppContext();
+    
+    // Réinitialiser les variables locales pour compatibilité
+    masses = AppContext.masses;
+    propagationFronts = AppContext.propagationFronts;
+    spacecrafts = AppContext.spacecrafts;
+    window.lasers = AppContext.lasers;
+    geodesics = AppContext.geodesics;
+    clocks = AppContext.clocks;
     referenceClockTime = 0;
+    
+    // Réinitialiser les gestionnaires
     initializeVersionManager(masses, spacing, gridResolution);
+    initializeMassManager();
+    initializeBlackHoleManager();
+    initializeSpacecraftManager();
+    initializeLaserManager();
     cancelSpacecraftPlacement();
     cancelLaserPlacement();
     cancelGeodesicPlacement();
@@ -679,7 +349,7 @@ function animate() {
     
     // Mettre à jour les vaisseaux
     updateSpacecrafts(deltaTime);
-    updateLasers(deltaTime); // Mettre à jour les lasers
+    updateLasers(deltaTime); // Mettre à jour les lasers (via LaserManager)
     
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
@@ -689,7 +359,19 @@ function animate() {
     // Mettre à jour les horloges
     updateClocks(deltaTime);
     
+    // Synchroniser les variables locales avec le contexte global
+    masses = AppContext.masses;
+    propagationFronts = AppContext.propagationFronts;
+    spacecrafts = AppContext.spacecrafts;
+    window.lasers = AppContext.lasers;
+    geodesics = AppContext.geodesics;
+    clocks = AppContext.clocks;
+    
     // Mettre à jour les références des modules de rendu
+    updateMassReferences();
+    updateBlackHoleReferences();
+    updateSpacecraftManagerReferences();
+    updateLaserManagerReferences();
     updateMasses(masses);
     updateSpacecraftReferences(spacecrafts, isPlacingSpacecraft, spacecraftStartPoint, mousePosition);
     // Synchroniser lasers avec window.lasers
@@ -1264,8 +946,23 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeGeodesicSettings();
 });
 
+// Initialisation du contexte global
+initializeAppContext(canvas, ctx, updateDebugInfo, recalculateAllGeodesics, getGridVersionIndex, getGridVersions, getMassesForVersion);
+
+// Synchroniser les variables locales avec le contexte global
+masses = AppContext.masses;
+propagationFronts = AppContext.propagationFronts;
+spacecrafts = AppContext.spacecrafts;
+window.lasers = AppContext.lasers;
+geodesics = AppContext.geodesics;
+clocks = AppContext.clocks;
+
 // Initialisation
 initializeVersionManager(masses, spacing, gridResolution);
+initializeMassManager();
+initializeBlackHoleManager();
+    initializeSpacecraftManager();
+    initializeLaserManager();
 
 // Initialiser les modules de rendu immédiatement
 initializeGridRenderer(ctx, canvas, spacing, showGrid);

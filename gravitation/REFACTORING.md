@@ -274,6 +274,43 @@ gravitation/js/
   - Horizon proportionnel à la racine carrée de la masse (croissance plus lente)
 - ✅ **Gestion propre des clics** : `addBlackHole()` gère maintenant les trous noirs existants et nouveaux
 
+### [Date] - Étape 4.1 : Extraction de la gestion des masses ✅
+- ✅ **Création de `MassManager.js`** : Module dédié à la gestion des masses gravitationnelles
+- ✅ **Fonctions extraites** : `addMass()`, `removeMass()`, `getGridPoint()`
+- ✅ **Gestion des dépendances** : Injection des références vers `masses`, `propagationFronts`, etc.
+- ✅ **Intégration dans `main.js`** : Import et utilisation du module `MassManager`
+- ✅ **Séparation des responsabilités** : `MassManager` gère uniquement les masses normales (pas les trous noirs)
+
+### [Date] - Étape 4.2 : Extraction de la gestion des trous noirs ✅
+- ✅ **Création de `BlackHoleManager.js`** : Module dédié à la gestion des trous noirs
+- ✅ **Fonctions extraites** : `addBlackHole()`, `removeBlackHole()`, `getBlackHoles()`, `findBlackHoleAt()`
+- ✅ **Gestion des dépendances** : Injection des références vers `masses`, `propagationFronts`, etc.
+- ✅ **Intégration dans `main.js`** : Import et utilisation du module `BlackHoleManager`
+- ✅ **Logique spécialisée** : Gestion des trous noirs avec multiplication/division par 2 et suppression automatique si masse < 50K
+
+### [Date] - Étape 4.3 : Extraction de la gestion des vaisseaux spatiaux ✅
+- ✅ **Création de `SpacecraftManager.js`** : Module dédié à la gestion des vaisseaux spatiaux
+- ✅ **Fonctions extraites** : `addSpacecraft()`, `updateSpacecrafts()`, `removeSpacecraft()`, `getSpacecrafts()`, `clearSpacecrafts()`
+- ✅ **Gestion des dépendances** : Injection des références vers `spacecrafts`, `masses`, système de versions, etc.
+- ✅ **Intégration dans `main.js`** : Import et utilisation du module `SpacecraftManager`
+- ✅ **Logique complexe** : Gestion de la physique gravitationnelle, capture par trous noirs, trajectoires, limites du canvas
+
+### [Date] - Étape 4.4 : Extraction de la gestion des lasers ✅
+- ✅ **Création de `LaserManager.js`** : Module dédié à la gestion des lasers
+- ✅ **Fonctions extraites** : `addLaser()`, `updateLasers()`, `removeLaser()`, `getLasers()`, `clearLasers()`, `calculateLaserRedshift()`, `getLaserColor()`
+- ✅ **Gestion des dépendances** : Injection des références vers `lasers`, `masses`, système de versions, etc.
+- ✅ **Intégration dans `main.js`** : Import et utilisation du module `LaserManager`
+- ✅ **Logique spécialisée** : Gestion de la déviation gravitationnelle, redshift, vitesse constante c, trajectoires
+
+### [Date] - Refactorisation avec contexte global ✅
+- ✅ **Création de `AppContext.js`** : Contexte global centralisant toutes les données de l'application
+- ✅ **Refactorisation de `MassManager.js`** : Utilise `AppContext` directement, plus d'injection de dépendances
+- ✅ **Refactorisation de `BlackHoleManager.js`** : Utilise `AppContext` directement, plus d'injection de dépendances
+- ✅ **Refactorisation de `SpacecraftManager.js`** : Utilise `AppContext` directement, plus d'injection de dépendances
+- ✅ **Refactorisation de `LaserManager.js`** : Utilise `AppContext` directement, plus d'injection de dépendances
+- ✅ **Synchronisation dans `main.js`** : Variables locales synchronisées avec `AppContext`
+- ✅ **Architecture simplifiée** : Plus de confusion entre variables locales et globales, code plus maintenable
+
 ## ⚠️ Points d'attention
 
 ### Dépendances critiques
