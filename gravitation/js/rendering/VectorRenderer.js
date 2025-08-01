@@ -59,8 +59,11 @@ export function drawVectors() {
             
             const magnitude = Math.sqrt(totalForceX * totalForceX + totalForceY * totalForceY);
             
-            if (magnitude > 1) {
-                const scale = Math.min(20, magnitude * 0.1) * AppContext.forceScale;
+            // Limiter la magnitude pour éviter les vecteurs trop intenses
+            const limitedMagnitude = Math.min(magnitude, 1000);
+            
+            if (limitedMagnitude > 0.01) {
+                const scale = Math.min(20, limitedMagnitude * 0.1) * AppContext.forceScale;
                 const normalizedX = totalForceX / magnitude;
                 const normalizedY = totalForceY / magnitude;
                 

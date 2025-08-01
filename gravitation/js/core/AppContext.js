@@ -55,7 +55,7 @@ export const AppContext = {
     
     // Paramètres d'affichage
     showGrid: true,
-    showVectors: false,
+    showVectors: true,
     showPropagation: true,
     showGeodesicDebug: false,
     forceScale: 1.0,

@@ -3,19 +3,15 @@
  * Version simplifiée qui fonctionne
  */
 
-// Import des modules physiques
-import { G, c, maxSpeed, spacecraftSpeed } from './core/PhysicsConstants.js';
+// ===== IMPORTS DES MODULES PHYSIQUES =====
 import { 
-    calculateEventHorizon, 
-    calculateGravitationalRedshift, 
-    redshiftToColor, 
-    normalizeVector 
+    calculateGravitationalRedshift
 } from './core/PhysicsUtils.js';
 
-// Import du contexte global de l'application
+// ===== IMPORTS DU CONTEXTE GLOBAL =====
 import { AppContext, initializeAppContext, resetAppContext } from './core/AppContext.js';
 
-// Import du gestionnaire de versions
+// ===== IMPORTS DES GESTIONNAIRES CORE =====
 import {
     createNewVersion,
     cleanupOldVersions,
@@ -31,63 +27,45 @@ import {
     getMaxVersions
 } from './core/VersionManager.js';
 
-// Import du gestionnaire de masses
 import {
     initializeMassManager,
-    updateReferences as updateMassReferences,
     addMass,
-    removeMass,
-    getMasses
+    removeMass
 } from './core/MassManager.js';
 
-// Import du gestionnaire de trous noirs
 import {
     initializeBlackHoleManager,
-    updateReferences as updateBlackHoleReferences,
     addBlackHole,
     removeBlackHole,
-    getBlackHoles,
     findBlackHoleAt
 } from './core/BlackHoleManager.js';
 
-// Import du gestionnaire de vaisseaux spatiaux
 import {
     initializeSpacecraftManager,
-    updateReferences as updateSpacecraftManagerReferences,
     addSpacecraft,
     updateSpacecrafts,
     removeSpacecraft,
-    getSpacecrafts,
     clearSpacecrafts
 } from './core/SpacecraftManager.js';
 
-// Import du gestionnaire de lasers
 import {
     initializeLaserManager,
-    updateReferences as updateLaserManagerReferences,
     addLaser,
     updateLasers,
     removeLaser,
-    getLasers,
-    clearLasers,
-    calculateLaserRedshift,
-    getLaserColor
+    clearLasers
 } from './core/LaserManager.js';
 
-// Import du gestionnaire de géodésiques
 import {
     initializeGeodesicManager,
-    updateReferences as updateGeodesicManagerReferences,
     addGeodesic,
     recalculateAllGeodesics,
     updateGeodesics,
     removeGeodesic,
-    getGeodesics,
     clearGeodesics,
     cancelGeodesicPlacement
 } from './core/GeodesicManager.js';
 
-// Import du gestionnaire des horloges
 import { 
     initializeClockManager, 
     addClock, 
@@ -95,53 +73,41 @@ import {
     cancelClockPlacement 
 } from './core/ClockManager.js';
 
-// Import du gestionnaire de propagation
 import { 
     initializePropagationManager,
-    createPropagationFront,
-    removePropagationFront,
-    updatePropagationFronts,
-    cleanupPropagationFronts,
-    getPropagationFronts
+    updatePropagationFronts
 } from './core/PropagationManager.js';
 
-// Import du gestionnaire des paramètres des géodésiques
 import { initializeGeodesicSettings } from './core/GeodesicSettingsManager.js';
 
-// Import des modules de rendu
+// ===== IMPORTS DES MODULES DE RENDU =====
 import {
     initializeGridRenderer,
-    setShowGrid,
     drawGrid
 } from './rendering/GridRenderer.js';
 
 import {
     initializeMassRenderer,
-    updateMasses,
     drawMasses
 } from './rendering/MassRenderer.js';
 
 import {
     initializeSpacecraftRenderer,
-    updateReferences as updateSpacecraftReferences,
     drawSpacecrafts
 } from './rendering/SpacecraftRenderer.js';
 
 import {
     initializeLaserRenderer,
-    updateReferences as updateLaserReferences,
     drawLasers
 } from './rendering/LaserRenderer.js';
 
 import {
     initializeVectorRenderer,
-    updateParameters as updateVectorParameters,
     drawVectors
 } from './rendering/VectorRenderer.js';
 
 import {
     initializePropagationRenderer,
-    updateParameters as updatePropagationParameters,
     drawPropagation
 } from './rendering/PropagationRenderer.js';
 
@@ -153,7 +119,6 @@ import {
 
 import {
     initializeClockRenderer,
-    updateClocks as updateClockReferences,
     drawClocks
 } from './rendering/ClockRenderer.js';
 
@@ -161,23 +126,10 @@ import {
 const canvas = document.getElementById('gravityCanvas');
 const ctx = canvas.getContext('2d');
 
-let masses = [];
-let propagationFronts = [];
-let spacecrafts = []; // Nouveau : vaisseaux spatiaux
 let animationRunning = true;
-let spacing = 32; // 800/25
-let showGrid = true;
-let showVectors = true;
-let showPropagation = true;
-let showSpacecrafts = true; // Nouveau : affichage des vaisseaux
 
 // Mode d'outil actuel
 let currentTool = 'mass'; // 'mass', 'spacecraft', 'blackhole', 'laser'
-
-// Paramètres physiques
-let propagationSpeed = 1.0;
-let forceScale = 1.0;
-let gridResolution = 25;
 
 
 
@@ -197,72 +149,6 @@ let gridResolution = 25;
 
 // updateLasers est maintenant dans LaserManager.js
 
-// Fonction pour calculer la métrique de Schwarzschild en 2D
-function calculateSchwarzschildMetric(x, y, masses) {
-    let totalPotential = 0;
-    
-    masses.forEach(mass => {
-        const dx = mass.x - x;
-        const dy = mass.y - y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        
-        if (distance > 0) {
-            // Potentiel gravitationnel Φ = -GM/r
-            const potential = -(G * mass.mass) / distance;
-            totalPotential += potential;
-        }
-    });
-    
-    // Métrique de Schwarzschild simplifiée en 2D
-    // ds² = -(1 + 2Φ/c²)dt² + (1 - 2Φ/c²)(dx² + dy²)
-    const phi = totalPotential;
-    const factor = 2 * phi / (c * c);
-    
-    return {
-        gtt: -(1 + factor),  // Composante temporelle
-        gxx: 1 - factor,     // Composante spatiale x
-        gyy: 1 - factor,     // Composante spatiale y
-        gxy: 0               // Pas de couplage xy en 2D
-    };
-}
-
-// Fonction pour calculer les symboles de Christoffel
-function calculateChristoffelSymbols(x, y, masses) {
-    const metric = calculateSchwarzschildMetric(x, y, masses);
-    const { gtt, gxx, gyy } = metric;
-    
-    // Dérivées spatiales de la métrique (approximation numérique)
-    const dx = 1.0;
-    const dy = 1.0;
-    
-    const metricXPlus = calculateSchwarzschildMetric(x + dx, y, masses);
-    const metricXMinus = calculateSchwarzschildMetric(x - dx, y, masses);
-    const metricYPlus = calculateSchwarzschildMetric(x, y + dy, masses);
-    const metricYMinus = calculateSchwarzschildMetric(x, y - dy, masses);
-    
-    // Calcul des dérivées
-    const dgtt_dx = (metricXPlus.gtt - metricXMinus.gtt) / (2 * dx);
-    const dgtt_dy = (metricYPlus.gtt - metricYMinus.gtt) / (2 * dy);
-    const dgxx_dx = (metricXPlus.gxx - metricXMinus.gxx) / (2 * dx);
-    const dgxx_dy = (metricYPlus.gxx - metricYMinus.gxx) / (2 * dy);
-    const dgyy_dx = (metricXPlus.gyy - metricXMinus.gyy) / (2 * dx);
-    const dgyy_dy = (metricYPlus.gyy - metricYMinus.gyy) / (2 * dy);
-    
-    // Symboles de Christoffel de première espèce
-    const christoffel = {
-        // Γᵢⱼₖ = ½(∂ᵢgⱼₖ + ∂ⱼgᵢₖ - ∂ₖgᵢⱼ)
-        xxx: 0.5 * (dgxx_dx + dgxx_dx - dgxx_dx),
-        xxy: 0.5 * (dgxx_dy + dgxx_dy - dgyy_dx),
-        xyx: 0.5 * (dgxx_dy + dgyy_dx - dgxx_dy),
-        xyy: 0.5 * (dgyy_dx + dgyy_dx - dgxx_dy),
-        yxx: 0.5 * (dgyy_dx + dgxx_dy - dgyy_dx),
-        yxy: 0.5 * (dgyy_dy + dgxx_dy - dgyy_dx),
-        yyx: 0.5 * (dgyy_dy + dgyy_dy - dgyy_dy),
-        yyy: 0.5 * (dgyy_dy + dgyy_dy - dgyy_dy)
-    };
-    
-    return christoffel;
-}
 
 
 
@@ -270,44 +156,38 @@ function calculateChristoffelSymbols(x, y, masses) {
 
 
 
-function getGridPoint(x, y) {
-    const gridX = Math.round(x / spacing) * spacing;
-    const gridY = Math.round(y / spacing) * spacing;
-    return {
-        x: Math.max(0, Math.min(canvas.width, gridX)),
-        y: Math.max(0, Math.min(canvas.height, gridY))
-    };
-}
+
+
 
 function updateDebugInfo() {
     // Mettre à jour les informations de debug
-    document.getElementById('massCount').textContent = masses.length;
+    document.getElementById('massCount').textContent = AppContext.masses.length;
     document.getElementById('versionInfo').textContent = getCurrentVersion();
-    document.getElementById('spacecraftCount').textContent = spacecrafts.length;
-    document.getElementById('laserCount').textContent = window.lasers ? window.lasers.length : 0;
-    document.getElementById('geodesicCount').textContent = geodesics.length;
+    document.getElementById('spacecraftCount').textContent = AppContext.spacecrafts.length;
+    document.getElementById('laserCount').textContent = AppContext.lasers ? AppContext.lasers.length : 0;
+    document.getElementById('geodesicCount').textContent = AppContext.geodesics.length;
     document.getElementById('clockCount').textContent = AppContext.clocks.length;
     
     // Mettre à jour le temps de référence
     document.getElementById('referenceTime').textContent = AppContext.referenceClockTime.toFixed(2);
     
     // Afficher des informations sur les géodésiques
-    if (geodesics.length > 0) {
-        const closedCount = geodesics.filter(g => g.isClosed).length;
-        const avgAngle = geodesics.reduce((sum, g) => sum + (g.totalAngle || 0), 0) / geodesics.length;
-        console.log(`Géodésiques: ${geodesics.length} total, ${closedCount} fermées, angle moyen: ${avgAngle.toFixed(1)}°`);
+    if (AppContext.geodesics.length > 0) {
+        const closedCount = AppContext.geodesics.filter(g => g.isClosed).length;
+        const avgAngle = AppContext.geodesics.reduce((sum, g) => sum + (g.totalAngle || 0), 0) / AppContext.geodesics.length;
+        console.log(`Géodésiques: ${AppContext.geodesics.length} total, ${closedCount} fermées, angle moyen: ${avgAngle.toFixed(1)}°`);
     }
     
     // Calculer le redshift moyen des lasers
     let totalRedshift = 0;
     let laserCount = 0;
-    if (window.lasers && window.lasers.length > 0) {
-        window.lasers.forEach(laser => {
+    if (AppContext.lasers && AppContext.lasers.length > 0) {
+        AppContext.lasers.forEach(laser => {
             const { gridX, gridY } = getGridVersionIndex(laser.x, laser.y);
             const gridVersions = getGridVersions();
             const pointVersion = gridVersions[gridX] && gridVersions[gridX][gridY] !== undefined 
                 ? gridVersions[gridX][gridY] : 0;
-            const versionMasses = getMassesForVersion(pointVersion, masses);
+            const versionMasses = getMassesForVersion(pointVersion, AppContext.masses);
             const redshift = calculateGravitationalRedshift(laser.x, laser.y, versionMasses);
             totalRedshift += redshift;
             laserCount++;
@@ -331,23 +211,18 @@ function toggleAnimation() {
 }
 
 function reset() {
-    // Réinitialiser le contexte global
+    // ===== RÉINITIALISATION DU CONTEXTE =====
     resetAppContext();
     
-    // Réinitialiser les variables locales pour compatibilité
-    masses = AppContext.masses;
-    propagationFronts = AppContext.propagationFronts;
-    spacecrafts = AppContext.spacecrafts;
-    window.lasers = AppContext.lasers;
-    geodesics = AppContext.geodesics;
-    
-    // Réinitialiser les gestionnaires
-    initializeVersionManager(masses, spacing, gridResolution);
+    // ===== RÉINITIALISATION DES GESTIONNAIRES =====
+    initializeVersionManager(AppContext.masses, AppContext.spacing, AppContext.gridResolution);
     initializeMassManager();
     initializeBlackHoleManager();
     initializeSpacecraftManager();
     initializeLaserManager();
     initializeGeodesicManager();
+    
+    // ===== ANNULATION DES PLACEMENTS ACTIFS =====
     cancelSpacecraftPlacement();
     cancelLaserPlacement();
     cancelGeodesicPlacement();
@@ -379,71 +254,33 @@ function animate() {
     const deltaTime = currentTime - (animate.lastTime || currentTime);
     animate.lastTime = currentTime;
     
-    // Mettre à jour les vaisseaux
+    // ===== MISE À JOUR DES OBJETS DE SIMULATION =====
     updateSpacecrafts(deltaTime);
-    updateLasers(deltaTime); // Mettre à jour les lasers (via LaserManager)
-    
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // Mettre à jour les géodésiques
+    updateLasers(deltaTime);
     updateGeodesics(deltaTime);
-    
-    // Mettre à jour les horloges
     updateClocks(deltaTime);
-    
-    // Mettre à jour les fronts de propagation
     updatePropagationFronts(deltaTime);
     
-    // Synchroniser les variables locales avec le contexte global
-    masses = AppContext.masses;
-    propagationFronts = AppContext.propagationFronts;
-    spacecrafts = AppContext.spacecrafts;
-    window.lasers = AppContext.lasers;
-    geodesics = AppContext.geodesics;
+    // ===== MISE À JOUR DES RÉFÉRENCES =====
+    updateGeodesicReferences(AppContext.geodesics, AppContext.masses);
     
-    // Mettre à jour les références des modules de rendu
-    updateMassReferences();
-    updateBlackHoleReferences();
-    updateSpacecraftManagerReferences();
-    updateLaserManagerReferences();
-    updateGeodesicManagerReferences();
-    updateMasses();
-    updateSpacecraftReferences();
-    // Synchroniser lasers avec window.lasers
-    lasers = window.lasers || [];
-    updateLaserReferences();
-    updateVectorParameters();
-    updatePropagationParameters();
-    updateGeodesicReferences(geodesics, masses);
-    updateClockReferences();
+    // ===== RENDU =====
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // Dessiner tout avec les modules de rendu
+    // Ordre de rendu optimisé (arrière-plan vers premier plan)
     drawGrid();
+    drawVectors();
+    drawPropagation();
+    drawGeodesics();
     drawMasses();
     drawSpacecrafts();
     drawLasers();
-    drawPropagation();
-    drawVectors();
-    drawGeodesics();
     drawClocks();
     
     requestAnimationFrame(animate);
 }
 
-// Variables pour le placement de vaisseau (maintenues pour compatibilité temporaire)
-let spacecraftStartPoint = null;
-let isPlacingSpacecraft = false;
-let mousePosition = { x: 0, y: 0 };
-
-// Variables pour le placement de laser (maintenues pour compatibilité temporaire)
-let laserStartPoint = null;
-let isPlacingLaser = false;
-let lasers = []; // Référence locale vers window.lasers
-
-// Variables globales pour les géodésiques (courbes de niveau) (maintenues pour compatibilité temporaire)
-let geodesics = [];
-let isPlacingGeodesic = false;
-let geodesicStartPoint = null;
+// Plus de variables locales - tout est géré par AppContext
 
 
 
@@ -668,67 +505,60 @@ document.getElementById('resetBtn').addEventListener('click', reset);
 
 // Sliders
 document.getElementById('speedSlider').addEventListener('input', (e) => {
-    propagationSpeed = parseFloat(e.target.value);
-    document.getElementById('speedValue').textContent = propagationSpeed.toFixed(1) + ' × c';
+    AppContext.propagationSpeed = parseFloat(e.target.value);
+    document.getElementById('speedValue').textContent = AppContext.propagationSpeed.toFixed(1) + ' × c';
 });
 
 document.getElementById('forceScaleSlider').addEventListener('input', (e) => {
-    forceScale = parseFloat(e.target.value);
-    document.getElementById('forceScaleValue').textContent = forceScale.toFixed(1);
+    AppContext.forceScale = parseFloat(e.target.value);
+    document.getElementById('forceScaleValue').textContent = AppContext.forceScale.toFixed(1);
 });
 
 document.getElementById('gridResolutionSlider').addEventListener('input', (e) => {
-    gridResolution = parseInt(e.target.value);
-    spacing = canvas.width / gridResolution;
-    document.getElementById('gridResolutionValue').textContent = gridResolution + ' × ' + gridResolution;
+    AppContext.gridResolution = parseInt(e.target.value);
+    AppContext.spacing = canvas.width / AppContext.gridResolution;
+    document.getElementById('gridResolutionValue').textContent = AppContext.gridResolution + ' × ' + AppContext.gridResolution;
 });
 
 // Toggles de visualisation
 document.getElementById('showGridToggle').addEventListener('change', (e) => {
-    showGrid = e.target.checked;
+    AppContext.showGrid = e.target.checked;
 });
 
 document.getElementById('showVectorsToggle').addEventListener('change', (e) => {
-    showVectors = e.target.checked;
+    AppContext.showVectors = e.target.checked;
 });
 
 document.getElementById('showPropagationToggle').addEventListener('change', (e) => {
-    showPropagation = e.target.checked;
+    AppContext.showPropagation = e.target.checked;
 });
 
 
 
 
 
-// Initialisation
-initializeVersionManager(masses, spacing, gridResolution);
+// ===== INITIALISATION DES GESTIONNAIRES =====
+initializeVersionManager(AppContext.masses, AppContext.spacing, AppContext.gridResolution);
 initializeMassManager();
 initializeBlackHoleManager();
-    initializeSpacecraftManager();
-    initializeLaserManager();
-    initializeGeodesicManager();
-    initializeClockManager();
-    initializePropagationManager();
+initializeSpacecraftManager();
+initializeLaserManager();
+initializeGeodesicManager();
+initializeClockManager();
+initializePropagationManager();
 
-// Initialisation du contexte global (après les modules)
+// ===== INITIALISATION DU CONTEXTE GLOBAL =====
 initializeAppContext(canvas, ctx, updateDebugInfo, recalculateAllGeodesics, getGridVersionIndex, getGridVersions, getMassesForVersion, updateGridVersionsForFront);
 
-// Synchroniser les variables locales avec le contexte global
-masses = AppContext.masses;
-propagationFronts = AppContext.propagationFronts;
-spacecrafts = AppContext.spacecrafts;
-window.lasers = AppContext.lasers;
-geodesics = AppContext.geodesics;
-
-// Initialiser les modules de rendu immédiatement
-    initializeGridRenderer();
-    initializeMassRenderer();
-    initializeSpacecraftRenderer();
-    initializeLaserRenderer();
-    initializeVectorRenderer();
-    initializePropagationRenderer();
-    initializeGeodesicRenderer();
-    initializeClockRenderer();
+// ===== INITIALISATION DES MODULES DE RENDU =====
+initializeGridRenderer();
+initializeMassRenderer();
+initializeSpacecraftRenderer();
+initializeLaserRenderer();
+initializeVectorRenderer();
+initializePropagationRenderer();
+initializeGeodesicRenderer();
+initializeClockRenderer();
 
 // Initialiser les paramètres et démarrer l'animation
 document.addEventListener('DOMContentLoaded', () => {
