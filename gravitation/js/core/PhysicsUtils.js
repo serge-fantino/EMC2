@@ -59,16 +59,19 @@ export function redshiftToColor(redshift) {
     // redshift positif = redshift (plus rouge)
     // redshift = 0 = vert (couleur de base)
     
+    // Limiter l'intensité pour éviter les couleurs blanches
+    const maxIntensity = 0.8; // Maximum 80% d'intensité
+    
     if (redshift < 0) {
         // Blueshift : vert → bleu → violet
-        const intensity = Math.abs(redshift) / 2.0; // Normaliser à 0-1
+        const intensity = Math.min(Math.abs(redshift) / 2.0, maxIntensity); // Limiter l'intensité
         const r = 0;
         const g = Math.round(255 * (1 - intensity));
         const b = Math.round(255 * (0.5 + intensity * 0.5)); // Bleu plus intense
         return `rgb(${r}, ${g}, ${b})`;
     } else {
         // Redshift : vert → rouge → orange
-        const intensity = redshift / 2.0; // Normaliser à 0-1
+        const intensity = Math.min(redshift / 2.0, maxIntensity); // Limiter l'intensité
         const r = Math.round(255 * (0.5 + intensity * 0.5)); // Rouge plus intense
         const g = Math.round(255 * (1 - intensity));
         const b = 0;

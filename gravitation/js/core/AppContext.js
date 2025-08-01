@@ -3,6 +3,8 @@
  * Centralise toutes les données et références pour une meilleure modularité
  */
 
+import { maxSpeed, G, c } from './PhysicsConstants.js';
+
 // Données de l'application
 export const AppContext = {
     // Objets de simulation
@@ -15,12 +17,12 @@ export const AppContext = {
     
     // Paramètres de simulation
     spacing: 32,
-    maxSpeed: 10,
+    maxSpeed: maxSpeed, // Utiliser la constante de PhysicsConstants.js
     gridResolution: 25,
     
     // Constantes physiques
-    G: 1.0,
-    c: 10, // maxSpeed
+    G: G, // Utiliser la constante de PhysicsConstants.js
+    c: c, // Utiliser la constante de PhysicsConstants.js
     
     // Temps de référence pour les horloges
     referenceClockTime: 0,

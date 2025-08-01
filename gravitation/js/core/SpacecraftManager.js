@@ -5,6 +5,7 @@
 
 import { normalizeVector, calculateEventHorizon } from './PhysicsUtils.js';
 import { AppContext } from './AppContext.js';
+import { maxSpeed } from './PhysicsConstants.js';
 
 /**
  * Initialise le gestionnaire de vaisseaux spatiaux
@@ -53,7 +54,7 @@ export function addSpacecraft(x, y, directionX, directionY) {
     const normalizedDirY = directionY / distance;
     
     // Calculer la vitesse initiale (même logique que la prévisualisation)
-    const initialSpeed = Math.min(distance * 0.5, AppContext.maxSpeed);
+    const initialSpeed = Math.min(distance * 2.0, maxSpeed); // Augmenter le facteur pour plus de visibilité
     
     // Créer le vaisseau
     const spacecraft = {

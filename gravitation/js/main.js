@@ -407,12 +407,12 @@ function animate() {
     updateSpacecraftManagerReferences();
     updateLaserManagerReferences();
     updateGeodesicManagerReferences();
-    updateMasses(masses);
-    updateSpacecraftReferences(spacecrafts, isPlacingSpacecraft, spacecraftStartPoint, mousePosition);
+    updateMasses();
+    updateSpacecraftReferences();
     // Synchroniser lasers avec window.lasers
     lasers = window.lasers || [];
-    updateLaserReferences(lasers, isPlacingLaser, laserStartPoint, mousePosition, masses);
-    updateVectorParameters(showVectors, forceScale, masses);
+    updateLaserReferences();
+    updateVectorParameters();
     updatePropagationParameters();
     updateGeodesicReferences(geodesics, masses);
     updateClockReferences();
@@ -430,17 +430,17 @@ function animate() {
     requestAnimationFrame(animate);
 }
 
-// Variables pour le placement de vaisseau
+// Variables pour le placement de vaisseau (maintenues pour compatibilité temporaire)
 let spacecraftStartPoint = null;
 let isPlacingSpacecraft = false;
 let mousePosition = { x: 0, y: 0 };
 
-// Variables pour le placement de laser
+// Variables pour le placement de laser (maintenues pour compatibilité temporaire)
 let laserStartPoint = null;
 let isPlacingLaser = false;
 let lasers = []; // Référence locale vers window.lasers
 
-// Variables globales pour les géodésiques (courbes de niveau)
+// Variables globales pour les géodésiques (courbes de niveau) (maintenues pour compatibilité temporaire)
 let geodesics = [];
 let isPlacingGeodesic = false;
 let geodesicStartPoint = null;
@@ -472,61 +472,57 @@ canvas.addEventListener('click', (e) => {
     if (currentTool === 'mass') {
         addMass(x, y, false);
     } else if (currentTool === 'spacecraft') {
-        if (!isPlacingSpacecraft) {
+        if (!AppContext.isPlacingSpacecraft) {
             // Premier clic : définir le point de départ
-            spacecraftStartPoint = { x, y };
-            mousePosition = { x, y }; // Initialiser mousePosition avec la position du clic
-            isPlacingSpacecraft = true;
+            AppContext.spacecraftStartPoint = { x, y };
+            AppContext.mousePosition = { x, y }; // Initialiser mousePosition avec la position du clic
+            AppContext.isPlacingSpacecraft = true;
             canvas.style.cursor = 'crosshair';
             
             // Debug: forcer un redessinage immédiat
-            console.log('Premier clic vaisseau:', { x, y, spacecraftStartPoint, mousePosition });
+            console.log('Premier clic vaisseau:', { x, y, startPoint: AppContext.spacecraftStartPoint, mousePos: AppContext.mousePosition });
             
             // Forcer un cycle d'animation complet pour afficher la prévisualisation
             requestAnimationFrame(() => {
                 animate();
             });
-            
-
         } else {
             // Deuxième clic : confirmer le vecteur vitesse
-            const directionX = mousePosition.x - spacecraftStartPoint.x;
-            const directionY = mousePosition.y - spacecraftStartPoint.y;
-            addSpacecraft(spacecraftStartPoint.x, spacecraftStartPoint.y, directionX, directionY);
+            const directionX = AppContext.mousePosition.x - AppContext.spacecraftStartPoint.x;
+            const directionY = AppContext.mousePosition.y - AppContext.spacecraftStartPoint.y;
+            addSpacecraft(AppContext.spacecraftStartPoint.x, AppContext.spacecraftStartPoint.y, directionX, directionY);
             
             // Réinitialiser
-            spacecraftStartPoint = null;
-            isPlacingSpacecraft = false;
+            AppContext.spacecraftStartPoint = null;
+            AppContext.isPlacingSpacecraft = false;
             canvas.style.cursor = 'default';
         }
     } else if (currentTool === 'blackhole') {
         addBlackHole(x, y, false); // Clic gauche
     } else if (currentTool === 'laser') {
-        if (!isPlacingLaser) {
+        if (!AppContext.isPlacingLaser) {
             // Premier clic : définir le point de départ
-            laserStartPoint = { x, y };
-            mousePosition = { x, y }; // Initialiser mousePosition avec la position du clic
-            isPlacingLaser = true;
+            AppContext.laserStartPoint = { x, y };
+            AppContext.mousePosition = { x, y }; // Initialiser mousePosition avec la position du clic
+            AppContext.isPlacingLaser = true;
             canvas.style.cursor = 'crosshair';
             
             // Debug: forcer un redessinage immédiat
-            console.log('Premier clic laser:', { x, y, laserStartPoint, mousePosition });
+            console.log('Premier clic laser:', { x, y, startPoint: AppContext.laserStartPoint, mousePos: AppContext.mousePosition });
             
             // Forcer un cycle d'animation complet pour afficher la prévisualisation
             requestAnimationFrame(() => {
                 animate();
             });
-            
-
         } else {
             // Deuxième clic : confirmer la direction
-            const directionX = mousePosition.x - laserStartPoint.x;
-            const directionY = mousePosition.y - laserStartPoint.y;
-            addLaser(laserStartPoint.x, laserStartPoint.y, directionX, directionY);
+            const directionX = AppContext.mousePosition.x - AppContext.laserStartPoint.x;
+            const directionY = AppContext.mousePosition.y - AppContext.laserStartPoint.y;
+            addLaser(AppContext.laserStartPoint.x, AppContext.laserStartPoint.y, directionX, directionY);
             
             // Réinitialiser
-            laserStartPoint = null;
-            isPlacingLaser = false;
+            AppContext.laserStartPoint = null;
+            AppContext.isPlacingLaser = false;
             canvas.style.cursor = 'default';
         }
     } else if (currentTool === 'geodesic') {
@@ -565,10 +561,10 @@ canvas.addEventListener('contextmenu', (e) => {
         addMass(x, y, true);
     } else if (currentTool === 'blackhole') {
         addBlackHole(x, y, true); // Clic droit
-    } else if (currentTool === 'spacecraft' && isPlacingSpacecraft) {
+    } else if (currentTool === 'spacecraft' && AppContext.isPlacingSpacecraft) {
         // Annuler le placement de vaisseau
         cancelSpacecraftPlacement();
-    } else if (currentTool === 'laser' && isPlacingLaser) {
+    } else if (currentTool === 'laser' && AppContext.isPlacingLaser) {
         // Annuler le placement de laser
         cancelLaserPlacement();
     } else if (currentTool === 'geodesic' && isPlacingGeodesic) {
@@ -583,8 +579,8 @@ canvas.addEventListener('contextmenu', (e) => {
 // Suivi de la souris pour la prévisualisation du vaisseau
 canvas.addEventListener('mousemove', (e) => {
     const rect = canvas.getBoundingClientRect();
-    mousePosition.x = e.clientX - rect.left;
-    mousePosition.y = e.clientY - rect.top;
+    AppContext.mousePosition.x = e.clientX - rect.left;
+    AppContext.mousePosition.y = e.clientY - rect.top;
     
     // Gestion du déplacement d'horloge
     if (AppContext.isMovingClock && AppContext.selectedClock) {
@@ -607,9 +603,9 @@ canvas.addEventListener('mouseup', (e) => {
 
 // Gestion de la touche ESC pour annuler le placement
 document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && isPlacingSpacecraft) {
+    if (e.key === 'Escape' && AppContext.isPlacingSpacecraft) {
         cancelSpacecraftPlacement();
-    } else if (e.key === 'Escape' && isPlacingLaser) {
+    } else if (e.key === 'Escape' && AppContext.isPlacingLaser) {
         cancelLaserPlacement();
     } else if (e.key === 'Escape' && isPlacingGeodesic) {
         cancelGeodesicPlacement();
@@ -619,14 +615,14 @@ document.addEventListener('keydown', (e) => {
 });
 
 function cancelSpacecraftPlacement() {
-    spacecraftStartPoint = null;
-    isPlacingSpacecraft = false;
+    AppContext.spacecraftStartPoint = null;
+    AppContext.isPlacingSpacecraft = false;
     canvas.style.cursor = 'default';
 }
 
 function cancelLaserPlacement() {
-    laserStartPoint = null;
-    isPlacingLaser = false;
+    AppContext.laserStartPoint = null;
+    AppContext.isPlacingLaser = false;
     canvas.style.cursor = 'default';
 }
 
@@ -725,11 +721,11 @@ window.lasers = AppContext.lasers;
 geodesics = AppContext.geodesics;
 
 // Initialiser les modules de rendu immédiatement
-initializeGridRenderer(ctx, canvas, spacing, showGrid);
-initializeMassRenderer(ctx, masses);
-initializeSpacecraftRenderer(ctx, canvas, spacecrafts, isPlacingSpacecraft, spacecraftStartPoint, mousePosition);
-    initializeLaserRenderer(ctx, window.lasers || [], isPlacingLaser, laserStartPoint, mousePosition, getGridVersionIndex, getGridVersions, getMassesForVersion, calculateGravitationalRedshift, redshiftToColor, masses);
-initializeVectorRenderer(ctx, canvas, spacing, showVectors, forceScale, masses, getGridVersionIndex, getGridVersions, getMassesForVersion);
+    initializeGridRenderer();
+    initializeMassRenderer();
+    initializeSpacecraftRenderer();
+    initializeLaserRenderer();
+    initializeVectorRenderer();
     initializePropagationRenderer();
     initializeGeodesicRenderer();
     initializeClockRenderer();

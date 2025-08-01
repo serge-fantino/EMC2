@@ -349,6 +349,18 @@ gravitation/js/
 - ✅ **Fonction intégrée** : `updateGridVersionsForFront` ajoutée dans `AppContext` pour la mise à jour des versions de grille
 - ✅ **Iso-fonctionnalité garantie** : Vitesse exacte (`timeDiff * 10`), couleur (`#44ff44`), style (pointillés `[5, 5]`), épaisseur (`lineWidth = 2`)
 
+### [Date] - Étape 6 : Refactorisation des modules de rendu ✅
+- ✅ **Refactorisation de `SpacecraftRenderer.js`** : Utilise `AppContext` directement, plus d'injection de dépendances
+- ✅ **Refactorisation de `LaserRenderer.js`** : Utilise `AppContext` directement, calculs de redshift intégrés localement
+- ✅ **Refactorisation de `VectorRenderer.js`** : Utilise `AppContext` directement, plus d'injection de dépendances
+- ✅ **Refactorisation de `GridRenderer.js`** : Utilise `AppContext` directement, plus d'injection de dépendances
+- ✅ **Refactorisation de `MassRenderer.js`** : Utilise `AppContext` directement, plus d'injection de dépendances
+- ✅ **Simplification des signatures** : Toutes les fonctions `initialize*Renderer()` et `update*()` n'ont plus de paramètres
+- ✅ **Cohérence architecturale** : Tous les modules de rendu suivent le même pattern que `GeodesicRenderer`, `PropagationRenderer`, et `ClockRenderer`
+- ✅ **Mise à jour de `main.js`** : Tous les appels aux renderers simplifiés, plus de passage de paramètres
+- ✅ **Calculs intégrés** : `LaserRenderer` recalcule le redshift localement au lieu d'utiliser des fonctions injectées
+- ✅ **Architecture unifiée** : Un seul point de vérité (`AppContext`) pour toutes les données partagées
+
 ## ⚠️ Points d'attention
 
 ### Dépendances critiques

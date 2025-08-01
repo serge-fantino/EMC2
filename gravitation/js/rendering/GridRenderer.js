@@ -3,24 +3,13 @@
  * Extrait du main.js pour améliorer la modularité
  */
 
-// Variables externes nécessaires (seront injectées)
-let ctx = null;
-let canvas = null;
-let spacing = 32;
-let showGrid = true;
+import { AppContext } from '../core/AppContext.js';
 
 /**
- * Initialise le renderer de grille avec les dépendances externes
- * @param {CanvasRenderingContext2D} ctxRef - Contexte Canvas
- * @param {HTMLCanvasElement} canvasRef - Élément Canvas
- * @param {number} spacingRef - Espacement de la grille
- * @param {boolean} showGridRef - État d'affichage de la grille
+ * Initialise le renderer de grille
  */
-export function initializeGridRenderer(ctxRef, canvasRef, spacingRef, showGridRef) {
-    ctx = ctxRef;
-    canvas = canvasRef;
-    spacing = spacingRef;
-    showGrid = showGridRef;
+export function initializeGridRenderer() {
+    // Plus besoin d'injection de dépendances, utilise AppContext directement
 }
 
 /**
@@ -28,21 +17,21 @@ export function initializeGridRenderer(ctxRef, canvasRef, spacingRef, showGridRe
  * @param {boolean} show - Nouvel état d'affichage
  */
 export function setShowGrid(show) {
-    showGrid = show;
+    AppContext.showGrid = show;
 }
 
 /**
  * Dessine la grille de points
  */
 export function drawGrid() {
-    if (!showGrid || !ctx || !canvas) return;
+    if (!AppContext.showGrid || !AppContext.ctx || !AppContext.canvas) return;
     
-    ctx.fillStyle = '#666';
-    for (let x = 0; x <= canvas.width; x += spacing) {
-        for (let y = 0; y <= canvas.height; y += spacing) {
-            ctx.beginPath();
-            ctx.arc(x, y, 2, 0, 2 * Math.PI);
-            ctx.fill();
+    AppContext.ctx.fillStyle = '#666';
+    for (let x = 0; x <= AppContext.canvas.width; x += AppContext.spacing) {
+        for (let y = 0; y <= AppContext.canvas.height; y += AppContext.spacing) {
+            AppContext.ctx.beginPath();
+            AppContext.ctx.arc(x, y, 2, 0, 2 * Math.PI);
+            AppContext.ctx.fill();
         }
     }
 } 

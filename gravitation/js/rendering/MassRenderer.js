@@ -5,36 +5,29 @@
 
 // Import de la fonction de calcul de l'horizon des événements
 import { calculateEventHorizon } from '../core/PhysicsUtils.js';
-
-// Variables externes nécessaires (seront injectées)
-let ctx = null;
-let masses = [];
+import { AppContext } from '../core/AppContext.js';
 
 /**
- * Initialise le renderer de masses avec les dépendances externes
- * @param {CanvasRenderingContext2D} ctxRef - Contexte Canvas
- * @param {Array} massesRef - Référence vers le tableau des masses
+ * Initialise le renderer de masses
  */
-export function initializeMassRenderer(ctxRef, massesRef) {
-    ctx = ctxRef;
-    masses = massesRef;
+export function initializeMassRenderer() {
+    // Plus besoin d'injection de dépendances, utilise AppContext directement
 }
 
 /**
- * Met à jour la référence vers les masses
- * @param {Array} massesRef - Nouvelle référence vers les masses
+ * Met à jour la référence vers les masses (maintenu pour compatibilité)
  */
-export function updateMasses(massesRef) {
-    masses = massesRef;
+export function updateMasses() {
+    // Plus besoin de mise à jour, utilise AppContext directement
 }
 
 /**
  * Dessine toutes les masses gravitationnelles
  */
 export function drawMasses() {
-    if (!ctx || !masses) return;
+    if (!AppContext.ctx || !AppContext.masses) return;
     
-    masses.forEach(mass => {
+    AppContext.masses.forEach(mass => {
         let radius, fillColor, strokeColor, textColor;
         
         if (mass.type === 'blackhole') {
@@ -43,42 +36,42 @@ export function drawMasses() {
             const eventHorizonRadius = calculateEventHorizon(mass.mass);
 
             // 1. Halo orange
-            ctx.save();
-            ctx.shadowColor = '#ff8800';
-            ctx.shadowBlur = 25;
-            ctx.beginPath();
-            ctx.arc(mass.x, mass.y, radius + 10, 0, 2 * Math.PI);
-            ctx.fillStyle = '#ff8800';
-            ctx.fill();
-            ctx.restore();
+            AppContext.ctx.save();
+            AppContext.ctx.shadowColor = '#ff8800';
+            AppContext.ctx.shadowBlur = 25;
+            AppContext.ctx.beginPath();
+            AppContext.ctx.arc(mass.x, mass.y, radius + 10, 0, 2 * Math.PI);
+            AppContext.ctx.fillStyle = '#ff8800';
+            AppContext.ctx.fill();
+            AppContext.ctx.restore();
 
             // 2. Disque noir
-            ctx.beginPath();
-            ctx.arc(mass.x, mass.y, radius, 0, 2 * Math.PI);
-            ctx.fillStyle = '#000000';
-            ctx.fill();
+            AppContext.ctx.beginPath();
+            AppContext.ctx.arc(mass.x, mass.y, radius, 0, 2 * Math.PI);
+            AppContext.ctx.fillStyle = '#000000';
+            AppContext.ctx.fill();
 
             // 3. Bordure orange
-            ctx.strokeStyle = '#ff8800';
-            ctx.lineWidth = 2;
-            ctx.stroke();
+            AppContext.ctx.strokeStyle = '#ff8800';
+            AppContext.ctx.lineWidth = 2;
+            AppContext.ctx.stroke();
 
             // 4. Horizon des événements (pointillé orange)
-            ctx.save();
-            ctx.strokeStyle = '#ff8800';
-            ctx.lineWidth = 2;
-            ctx.setLineDash([5, 5]);
-            ctx.beginPath();
-            ctx.arc(mass.x, mass.y, eventHorizonRadius, 0, 2 * Math.PI);
-            ctx.stroke();
-            ctx.setLineDash([]);
-            ctx.restore();
+            AppContext.ctx.save();
+            AppContext.ctx.shadowColor = '#ff8800';
+            AppContext.ctx.lineWidth = 2;
+            AppContext.ctx.setLineDash([5, 5]);
+            AppContext.ctx.beginPath();
+            AppContext.ctx.arc(mass.x, mass.y, eventHorizonRadius, 0, 2 * Math.PI);
+            AppContext.ctx.stroke();
+            AppContext.ctx.setLineDash([]);
+            AppContext.ctx.restore();
 
             // 5. Texte orange
-            ctx.fillStyle = '#ff8800';
-            ctx.font = '12px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText(`${(mass.mass / 1000).toFixed(0)}K`, mass.x, mass.y + 4);
+            AppContext.ctx.fillStyle = '#ff8800';
+            AppContext.ctx.font = '12px Arial';
+            AppContext.ctx.textAlign = 'center';
+            AppContext.ctx.fillText(`${(mass.mass / 1000).toFixed(0)}K`, mass.x, mass.y + 4);
             return; // Empêcher le reste du rendu pour ce type
         } else if (mass.type === 'planet') {
             // Planète : taille normale, couleur bleue
@@ -95,20 +88,20 @@ export function drawMasses() {
         }
         
         // Dessiner le cercle de la masse
-        ctx.fillStyle = fillColor;
-        ctx.beginPath();
-        ctx.arc(mass.x, mass.y, radius, 0, 2 * Math.PI);
-        ctx.fill();
+        AppContext.ctx.fillStyle = fillColor;
+        AppContext.ctx.beginPath();
+        AppContext.ctx.arc(mass.x, mass.y, radius, 0, 2 * Math.PI);
+        AppContext.ctx.fill();
         
         // Bordure
-        ctx.strokeStyle = strokeColor;
-        ctx.lineWidth = 2;
-        ctx.stroke();
+        AppContext.ctx.strokeStyle = strokeColor;
+        AppContext.ctx.lineWidth = 2;
+        AppContext.ctx.stroke();
         
         // Afficher la masse
-        ctx.fillStyle = textColor;
-        ctx.font = '12px Arial';
-        ctx.textAlign = 'center';
+        AppContext.ctx.fillStyle = textColor;
+        AppContext.ctx.font = '12px Arial';
+        AppContext.ctx.textAlign = 'center';
         
         let massText;
         if (mass.type === 'blackhole') {
@@ -118,16 +111,16 @@ export function drawMasses() {
             massText = `${mass.mass.toFixed(0)}`;
         }
         
-        ctx.fillText(massText, mass.x, mass.y + 4);
+        AppContext.ctx.fillText(massText, mass.x, mass.y + 4);
         
         // Effet lumineux pour les trous noirs
         if (mass.type === 'blackhole') {
-            ctx.shadowColor = '#ff8800';
-            ctx.shadowBlur = 15;
-            ctx.beginPath();
-            ctx.arc(mass.x, mass.y, radius + 8, 0, 2 * Math.PI);
-            ctx.fill();
-            ctx.shadowBlur = 0;
+            AppContext.ctx.shadowColor = '#ff8800';
+            AppContext.ctx.shadowBlur = 15;
+            AppContext.ctx.beginPath();
+            AppContext.ctx.arc(mass.x, mass.y, radius + 8, 0, 2 * Math.PI);
+            AppContext.ctx.fill();
+            AppContext.ctx.shadowBlur = 0;
         }
     });
 } 
