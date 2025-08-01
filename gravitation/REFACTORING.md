@@ -338,6 +338,17 @@ gravitation/js/
 - ✅ **Constantes physiques** : `G` et `c` ajoutées dans `AppContext` pour les calculs de dilatation temporelle
 - ✅ **Événements synchronisés** : Tous les événements d'horloge utilisent maintenant `AppContext`
 
+### [Date] - Étape 5.3 : Extraction de la gestion des fronts de propagation ✅
+- ✅ **Création de `PropagationManager.js`** : Module dédié à la gestion des fronts de propagation gravitationnelle
+- ✅ **Fonctions extraites** : `createPropagationFront()`, `removePropagationFront()`, `updatePropagationFronts()`, `cleanupPropagationFronts()`, `getPropagationFronts()`, `clearPropagationFronts()`, `calculateFrontRadius()`, `isFrontVisible()`
+- ✅ **Gestion des dépendances** : Utilise `AppContext` directement, plus d'injection de dépendances
+- ✅ **Intégration dans `main.js`** : Import et utilisation du module `PropagationManager`
+- ✅ **Logique complexe** : Gestion de la propagation causale gravitationnelle avec vitesse fixe (10 unités/seconde)
+- ✅ **Refactorisation des managers** : `MassManager` et `BlackHoleManager` utilisent maintenant `createPropagationFront()` et `removePropagationFront()`
+- ✅ **Refactorisation du renderer** : `PropagationRenderer` utilise `AppContext` directement
+- ✅ **Fonction intégrée** : `updateGridVersionsForFront` ajoutée dans `AppContext` pour la mise à jour des versions de grille
+- ✅ **Iso-fonctionnalité garantie** : Vitesse exacte (`timeDiff * 10`), couleur (`#44ff44`), style (pointillés `[5, 5]`), épaisseur (`lineWidth = 2`)
+
 ## ⚠️ Points d'attention
 
 ### Dépendances critiques

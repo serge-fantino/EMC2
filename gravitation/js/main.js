@@ -37,8 +37,7 @@ import {
     updateReferences as updateMassReferences,
     addMass,
     removeMass,
-    getMasses,
-    getPropagationFronts
+    getMasses
 } from './core/MassManager.js';
 
 // Import du gestionnaire de trous noirs
@@ -95,6 +94,16 @@ import {
     updateClocks, 
     cancelClockPlacement 
 } from './core/ClockManager.js';
+
+// Import du gestionnaire de propagation
+import { 
+    initializePropagationManager,
+    createPropagationFront,
+    removePropagationFront,
+    updatePropagationFronts,
+    cleanupPropagationFronts,
+    getPropagationFronts
+} from './core/PropagationManager.js';
 
 // Import du gestionnaire des paramètres des géodésiques
 import { initializeGeodesicSettings } from './core/GeodesicSettingsManager.js';
@@ -382,6 +391,9 @@ function animate() {
     // Mettre à jour les horloges
     updateClocks(deltaTime);
     
+    // Mettre à jour les fronts de propagation
+    updatePropagationFronts(deltaTime);
+    
     // Synchroniser les variables locales avec le contexte global
     masses = AppContext.masses;
     propagationFronts = AppContext.propagationFronts;
@@ -401,7 +413,7 @@ function animate() {
     lasers = window.lasers || [];
     updateLaserReferences(lasers, isPlacingLaser, laserStartPoint, mousePosition, masses);
     updateVectorParameters(showVectors, forceScale, masses);
-    updatePropagationParameters(propagationFronts, showPropagation, propagationSpeed);
+    updatePropagationParameters();
     updateGeodesicReferences(geodesics, masses);
     updateClockReferences();
     
@@ -700,9 +712,10 @@ initializeBlackHoleManager();
     initializeLaserManager();
     initializeGeodesicManager();
     initializeClockManager();
+    initializePropagationManager();
 
 // Initialisation du contexte global (après les modules)
-initializeAppContext(canvas, ctx, updateDebugInfo, recalculateAllGeodesics, getGridVersionIndex, getGridVersions, getMassesForVersion);
+initializeAppContext(canvas, ctx, updateDebugInfo, recalculateAllGeodesics, getGridVersionIndex, getGridVersions, getMassesForVersion, updateGridVersionsForFront);
 
 // Synchroniser les variables locales avec le contexte global
 masses = AppContext.masses;
@@ -717,7 +730,7 @@ initializeMassRenderer(ctx, masses);
 initializeSpacecraftRenderer(ctx, canvas, spacecrafts, isPlacingSpacecraft, spacecraftStartPoint, mousePosition);
     initializeLaserRenderer(ctx, window.lasers || [], isPlacingLaser, laserStartPoint, mousePosition, getGridVersionIndex, getGridVersions, getMassesForVersion, calculateGravitationalRedshift, redshiftToColor, masses);
 initializeVectorRenderer(ctx, canvas, spacing, showVectors, forceScale, masses, getGridVersionIndex, getGridVersions, getMassesForVersion);
-initializePropagationRenderer(ctx, canvas, propagationFronts, showPropagation, propagationSpeed, updateGridVersionsForFront);
+    initializePropagationRenderer();
     initializeGeodesicRenderer();
     initializeClockRenderer();
 

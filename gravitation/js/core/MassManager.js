@@ -5,6 +5,7 @@
 
 import { createNewVersion, updateGridPointVersion } from './VersionManager.js';
 import { AppContext } from './AppContext.js';
+import { createPropagationFront, removePropagationFront } from './PropagationManager.js';
 
 /**
  * Initialise le gestionnaire de masses
@@ -71,15 +72,7 @@ export function addMass(x, y, isRightClick = false) {
             updateGridPointVersion(gridPoint.x, gridPoint.y, versionInfo.version);
             
             // Créer le front de propagation
-            AppContext.propagationFronts.push({
-                x: versionInfo.x,
-                y: versionInfo.y,
-                startTime: Date.now(),
-                spacing: AppContext.spacing,
-                version: versionInfo.version,
-                type: versionInfo.type,
-                massChange: versionInfo.massChange
-            });
+            createPropagationFront(versionInfo.x, versionInfo.y, versionInfo.version, versionInfo.type, versionInfo.massChange);
             // Recalculer toutes les géodésiques quand une masse change
             AppContext.recalculateAllGeodesics();
         }
@@ -92,15 +85,7 @@ export function addMass(x, y, isRightClick = false) {
         updateGridPointVersion(gridPoint.x, gridPoint.y, versionInfo.version);
         
         // Créer le front de propagation
-        AppContext.propagationFronts.push({
-            x: versionInfo.x,
-            y: versionInfo.y,
-            startTime: Date.now(),
-            spacing: AppContext.spacing,
-            version: versionInfo.version,
-            type: versionInfo.type,
-            massChange: versionInfo.massChange
-        });
+        createPropagationFront(versionInfo.x, versionInfo.y, versionInfo.version, versionInfo.type, versionInfo.massChange);
         // Recalculer toutes les géodésiques quand une nouvelle masse est ajoutée
         AppContext.recalculateAllGeodesics();
     }
@@ -117,10 +102,7 @@ export function removeMass(mass) {
     if (index > -1) {
         AppContext.masses.splice(index, 1);
         // Supprimer aussi le front de propagation correspondant
-        const frontIndex = AppContext.propagationFronts.findIndex(f => f.x === mass.x && f.y === mass.y);
-        if (frontIndex > -1) {
-            AppContext.propagationFronts.splice(frontIndex, 1);
-        }
+        removePropagationFront(mass.x, mass.y);
         // Recalculer toutes les géodésiques quand une masse est supprimée
         AppContext.recalculateAllGeodesics();
     }
@@ -134,10 +116,4 @@ export function getMasses() {
     return AppContext.masses;
 }
 
-/**
- * Récupère le tableau des fronts de propagation
- * @returns {Array} Tableau des fronts de propagation
- */
-export function getPropagationFronts() {
-    return AppContext.propagationFronts;
-} 
+ 

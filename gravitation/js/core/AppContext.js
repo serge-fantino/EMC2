@@ -37,6 +37,7 @@ export const AppContext = {
     getGridVersionIndex: null,
     getGridVersions: null,
     getMassesForVersion: null,
+    updateGridVersionsForFront: null,
     
     // Variables d'état pour le placement
     isPlacingSpacecraft: false,
@@ -90,7 +91,8 @@ export function initializeAppContext(
     recalculateAllGeodesics,
     getGridVersionIndex,
     getGridVersions,
-    getMassesForVersion
+    getMassesForVersion,
+    updateGridVersionsForFront
 ) {
     AppContext.canvas = canvas;
     AppContext.ctx = ctx;
@@ -99,6 +101,7 @@ export function initializeAppContext(
     AppContext.getGridVersionIndex = getGridVersionIndex;
     AppContext.getGridVersions = getGridVersions;
     AppContext.getMassesForVersion = getMassesForVersion;
+    AppContext.updateGridVersionsForFront = updateGridVersionsForFront;
 }
 
 /**
