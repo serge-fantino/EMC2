@@ -311,6 +311,33 @@ gravitation/js/
 - ✅ **Synchronisation dans `main.js`** : Variables locales synchronisées avec `AppContext`
 - ✅ **Architecture simplifiée** : Plus de confusion entre variables locales et globales, code plus maintenable
 
+### [Date] - Étape 5.1 : Extraction de la gestion des géodésiques ✅
+- ✅ **Création de `GeodesicManager.js`** : Module dédié à la gestion des géodésiques
+- ✅ **Fonctions extraites** : `addGeodesic()`, `calculateGeodesicPoints()`, `recalculateAllGeodesics()`, `updateGeodesics()`, `removeGeodesic()`, `getGeodesics()`, `clearGeodesics()`, `cancelGeodesicPlacement()`
+- ✅ **Fonction utilitaire** : `calculateGravitationalGradient()` extraite du main.js
+- ✅ **Gestion des dépendances** : Utilise `AppContext` directement, plus d'injection de dépendances
+- ✅ **Intégration dans `main.js`** : Import et utilisation du module `GeodesicManager`
+- ✅ **Logique complexe** : Gestion des courbes de niveau gravitationnelles, calcul de courbure, détection de fermeture
+- ✅ **Paramètres intégrés** : Paramètres de géodésiques ajoutés dans `AppContext.geodesicSettings`
+- ✅ **Création de `GeodesicSettingsManager.js`** : Gestion des événements du panel de debug
+- ✅ **Synchronisation des paramètres** : Suppression de la variable locale `geodesicSettings`, utilisation exclusive d'`AppContext.geodesicSettings`
+- ✅ **Boutons fonctionnels** : Bouton "Recalculer" et "Effacer" connectés aux fonctions du module
+- ✅ **Paramètres optimisés** : Valeurs par défaut améliorées pour une meilleure précision des géodésiques
+- ✅ **Correction de l'affichage debug** : Refactorisation de `GeodesicRenderer` pour utiliser `AppContext.showGeodesicDebug`
+- ✅ **Option désactivée par défaut** : `showGeodesicDebug: false` dans `AppContext`
+- ✅ **Fonction debug intégrée** : `drawGeodesicDebugInfo()` affiche longueur, points et courbure
+
+### [Date] - Étape 5.2 : Extraction de la gestion des horloges ✅
+- ✅ **Création de `ClockManager.js`** : Module dédié à la gestion des horloges et de la dilatation temporelle
+- ✅ **Fonctions extraites** : `addClock()`, `updateClocks()`, `removeClock()`, `getClocks()`, `clearClocks()`, `cancelClockPlacement()`, `selectClock()`
+- ✅ **Fonction utilitaire** : `calculateGravitationalTimeDilation()` extraite du main.js
+- ✅ **Gestion des dépendances** : Utilise `AppContext` directement, plus d'injection de dépendances
+- ✅ **Intégration dans `main.js`** : Import et utilisation du module `ClockManager`
+- ✅ **Logique complexe** : Gestion de la dilatation temporelle gravitationnelle avec propagation causale
+- ✅ **Variables d'état** : `referenceClockTime`, `isMovingClock`, `selectedClock` ajoutées dans `AppContext`
+- ✅ **Constantes physiques** : `G` et `c` ajoutées dans `AppContext` pour les calculs de dilatation temporelle
+- ✅ **Événements synchronisés** : Tous les événements d'horloge utilisent maintenant `AppContext`
+
 ## ⚠️ Points d'attention
 
 ### Dépendances critiques

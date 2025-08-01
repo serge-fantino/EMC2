@@ -18,6 +18,13 @@ export const AppContext = {
     maxSpeed: 10,
     gridResolution: 25,
     
+    // Constantes physiques
+    G: 1.0,
+    c: 10, // maxSpeed
+    
+    // Temps de référence pour les horloges
+    referenceClockTime: 0,
+    
     // Références externes
     canvas: null,
     ctx: null,
@@ -39,14 +46,31 @@ export const AppContext = {
     isPlacingGeodesic: false,
     geodesicStartPoint: null,
     isPlacingClock: false,
+    isMovingClock: false,
+    selectedClock: null,
     mousePosition: { x: 0, y: 0 },
     
     // Paramètres d'affichage
     showGrid: true,
     showVectors: false,
     showPropagation: true,
+    showGeodesicDebug: false,
     forceScale: 1.0,
-    propagationSpeed: 1.0
+    propagationSpeed: 1.0,
+    
+    // Paramètres des géodésiques
+    geodesicSettings: {
+        explorationStep: 0.5, // Réduit de 1.0 à 0.5 pour plus de précision
+        curveStep: 10.0, // Augmenté de 5.0 à 10.0 pour une meilleure convergence
+        maxSteps: 10000, // Augmenté à 10000 pour permettre les courbes complexes
+        minGradientThreshold: 0.001,
+        stopGradientThreshold: 0.001,
+        minPoints: 3,
+        minDistanceBetweenPoints: 2.0,
+        maxAngle: 400, // Augmenté de 360 à 400 pour les courbes complexes
+        boundingBoxMultiplier: 3,
+        thicknessAmplification: 1.0 // Nouveau paramètre pour amplifier l'épaisseur
+    }
 };
 
 /**
@@ -96,7 +120,10 @@ export function resetAppContext() {
     AppContext.isPlacingGeodesic = false;
     AppContext.geodesicStartPoint = null;
     AppContext.isPlacingClock = false;
+    AppContext.isMovingClock = false;
+    AppContext.selectedClock = null;
     AppContext.mousePosition = { x: 0, y: 0 };
+    AppContext.referenceClockTime = 0;
 }
 
 /**

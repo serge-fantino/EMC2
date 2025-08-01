@@ -75,6 +75,30 @@ import {
     getLaserColor
 } from './core/LaserManager.js';
 
+// Import du gestionnaire de géodésiques
+import {
+    initializeGeodesicManager,
+    updateReferences as updateGeodesicManagerReferences,
+    addGeodesic,
+    recalculateAllGeodesics,
+    updateGeodesics,
+    removeGeodesic,
+    getGeodesics,
+    clearGeodesics,
+    cancelGeodesicPlacement
+} from './core/GeodesicManager.js';
+
+// Import du gestionnaire des horloges
+import { 
+    initializeClockManager, 
+    addClock, 
+    updateClocks, 
+    cancelClockPlacement 
+} from './core/ClockManager.js';
+
+// Import du gestionnaire des paramètres des géodésiques
+import { initializeGeodesicSettings } from './core/GeodesicSettingsManager.js';
+
 // Import des modules de rendu
 import {
     initializeGridRenderer,
@@ -253,10 +277,10 @@ function updateDebugInfo() {
     document.getElementById('spacecraftCount').textContent = spacecrafts.length;
     document.getElementById('laserCount').textContent = window.lasers ? window.lasers.length : 0;
     document.getElementById('geodesicCount').textContent = geodesics.length;
-    document.getElementById('clockCount').textContent = clocks.length;
+    document.getElementById('clockCount').textContent = AppContext.clocks.length;
     
     // Mettre à jour le temps de référence
-    document.getElementById('referenceTime').textContent = referenceClockTime.toFixed(2);
+    document.getElementById('referenceTime').textContent = AppContext.referenceClockTime.toFixed(2);
     
     // Afficher des informations sur les géodésiques
     if (geodesics.length > 0) {
@@ -307,8 +331,6 @@ function reset() {
     spacecrafts = AppContext.spacecrafts;
     window.lasers = AppContext.lasers;
     geodesics = AppContext.geodesics;
-    clocks = AppContext.clocks;
-    referenceClockTime = 0;
     
     // Réinitialiser les gestionnaires
     initializeVersionManager(masses, spacing, gridResolution);
@@ -316,6 +338,7 @@ function reset() {
     initializeBlackHoleManager();
     initializeSpacecraftManager();
     initializeLaserManager();
+    initializeGeodesicManager();
     cancelSpacecraftPlacement();
     cancelLaserPlacement();
     cancelGeodesicPlacement();
@@ -365,13 +388,13 @@ function animate() {
     spacecrafts = AppContext.spacecrafts;
     window.lasers = AppContext.lasers;
     geodesics = AppContext.geodesics;
-    clocks = AppContext.clocks;
     
     // Mettre à jour les références des modules de rendu
     updateMassReferences();
     updateBlackHoleReferences();
     updateSpacecraftManagerReferences();
     updateLaserManagerReferences();
+    updateGeodesicManagerReferences();
     updateMasses(masses);
     updateSpacecraftReferences(spacecrafts, isPlacingSpacecraft, spacecraftStartPoint, mousePosition);
     // Synchroniser lasers avec window.lasers
@@ -380,7 +403,7 @@ function animate() {
     updateVectorParameters(showVectors, forceScale, masses);
     updatePropagationParameters(propagationFronts, showPropagation, propagationSpeed);
     updateGeodesicReferences(geodesics, masses);
-    updateClockReferences(clocks, masses);
+    updateClockReferences();
     
     // Dessiner tout avec les modules de rendu
     drawGrid();
@@ -409,238 +432,24 @@ let lasers = []; // Référence locale vers window.lasers
 let geodesics = [];
 let isPlacingGeodesic = false;
 let geodesicStartPoint = null;
-let showGeodesicDebug = true; // Nouvelle variable pour afficher/masquer les infos de debug
-
-// Variables globales pour les horloges
-let referenceClockTime = 0; // Temps de l'horloge de référence (non affectée par la gravité)
-let clocks = []; // Array des horloges placées sur la grille
-let isPlacingClock = false;
-let isMovingClock = false;
-let selectedClock = null;
-
-// Paramètres réglables pour les géodésiques
-let geodesicSettings = {
-    explorationStep: 0.5, // Réduit de 1.0 à 0.5 pour plus de précision
-    curveStep: 10.0, // Augmenté de 5.0 à 10.0 pour une meilleure convergence
-    maxSteps: 10000, // Augmenté à 10000 pour permettre les courbes complexes
-    minGradientThreshold: 0.001,
-    stopGradientThreshold: 0.001,
-    minPoints: 3,
-    minDistanceBetweenPoints: 2.0,
-    maxAngle: 400, // Augmenté de 360 à 400 pour les courbes complexes
-    boundingBoxMultiplier: 3,
-    thicknessAmplification: 1.0 // Nouveau paramètre pour amplifier l'épaisseur
-};
-
-// Fonction pour calculer le gradient du potentiel gravitationnel
-function calculateGravitationalGradient(x, y, masses) {
-    let gradientX = 0;
-    let gradientY = 0;
-    
-    masses.forEach(mass => {
-        const dx = mass.x - x;
-        const dy = mass.y - y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        
-        if (distance > 0) {
-            // Gradient du potentiel gravitationnel ∇Φ = GM/r² * (r/r)
-            const gradientMagnitude = (G * mass.mass) / (distance * distance);
-            gradientX += (dx / distance) * gradientMagnitude;
-            gradientY += (dy / distance) * gradientMagnitude;
-        }
-    });
-    
-    return { x: gradientX, y: gradientY };
-}
 
 
 
-// Fonction pour ajouter une géodésique (courbe de niveau)
-function addGeodesic(startX, startY) {
-    // Vérifier d'abord si le champ gravitationnel est suffisamment fort
-    const gradient = calculateGravitationalGradient(startX, startY, masses);
-    const gradientMagnitude = Math.sqrt(gradient.x * gradient.x + gradient.y * gradient.y);
-    
-    if (gradientMagnitude < geodesicSettings.minGradientThreshold) {
-        console.log('Champ gravitationnel trop faible pour créer une géodésique');
-        return;
-    }
-    
-    const geodesic = {
-        startX: startX,
-        startY: startY,
-        points: [],
-        maxLength: geodesicSettings.maxSteps,
-        type: 'geodesic'
-    };
-    
-    // Calculer les points de la géodésique
-    calculateGeodesicPoints(geodesic);
-    
-    // Vérifier que la géodésique a une longueur suffisante
-    if (geodesic.points.length < geodesicSettings.minPoints) {
-        console.log('Géodésique trop courte, ignorée');
-        return;
-    }
-    
-    geodesics.push(geodesic);
-    console.log('Géodésique ajoutée:', geodesic);
-}
 
-// Fonction pour calculer les points d'une géodésique (perpendiculaire au gradient)
-function calculateGeodesicPoints(geodesic) {
-    geodesic.points = [];
-    
-    const explorationStep = geodesicSettings.explorationStep;
-    const curveStep = geodesicSettings.curveStep;
-    const maxSteps = geodesicSettings.maxSteps;
-    const maxAngle = geodesicSettings.maxAngle;
-    const boundingBoxMultiplier = geodesicSettings.boundingBoxMultiplier;
-    
-    let x = geodesic.startX;
-    let y = geodesic.startY;
-    let distanceTraveled = 0;
-    let lastCurvePoint = { x: x, y: y };
-    
-    // Calculer le centre de la bounding box étendue
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height / 2;
-    const maxDistance = Math.max(canvas.width, canvas.height) * boundingBoxMultiplier / 2;
-    
-    // Variables pour le suivi de l'angle
-    let totalAngle = 0;
-    let lastDirection = null;
-    
-    // Ajouter le point de départ
-    geodesic.points.push({ x: x, y: y });
-    
-    // Calculer dans une seule direction jusqu'à fermeture ou limite
-    for (let step = 0; step < maxSteps; step++) {
-        // Calculer le gradient à la position actuelle
-        const gradient = calculateGravitationalGradient(x, y, masses);
-        
-        // Si le gradient est trop faible, arrêter
-        const gradientMagnitude = Math.sqrt(gradient.x * gradient.x + gradient.y * gradient.y);
-        if (gradientMagnitude < geodesicSettings.stopGradientThreshold) {
-            break;
-        }
-        
-        // La géodésique est perpendiculaire au gradient
-        // Si gradient = (gx, gy), alors direction = (-gy, gx)
-        const geodesicDirX = -gradient.y;
-        const geodesicDirY = gradient.x;
-        
-        // Normaliser la direction
-        const directionVector = normalizeVector(geodesicDirX, geodesicDirY);
-        
-        // Calculer l'angle par rapport à la direction précédente
-        if (lastDirection) {
-            const dotProduct = lastDirection.x * directionVector.x + lastDirection.y * directionVector.y;
-            const crossProduct = lastDirection.x * directionVector.y - lastDirection.y * directionVector.x;
-            const angleChange = Math.atan2(crossProduct, dotProduct) * (180 / Math.PI);
-            totalAngle += angleChange; // Supprimer Math.abs() pour tenir compte du signe
-        }
-        lastDirection = { x: directionVector.x, y: directionVector.y };
-        
-        // Vérifier si on a fait un tour complet (en valeur absolue)
-        if (Math.abs(totalAngle) >= maxAngle) {
-            console.log(`Géodésique fermée après ${totalAngle.toFixed(1)}° (courbure ${totalAngle >= 0 ? 'positive' : 'négative'})`);
-            break;
-        }
-        
-        // Nouveau cas d'arrêt : si courbure > 360° et proche du point de départ
-        if (Math.abs(totalAngle) >= 360) {
-            const distanceToStart = Math.sqrt((x - geodesic.startX) * (x - geodesic.startX) + (y - geodesic.startY) * (y - geodesic.startY));
-            if (distanceToStart <= curveStep) {
-                console.log(`Géodésique fermée naturellement à ${totalAngle.toFixed(1)}° (distance au départ: ${distanceToStart.toFixed(1)})`);
-                break;
-            }
-        }
-        
-        // Avancer avec le pas d'exploration
-        x += directionVector.x * explorationStep;
-        y += directionVector.y * explorationStep;
-        
-        // Vérifier la bounding box étendue
-        const distanceFromCenter = Math.sqrt((x - centerX) * (x - centerX) + (y - centerY) * (y - centerY));
-        if (distanceFromCenter > maxDistance) {
-            console.log(`Géodésique arrêtée par bounding box (distance: ${distanceFromCenter.toFixed(1)})`);
-            break;
-        }
-        
-        // Calculer la distance parcourue depuis le dernier point de courbe
-        const dx = x - lastCurvePoint.x;
-        const dy = y - lastCurvePoint.y;
-        distanceTraveled += Math.sqrt(dx * dx + dy * dy);
-        
-        // Ajouter un point de courbe si on a parcouru assez de distance
-        if (distanceTraveled >= curveStep) {
-            geodesic.points.push({ x: x, y: y });
-            lastCurvePoint = { x: x, y: y };
-            distanceTraveled = 0;
-        }
-        
-        // Arrêter si trop proche d'une masse (singularité)
-        let tooClose = false;
-        masses.forEach(mass => {
-            const dx = mass.x - x;
-            const dy = mass.y - y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            if (distance < 15) {
-                tooClose = true;
-            }
-        });
-        if (tooClose) break;
-    }
-    
-    // Éviter les doublons et les points trop proches
-    geodesic.points = geodesic.points.filter((point, index) => {
-        if (index === 0) return true;
-        const prevPoint = geodesic.points[index - 1];
-        const dx = point.x - prevPoint.x;
-        const dy = point.y - prevPoint.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        return distance > geodesicSettings.minDistanceBetweenPoints;
-    });
-    
-    // Ajouter des informations sur la géodésique
-    geodesic.totalAngle = totalAngle;
-    geodesic.isClosed = Math.abs(totalAngle) >= maxAngle;
-    geodesic.steps = geodesic.points.length;
-}
 
-// Fonction pour recalculer toutes les géodésiques
-function recalculateAllGeodesics() {
-    geodesics.forEach(geodesic => {
-        calculateGeodesicPoints(geodesic);
-    });
-}
 
-// Fonction pour mettre à jour les géodésiques (maintenant statiques)
-function updateGeodesics(deltaTime) {
-    // Les géodésiques sont statiques, pas besoin de mise à jour continue
-    // Elles sont recalculées seulement quand les masses changent
-}
 
-// Fonction pour calculer la dilatation temporelle gravitationnelle
-function calculateGravitationalTimeDilation(x, y, masses) {
-    // Calculer le potentiel gravitationnel Φ = -GM/r
-    let potential = 0;
-    masses.forEach(mass => {
-        const dx = mass.x - x;
-        const dy = mass.y - y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        if (distance > 0) {
-            potential -= G * mass.mass / distance;
-        }
-    });
-    
-    // Dilatation temporelle : dt = dt₀ * √(1 + 2Φ/c²)
-    // Pour de faibles potentiels : dt ≈ dt₀ * (1 + Φ/c²)
-    const timeDilationFactor = 1 + potential / (c * c);
-    
-    return Math.max(0.1, timeDilationFactor); // Éviter les valeurs négatives
-}
+
+
+
+
+
+
+
+
+
+
+
 
 // Gestion des événements
 canvas.addEventListener('click', (e) => {
@@ -713,7 +522,7 @@ canvas.addEventListener('click', (e) => {
         addGeodesic(x, y);
     } else if (currentTool === 'clock') {
         // Vérifier si on clique sur une horloge existante pour la déplacer
-        const clickedClock = clocks.find(clock => {
+        const clickedClock = AppContext.clocks.find(clock => {
             const dx = x - clock.x;
             const dy = y - clock.y;
             return Math.sqrt(dx * dx + dy * dy) < 15; // Zone de clic
@@ -721,10 +530,10 @@ canvas.addEventListener('click', (e) => {
         
         if (clickedClock) {
             // Commencer le déplacement d'une horloge existante
-            isMovingClock = true;
-            selectedClock = clickedClock;
-            selectedClock.isSelected = true;
-            canvas.style.cursor = 'move';
+            AppContext.isMovingClock = true;
+            AppContext.selectedClock = clickedClock;
+            AppContext.selectedClock.isSelected = true;
+            AppContext.canvas.style.cursor = 'move';
             console.log('Déplacement d\'horloge commencé');
         } else {
             // Placer une nouvelle horloge
@@ -753,7 +562,7 @@ canvas.addEventListener('contextmenu', (e) => {
     } else if (currentTool === 'geodesic' && isPlacingGeodesic) {
         // Annuler le placement de géodésique
         cancelGeodesicPlacement();
-    } else if (currentTool === 'clock' && isMovingClock) {
+    } else if (currentTool === 'clock' && AppContext.isMovingClock) {
         // Annuler le déplacement d'horloge
         cancelClockPlacement();
     }
@@ -766,20 +575,20 @@ canvas.addEventListener('mousemove', (e) => {
     mousePosition.y = e.clientY - rect.top;
     
     // Gestion du déplacement d'horloge
-    if (isMovingClock && selectedClock) {
-        selectedClock.x = mousePosition.x;
-        selectedClock.y = mousePosition.y;
+    if (AppContext.isMovingClock && AppContext.selectedClock) {
+        AppContext.selectedClock.x = AppContext.mousePosition.x;
+        AppContext.selectedClock.y = AppContext.mousePosition.y;
         return;
     }
 });
 
 // Gestion de la fin du déplacement d'horloge
 canvas.addEventListener('mouseup', (e) => {
-    if (isMovingClock && selectedClock) {
-        isMovingClock = false;
-        selectedClock.isSelected = false;
-        selectedClock = null;
-        canvas.style.cursor = 'default';
+    if (AppContext.isMovingClock && AppContext.selectedClock) {
+        AppContext.isMovingClock = false;
+        AppContext.selectedClock.isSelected = false;
+        AppContext.selectedClock = null;
+        AppContext.canvas.style.cursor = 'default';
         console.log('Déplacement d\'horloge terminé');
     }
 });
@@ -792,7 +601,7 @@ document.addEventListener('keydown', (e) => {
         cancelLaserPlacement();
     } else if (e.key === 'Escape' && isPlacingGeodesic) {
         cancelGeodesicPlacement();
-    } else if (e.key === 'Escape' && isMovingClock) {
+    } else if (e.key === 'Escape' && AppContext.isMovingClock) {
         cancelClockPlacement();
     }
 });
@@ -809,11 +618,7 @@ function cancelLaserPlacement() {
     canvas.style.cursor = 'default';
 }
 
-function cancelGeodesicPlacement() {
-    geodesicStartPoint = null;
-    isPlacingGeodesic = false;
-    canvas.style.cursor = 'default';
-}
+
 
 // Gestion de la palette d'outils
 document.querySelectorAll('input[name="tool"]').forEach(radio => {
@@ -883,70 +688,20 @@ document.getElementById('showPropagationToggle').addEventListener('change', (e) 
     showPropagation = e.target.checked;
 });
 
-// Gestion des réglages des géodésiques
-function initializeGeodesicSettings() {
-    // Mettre à jour les valeurs affichées
-    function updateDisplayValue(id, value) {
-        const element = document.getElementById(id + 'Value');
-        if (element) {
-            element.textContent = value;
-        }
-    }
-    
-    // Gestionnaires pour les sliders
-    const settings = [
-        'explorationStep', 'curveStep', 'maxSteps', 
-        'minGradientThreshold', 'stopGradientThreshold', 
-        'minPoints', 'minDistanceBetweenPoints', 'maxAngle', 
-        'boundingBoxMultiplier', 'thicknessAmplification'
-    ];
-    
-    settings.forEach(setting => {
-        const element = document.getElementById(setting);
-        if (element) {
-            // Initialiser l'affichage
-            updateDisplayValue(setting, geodesicSettings[setting]);
-            
-            element.addEventListener('input', (e) => {
-                geodesicSettings[setting] = parseFloat(e.target.value);
-                updateDisplayValue(setting, e.target.value);
-            });
-        }
-    });
-    
-    // Gestionnaire pour le toggle des infos de debug
-    const debugToggle = document.getElementById('showGeodesicDebugToggle');
-    if (debugToggle) {
-        debugToggle.addEventListener('change', (e) => {
-            showGeodesicDebug = e.target.checked;
-        });
-    }
-    
-    // Bouton de recalcul
-    const recalcButton = document.getElementById('recalculateGeodesics');
-    if (recalcButton) {
-        recalcButton.addEventListener('click', () => {
-            recalculateAllGeodesics();
-            console.log('Toutes les géodésiques recalculées avec les nouveaux paramètres');
-        });
-    }
-    
-    // Bouton d'effacement
-    const clearButton = document.getElementById('clearGeodesics');
-    if (clearButton) {
-        clearButton.addEventListener('click', () => {
-            geodesics = [];
-            console.log('Toutes les géodésiques effacées');
-        });
-    }
-}
 
-// Initialiser les réglages au chargement
-document.addEventListener('DOMContentLoaded', () => {
-    initializeGeodesicSettings();
-});
 
-// Initialisation du contexte global
+
+
+// Initialisation
+initializeVersionManager(masses, spacing, gridResolution);
+initializeMassManager();
+initializeBlackHoleManager();
+    initializeSpacecraftManager();
+    initializeLaserManager();
+    initializeGeodesicManager();
+    initializeClockManager();
+
+// Initialisation du contexte global (après les modules)
 initializeAppContext(canvas, ctx, updateDebugInfo, recalculateAllGeodesics, getGridVersionIndex, getGridVersions, getMassesForVersion);
 
 // Synchroniser les variables locales avec le contexte global
@@ -955,14 +710,6 @@ propagationFronts = AppContext.propagationFronts;
 spacecrafts = AppContext.spacecrafts;
 window.lasers = AppContext.lasers;
 geodesics = AppContext.geodesics;
-clocks = AppContext.clocks;
-
-// Initialisation
-initializeVersionManager(masses, spacing, gridResolution);
-initializeMassManager();
-initializeBlackHoleManager();
-    initializeSpacecraftManager();
-    initializeLaserManager();
 
 // Initialiser les modules de rendu immédiatement
 initializeGridRenderer(ctx, canvas, spacing, showGrid);
@@ -971,8 +718,8 @@ initializeSpacecraftRenderer(ctx, canvas, spacecrafts, isPlacingSpacecraft, spac
     initializeLaserRenderer(ctx, window.lasers || [], isPlacingLaser, laserStartPoint, mousePosition, getGridVersionIndex, getGridVersions, getMassesForVersion, calculateGravitationalRedshift, redshiftToColor, masses);
 initializeVectorRenderer(ctx, canvas, spacing, showVectors, forceScale, masses, getGridVersionIndex, getGridVersions, getMassesForVersion);
 initializePropagationRenderer(ctx, canvas, propagationFronts, showPropagation, propagationSpeed, updateGridVersionsForFront);
-initializeGeodesicRenderer(ctx, geodesics, masses);
-    initializeClockRenderer(ctx, clocks, getGridVersionIndex, getGridVersions, getMassesForVersion, calculateGravitationalTimeDilation, masses);
+    initializeGeodesicRenderer();
+    initializeClockRenderer();
 
 // Initialiser les paramètres et démarrer l'animation
 document.addEventListener('DOMContentLoaded', () => {
@@ -981,53 +728,5 @@ document.addEventListener('DOMContentLoaded', () => {
     animate();
 }); 
 
-// Fonction pour ajouter une horloge
-function addClock(x, y) {
-    const clock = {
-        x: x,
-        y: y,
-        referenceTime: referenceClockTime, // Temps de référence au moment de la création
-        localTime: referenceClockTime, // Temps local (sera mis à jour)
-        isSelected: false
-    };
-    
-    clocks.push(clock);
-    console.log(`Horloge ajoutée à (${x}, ${y}), temps de référence: ${referenceClockTime.toFixed(2)}s`);
-}
 
-// Fonction pour mettre à jour les horloges
-function updateClocks(deltaTime) {
-    // Mettre à jour le temps de référence
-    referenceClockTime += deltaTime;
-    
-    // Mettre à jour chaque horloge
-    clocks.forEach(clock => {
-        // Obtenir les masses à la position de l'horloge (avec propagation causale)
-        const { gridX, gridY } = getGridVersionIndex(clock.x, clock.y);
-        const gridVersions = getGridVersions();
-        const pointVersion = gridVersions[gridX] && gridVersions[gridX][gridY] !== undefined 
-            ? gridVersions[gridX][gridY] : 0;
-        const versionMasses = getMassesForVersion(pointVersion, masses);
-        
-        // Calculer la dilatation temporelle
-        const timeDilationFactor = calculateGravitationalTimeDilation(clock.x, clock.y, versionMasses);
-        
-        // Mettre à jour le temps local
-        clock.localTime += deltaTime * timeDilationFactor;
-    });
-}
-
-
-
-
-
-function cancelClockPlacement() {
-    isPlacingClock = false;
-    isMovingClock = false;
-    if (selectedClock) {
-        selectedClock.isSelected = false;
-        selectedClock = null;
-    }
-    canvas.style.cursor = 'default';
-}
 
